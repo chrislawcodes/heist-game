@@ -109,8 +109,7 @@ def _bid_prompt(strategy: str) -> str:
         '{\n'
         '  "casting_strategy": "one-sentence strategy in your own words",\n'
         '  "bids": [\n'
-        '    {"character_id": <int>, "bid": <int>=floor, "priority": <int 1=highest>, '
-        '"rationale": "<why>"}\n'
+        '    {"character_id": <int>, "bid": <int>=floor, "rationale": "<why>"}\n'
         '  ],\n'
         '  "reasoning": "<why this overall composition fits the prompt>"\n'
         "}\n"

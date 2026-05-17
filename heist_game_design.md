@@ -379,11 +379,79 @@ Does the core loop — write strategy, Heist AI handles everything, watch heist 
 
 **Goal:** Validate the blind-bid draft with real contention.
 
-- 3-5 human players
-- Shared roster — each character on one crew per game
+- 2-5 human players (2-player is the launching configuration)
+- Shared roster — each character on at most one crew per game
 - Bids contested
 - Casting reveal shows the contests
 - Heists run in parallel; scores compared
+
+### Phase 2 bid resolution
+
+The auction runs in **two blind rounds plus a random fill**, all using the same
+$2000-per-player bankroll as Phase 1. Only **winning** bids cost money; losing
+bids are fully refunded so the loser can bid again in round 2 with their full
+remaining budget.
+
+**Round 1 (blind submission, parallel):**
+
+Each player's Heist AI submits a bid list `[{character_id, bid, rationale}]`
+where each bid ≥ that character's floor cost and the per-player total ≤ $2000.
+A player may bid on at most `crew_size - already_won` characters in any round
+(in round 1 this is 4).
+
+**Round 1 resolution:**
+- For each character anyone bid on, find the highest bid amount.
+- If a **single** player bid that highest amount, that player wins the
+  character. The bid amount is deducted from their bankroll. The character
+  enters their crew.
+- If **two or more** players are tied at the highest amount, **no one** gets
+  the character. The character remains in the pool. No money is deducted from
+  any tying player.
+- All non-winning bids (including ties) are refunded — money stays in the
+  bidder's bankroll for round 2.
+
+**Round 2 (blind submission, parallel):**
+
+Any player with fewer than `crew_size` crew enters round 2. Each AI sees:
+- Round 1's complete outcome (whose crew is what)
+- The unwon characters available
+- Their own crew so far and their own remaining bankroll
+- Their own original strategy prompt
+
+The AI does **not** see other players' losing bid amounts from round 1 — those
+stay sealed.
+
+**Round 2 resolution** is identical to round 1. Ties in round 2 mean the
+character is **gone from contention for the rest of the game** — it does not
+fall through to the random fill phase.
+
+**Random fill phase:**
+
+After round 2, any player still short of `crew_size` crew with budget remaining
+gets filled by uniform random selection from characters they can still afford
+(unbid + un-won in both rounds, excluding round-2 tied characters). The system
+draws until the crew is full or no affordable character remains. This step does
+**not** consult the Heist AI — it adds deliberate chaos to the tail of a
+contested draft.
+
+**Edge cases:**
+- Player wins enough in round 1 to fill all 4 slots → skip round 2 entirely.
+- Player won nothing in round 1 → enters round 2 with full $2000 budget.
+- Tied character in round 1 is bid-able again in round 2.
+- Same character tied in both rounds → removed from contention permanently.
+- Player still short of `crew_size` after random fill (no affordable chars
+  remain) → run the heist with fewer than 4 crew. Smaller crew = more gaps.
+
+**Why no `priority` field in bids:** earlier drafts kept a priority field for
+tie-breaking; the refundable-loser + neither-wins-on-tie rules above remove its
+job. Bid order is now decided by amount alone, so the schema drops the field.
+
+### Phase 2 algorithmic core lives in `heist/auction.py`
+
+The auction is intentionally a pure-Python module that the runner calls. It
+takes `list[PlayerBid]` and returns a `RoundResult`; it does not know anything
+about AIs, sessions, or markdown. This makes it exhaustively unit-testable
+and lets Phase 2's runner orchestrate the AI dance separately.
 
 ---
 

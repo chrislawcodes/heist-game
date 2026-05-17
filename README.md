@@ -52,7 +52,7 @@ Here's what I chose:
 | **Failure cascade** | Any challenge whose effective level is HARD is "core". **Fail core → ABORT.** Fail supporting / hidden-depth → heat += 1. Fail bonus pursuit → no bonus, no scaling penalty. Fail escape → reward = 0. |
 | **Escape difficulty** | `difficulty = job.escape_modifier + heat`. Best Driver skill (no Driver = treated as Low) `>= difficulty` → success. |
 | **Output format** | Markdown: `# Heist Report` → `## Strategy` → `## Casting` (incl. crew list + cost + job choice) → `## Heist` (one `### Scene N — title` per scene with italic personnel/reasoning/outcome meta block then prose) → `## Epilogue` → `## Outcome` (take, abort, escape, bonus, hidden depth, reward roll). |
-| **Bid format** | JSON: `{ casting_strategy, bids: [{ character_id, bid, priority, rationale }], reasoning }`. Priority is captured even though Phase 1 has no contention — useful for Phase 2. All other AI calls also return JSON; the runner parses defensively (strips chatter, finds first `{`). |
+| **Bid format** | JSON: `{ casting_strategy, bids: [{ character_id, bid, rationale }], reasoning }`. Bids ≥ floor, total ≤ $2000. (Earlier iterations had a `priority` field; removed once Phase 2's bid-resolution rules made it unnecessary — see [Phase 2 in the design doc](heist_game_design.md).) All other AI calls also return JSON; the runner parses defensively (strips chatter, finds first `{`). |
 | **Heist AI backend** | Default = the codex/gemini wrappers in `agents.py` (subscription billing, no API spend). Iteration 1 uses a stub; iteration 3 wires up real calls with session resume for conversational continuity across all roles. |
 
 ### Known design-doc inconsistencies

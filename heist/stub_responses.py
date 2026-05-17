@@ -33,8 +33,8 @@ _JOB_BIDS: dict[str, list[tuple[int, int, str]]] = {
 
 def _bid_response(job_name: str) -> str:
     bids = [
-        {"character_id": cid, "bid": amt, "priority": i + 1, "rationale": why}
-        for i, (cid, amt, why) in enumerate(_JOB_BIDS[job_name])
+        {"character_id": cid, "bid": amt, "rationale": why}
+        for (cid, amt, why) in _JOB_BIDS[job_name]
     ]
     return json.dumps({
         "casting_strategy": f"Crew built for {job_name}.",
