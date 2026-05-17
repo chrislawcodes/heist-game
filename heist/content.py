@@ -222,7 +222,219 @@ SERVER_FARM = Job(
     ],
 )
 
-JOBS: list[Job] = [MUSEUM, ARMORED_CAR, SERVER_FARM]
+PENTHOUSE = Job(
+    name="The Penthouse Caper",
+    flavor="[placeholder flavor — iteration 4]",
+    reward_range=(400_000, 1_200_000),
+    profile={
+        "electronic": ChallengeLevel.MEDIUM,
+        "physical": ChallengeLevel.MEDIUM,
+        "confrontation": ChallengeLevel.NONE,
+        "social": ChallengeLevel.LOW,
+    },
+    escape_modifier=0,
+    hidden_depth=[
+        HiddenDepthElement(
+            "penthouse_cleaning_crew",
+            "Cleaning service mid-shift in the building.",
+            "complication",
+            {"modifies": [("social", ChallengeLevel.MEDIUM)]},
+        ),
+        HiddenDepthElement(
+            "penthouse_smart_home",
+            "Smart-home AI assistant is active and recording.",
+            "complication",
+            {"modifies": [("electronic", ChallengeLevel.HARD)]},
+        ),
+        HiddenDepthElement(
+            "penthouse_hidden_picasso",
+            "Bedroom safe holds a Picasso study in addition to the main room art.",
+            "bonus_with_cost",
+            {"bonus_amount_range": (300_000, 700_000),
+             "bonus_challenge": ("safecracker", ChallengeLevel.MEDIUM)},
+        ),
+        HiddenDepthElement(
+            "penthouse_roommate",
+            "The owner's brother is crashing for the week — a sleepy civilian.",
+            "complication",
+            {"adds": [("confrontation", ChallengeLevel.LOW)]},
+        ),
+        HiddenDepthElement(
+            "penthouse_wifi_backdoor",
+            "Someone else has already breached the home wifi — an exploitable backdoor.",
+            "opportunity_with_cost",
+            {"modifies": [("electronic", ChallengeLevel.LOW)],
+             "adds": [("social", ChallengeLevel.LOW)]},
+        ),
+    ],
+    reward_amounts=[
+        ("Cash + watches", 450_000),
+        ("Art + safe", 850_000),
+        ("Everything incl. crypto wallet", 1_150_000),
+    ],
+)
+
+CARGO_YARD = Job(
+    name="The Cargo Yard",
+    flavor="[placeholder flavor — iteration 4]",
+    reward_range=(1_200_000, 3_000_000),
+    profile={
+        "electronic": ChallengeLevel.LOW,
+        "physical": ChallengeLevel.HARD,
+        "confrontation": ChallengeLevel.MEDIUM,
+        "social": ChallengeLevel.NONE,
+    },
+    escape_modifier=0,
+    hidden_depth=[
+        HiddenDepthElement(
+            "cargo_customs_inspector",
+            "Customs inspector doing late-night inventory in the yard.",
+            "complication",
+            {"adds": [("social", ChallengeLevel.MEDIUM)]},
+        ),
+        HiddenDepthElement(
+            "cargo_buried_container",
+            "Target container is buried under three others — needs the dock crane.",
+            "complication",
+            {"adds": [("physical", ChallengeLevel.MEDIUM)]},
+        ),
+        HiddenDepthElement(
+            "cargo_sister_container",
+            "An identical container nearby holds the same goods — second score available.",
+            "bonus_with_cost",
+            {"bonus_amount_range": (400_000, 1_000_000),
+             "bonus_challenge": ("safecracker", ChallengeLevel.MEDIUM)},
+        ),
+        HiddenDepthElement(
+            "cargo_sleeping_watchman",
+            "One of the two watchmen is asleep; the other is jumpy and looking for company.",
+            "opportunity_with_cost",
+            {"modifies": [("confrontation", ChallengeLevel.LOW)],
+             "adds": [("social", ChallengeLevel.MEDIUM)]},
+        ),
+        HiddenDepthElement(
+            "cargo_hidden_jewels",
+            "The manifest lies — the real cargo is jewels hidden in the container walls.",
+            "opportunity_with_cost",
+            {"adds": [("physical", ChallengeLevel.MEDIUM)]},
+        ),
+    ],
+    reward_amounts=[
+        ("Authenticated icons", 1_800_000),
+        ("Counterfeits + small score", 1_300_000),
+        ("Hidden jewels", 2_800_000),
+    ],
+)
+
+DIPLOMATIC_RECEPTION = Job(
+    name="The Diplomatic Reception",
+    flavor="[placeholder flavor — iteration 4]",
+    reward_range=(1_500_000, 4_000_000),
+    profile={
+        "electronic": ChallengeLevel.LOW,
+        "physical": ChallengeLevel.MEDIUM,
+        "confrontation": ChallengeLevel.LOW,
+        "social": ChallengeLevel.HARD,
+    },
+    escape_modifier=0,
+    hidden_depth=[
+        HiddenDepthElement(
+            "diplomatic_dummy_diamond",
+            "The public diamond is paste — the real Romanov is in the ambassador's office safe.",
+            "opportunity_with_cost",
+            {"modifies": [("physical", ChallengeLevel.HARD)]},
+        ),
+        HiddenDepthElement(
+            "diplomatic_plainclothes_agent",
+            "A plainclothes intelligence agent is working the room.",
+            "complication",
+            {"adds": [("confrontation", ChallengeLevel.MEDIUM)]},
+        ),
+        HiddenDepthElement(
+            "diplomatic_speech_window",
+            "Ambassador delivers a 20-minute farewell speech — everyone's distracted.",
+            "opportunity_with_cost",
+            {"modifies": [("social", ChallengeLevel.MEDIUM)],
+             "adds": [("electronic", ChallengeLevel.MEDIUM)]},
+        ),
+        HiddenDepthElement(
+            "diplomatic_classified_docs",
+            "Briefing folder on the ambassador's desk could be lifted alongside the diamond.",
+            "bonus_with_cost",
+            {"bonus_amount_range": (600_000, 1_500_000),
+             "bonus_challenge": ("inside_man", ChallengeLevel.MEDIUM)},
+        ),
+        HiddenDepthElement(
+            "diplomatic_press_photographer",
+            "Photojournalist with a press pass keeps positioning near the target.",
+            "complication",
+            {"adds": [("social", ChallengeLevel.MEDIUM)]},
+        ),
+    ],
+    reward_amounts=[
+        ("Public-diamond replica", 1_700_000),
+        ("Authentic Romanov", 3_200_000),
+        ("Romanov + classified docs", 3_800_000),
+    ],
+)
+
+CASINO_VAULT = Job(
+    name="The Casino Vault",
+    flavor="[placeholder flavor — iteration 4]",
+    reward_range=(5_000_000, 12_000_000),
+    profile={
+        "electronic": ChallengeLevel.HARD,
+        "physical": ChallengeLevel.HARD,
+        "confrontation": ChallengeLevel.MEDIUM,
+        "social": ChallengeLevel.MEDIUM,
+    },
+    escape_modifier=0,
+    hidden_depth=[
+        HiddenDepthElement(
+            "casino_floor_distraction",
+            "High-roller and the pit boss have a public altercation — the floor is distracted.",
+            "opportunity_with_cost",
+            {"modifies": [("social", ChallengeLevel.LOW),
+                          ("confrontation", ChallengeLevel.HARD)]},
+        ),
+        HiddenDepthElement(
+            "casino_external_auditor",
+            "External auditor working inside the vault during the hit.",
+            "complication",
+            {"adds": [("social", ChallengeLevel.MEDIUM)]},
+        ),
+        HiddenDepthElement(
+            "casino_biometric_glitch",
+            "Backup biometric scanner is offline — short window before the on-call tech arrives.",
+            "opportunity_with_cost",
+            {"modifies": [("electronic", ChallengeLevel.MEDIUM)],
+             "adds": [("physical", ChallengeLevel.MEDIUM)]},
+        ),
+        HiddenDepthElement(
+            "casino_whale_suite_safe",
+            "The Macau whale's penthouse suite safe holds his private stake.",
+            "bonus_with_cost",
+            {"bonus_amount_range": (3_000_000, 6_000_000),
+             "bonus_challenge": ("safecracker", ChallengeLevel.HARD)},
+        ),
+        HiddenDepthElement(
+            "casino_security_chief",
+            "Head of security is roaming on a hair-trigger — ex-IDF, not a man to bluff.",
+            "complication",
+            {"modifies": [("confrontation", ChallengeLevel.HARD)]},
+        ),
+    ],
+    reward_amounts=[
+        ("Standard float", 7_000_000),
+        ("High-roller weekend take", 10_500_000),
+        ("Float + chip reserves", 12_000_000),
+    ],
+)
+
+JOBS: list[Job] = [
+    MUSEUM, ARMORED_CAR, SERVER_FARM,
+    PENTHOUSE, CARGO_YARD, DIPLOMATIC_RECEPTION, CASINO_VAULT,
+]
 JOBS_BY_NAME: dict[str, Job] = {j.name: j for j in JOBS}
 
 BANKROLL = 2000

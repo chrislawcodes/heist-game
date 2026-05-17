@@ -37,6 +37,10 @@ def test_markdown_renders_without_error():
     "The Museum Gala",
     "The Armored Car",
     "The Corporate Server Farm",
+    "The Penthouse Caper",
+    "The Cargo Yard",
+    "The Diplomatic Reception",
+    "The Casino Vault",
 ])
 def test_every_job_runs_cleanly_with_stub(job_name):
     """All three jobs must execute end-to-end without runtime errors. The

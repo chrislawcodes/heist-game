@@ -28,6 +28,30 @@ _JOB_BIDS: dict[str, list[tuple[int, int, str]]] = {
         (11, 400, "Safecracker M for the server-room lock."),
         (6, 200, "Muscle L + Driver L support."),
     ],
+    "The Penthouse Caper": [
+        (2, 200, "Hacker M for the smart home."),
+        (11, 400, "Safecracker M + Hacker L for the wall safe."),
+        (8, 200, "Inside Man M for the lobby."),
+        (13, 700, "High driver for the exit."),
+    ],
+    "The Cargo Yard": [
+        (10, 700, "High safecracker for the container locks."),
+        (5, 400, "Muscle M + Driver L for the watchmen."),
+        (13, 700, "High driver."),
+        (2, 200, "Hacker M support."),
+    ],
+    "The Diplomatic Reception": [
+        (8, 200, "Inside Man M; half of the social collaboration."),
+        (9, 400, "Inside Man M + Muscle L; other half."),
+        (14, 400, "Driver M + Inside Man L."),
+        (10, 700, "Safecracker H if we pursue the real Romanov."),
+    ],
+    "The Casino Vault": [
+        (2, 200, "Hacker M; half of the electronic collaboration."),
+        (12, 200, "Safecracker L + Hacker L; the other half of hacker collab."),
+        (10, 700, "Safecracker H for the vault."),
+        (8, 200, "Inside Man M for the floor."),
+    ],
 }
 
 

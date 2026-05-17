@@ -42,10 +42,18 @@ def test_each_primary_skill_has_three_specialists():
         assert primaries.get(skill, 0) == 3, f"{skill}: {primaries.get(skill, 0)} primaries"
 
 
-def test_three_jobs_present():
-    assert len(JOBS) == 3
+def test_seven_jobs_present():
+    assert len(JOBS) == 7
     names = {j.name for j in JOBS}
-    assert names == {"The Museum Gala", "The Armored Car", "The Corporate Server Farm"}
+    assert names == {
+        "The Museum Gala",
+        "The Armored Car",
+        "The Corporate Server Farm",
+        "The Penthouse Caper",
+        "The Cargo Yard",
+        "The Diplomatic Reception",
+        "The Casino Vault",
+    }
 
 
 def test_each_job_has_hidden_depth_and_rewards():
@@ -58,11 +66,18 @@ def test_each_job_has_hidden_depth_and_rewards():
             )
 
 
-def test_each_job_has_at_least_one_hard_challenge():
+def test_job_slate_has_difficulty_spread():
+    """The slate must include at least one job with no Hards (easy entry),
+    and at least one with two or more Hards (premium). This is what makes
+    'pick the job whose profile fits the crew' a real strategic question."""
     from heist.state import ChallengeLevel
-    for j in JOBS:
-        hards = [k for k, v in j.profile.items() if v == ChallengeLevel.HARD]
-        assert hards, f"{j.name} has no Hard challenge"
+
+    def hard_count(j):
+        return sum(1 for v in j.profile.values() if v == ChallengeLevel.HARD)
+
+    counts = [hard_count(j) for j in JOBS]
+    assert 0 in counts, "no easy (zero-Hard) job in slate"
+    assert any(c >= 2 for c in counts), "no premium (≥2 Hards) job in slate"
 
 
 # Note: the design doc's "Inside Man has no Low option — premium skill" comment
