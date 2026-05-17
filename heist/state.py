@@ -92,6 +92,14 @@ class SceneResult:
     decision: dict | None = None
 
 
+@dataclass(frozen=True)
+class TurnLog:
+    """One AI call's wall-clock cost. Logged per round so the player can see
+    where the heist's runtime went."""
+    label: str
+    seconds: float
+
+
 @dataclass
 class HeistState:
     crew: Crew

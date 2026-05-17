@@ -62,6 +62,20 @@ def render_markdown(state: HeistState, extras: dict) -> str:
         f"(${state.hidden_depth.reward_amount:,})"
     )
 
+    turn_logs = extras.get("turn_logs") or []
+    if turn_logs:
+        out.append("")
+        out.append("## Timing")
+        out.append("")
+        out.append("| Round | Seconds |")
+        out.append("|---|---:|")
+        for t in turn_logs:
+            out.append(f"| {t.label} | {t.seconds:.1f} |")
+        ai_total = sum(t.seconds for t in turn_logs)
+        out.append(f"| **AI total** | **{ai_total:.1f}** |")
+        if "total_seconds" in extras:
+            out.append(f"| **Wall clock** | **{extras['total_seconds']:.1f}** |")
+
     return "\n".join(out) + "\n"
 
 

@@ -16,10 +16,12 @@ The AI talks in JSON for structured steps; the runner parses defensively.
 from __future__ import annotations
 
 import random
+import sys
+import time
 from collections.abc import Callable
 from typing import Any
 
-from heist.ai import HeistAI, parse_json_block
+from heist.ai import AgentTurn, HeistAI, parse_json_block
 from heist.content import BANKROLL, JOBS, JOBS_BY_NAME, ROSTER, ROSTER_BY_ID
 from heist.mechanics import (
     effective_skill,
@@ -35,9 +37,20 @@ from heist.state import (
     Scene,
     SceneResult,
     SkillLevel,
+    TurnLog,
 )
 
 SceneCallback = Callable[[SceneResult], None]
+
+
+def _call(ai: HeistAI, prompt: str, label: str, logs: list[TurnLog]) -> AgentTurn:
+    """Time one AI call, log it, echo to stderr."""
+    t0 = time.monotonic()
+    turn = ai.ask(prompt)
+    elapsed = time.monotonic() - t0
+    logs.append(TurnLog(label=label, seconds=elapsed))
+    print(f"  [round {label}: {elapsed:.1f}s]", file=sys.stderr)
+    return turn
 
 
 def _roster_summary() -> str:
@@ -59,11 +72,37 @@ def _job_slate_summary() -> str:
     return "\n".join(lines)
 
 
+_TRADECRAFT = """\
+What you know about this work:
+
+  • Every job is a profile of four challenge types — Electronic (cameras,
+    networks, electronic locks), Physical (vaults, safes, structural),
+    Confrontation (guards, armed response), and Social (blending in, talking
+    your way through). Each one rates None, Low, Medium, or Hard.
+
+  • Crew members have skill ratings in those areas — Low, Medium, or High.
+    A specialist hits their level. A Hard challenge needs a High to clear
+    alone, no exceptions.
+
+  • Two crew members with skill in the same area work above the sum of their
+    parts: pair them and you act at one level higher than the higher one,
+    capped at High. Two Mediums together hit High. Two Lows together hit
+    Medium. This is the move that makes a tight budget work — and it's how
+    you cover a Hard area without paying for a $1,100 High specialist.
+
+  • The exit always matters. A High Driver covers any escape; no driver
+    means running on foot, and that limits which jobs you'll survive.
+
+  • A Hard challenge with no High coverage and no two Mediums to pair on it
+    is a walk into a wall. Plan around them or don't take the job."""
+
+
 def _bid_prompt(strategy: str) -> str:
     return (
         "You are the Heist AI. You will play every creative role for a single heist: "
         "drafting the crew, picking the job, assigning crew to scenes, deciding at "
         "decision points, and narrating each scene in character. Stay in this role.\n\n"
+        f"{_TRADECRAFT}\n\n"
         f"Player's strategy prompt:\n---\n{strategy}\n---\n\n"
         f"Bankroll: ${BANKROLL}. Roster (15 characters):\n{_roster_summary()}\n\n"
         "Draft your crew. Reply with ONLY a JSON object (no prose around it) of shape:\n"
@@ -102,7 +141,10 @@ def _job_prompt(crew: Crew) -> str:
         f"Crew assembled (spent ${crew.total_cost}/{BANKROLL}):\n"
         + "\n".join(crew_lines)
         + f"\n\nJob slate:\n{_job_slate_summary()}\n\n"
-        "Pick the job this crew should attempt. Reply with ONLY JSON:\n"
+        "Pick the job this crew should attempt. Before you commit: for every Hard "
+        "challenge in the job's profile, confirm the crew has either a High specialist "
+        "in that area OR two Mediums who can pair on it. If neither, that job is a "
+        "trap — pick a different one. Reply with ONLY JSON:\n"
         '{"job_name": "<exact name>", "reasoning": "<why this job, given the crew and prompt>"}'
     )
 
@@ -132,7 +174,9 @@ def _scene_assign_prompt(scene: Scene, state: HeistState) -> str:
         + challenge_desc
         + (f"  Context: {scene.context}\n" if scene.context else "")
         + "\nCrew on this job:\n" + "\n".join(crew_lines)
-        + "\n\nAssign one or more crew members to handle this scene. "
+        + "\n\nAssign one or more crew members to handle this scene. If a second "
+        "crew member can support — same skill area as the challenge — send them too; "
+        "pairs act one level higher than the better specialist. "
         "Reply with ONLY JSON:\n"
         '{"assigned_member_ids": [<int>, ...], "reasoning": "<why these people>"}'
     )
@@ -192,12 +236,14 @@ def _validate_bids(parsed: dict) -> list[tuple[Character, int]]:
 
 
 def _fill_crew(
-    ai: HeistAI, crew_so_far: list[Character]
+    ai: HeistAI, crew_so_far: list[Character], logs: list[TurnLog]
 ) -> list[Character]:
+    fill_attempt = 0
     while len(crew_so_far) < 4:
+        fill_attempt += 1
         remaining = 4 - len(crew_so_far)
         prompt = _fill_prompt(crew_so_far, remaining)
-        turn = ai.ask(prompt)
+        turn = _call(ai, prompt, f"fill_{fill_attempt}", logs)
         parsed = parse_json_block(turn.text)
         added_any = False
         spent = sum(c.floor_cost for c in crew_so_far)
@@ -251,25 +297,28 @@ def run_heist(
     """Run one full heist end-to-end. Returns (final_state, extras)
     where extras carries the casting summary, scene narrations, and epilogue."""
     rng = rng or random.Random()
+    logs: list[TurnLog] = []
     extras: dict[str, Any] = {
         "strategy": strategy,
         "bid_logic": None,
         "casting_summary": "",
         "scene_narrations": [],  # filled per scene
         "epilogue": "",
+        "turn_logs": logs,
     }
+    heist_start = time.monotonic()
 
     # 1. Draft
-    bid_turn = ai.ask(_bid_prompt(strategy))
+    bid_turn = _call(ai, _bid_prompt(strategy), "bid", logs)
     bid_parsed = parse_json_block(bid_turn.text)
     extras["bid_logic"] = bid_parsed
     bids = _validate_bids(bid_parsed)
     crew_members = [c for c, _ in bids]
-    crew_members = _fill_crew(ai, crew_members)
+    crew_members = _fill_crew(ai, crew_members, logs)
     crew = Crew(members=crew_members)
 
     # 2. Job selection
-    job_turn = ai.ask(_job_prompt(crew))
+    job_turn = _call(ai, _job_prompt(crew), "job_pick", logs)
     job_parsed = parse_json_block(job_turn.text)
     name = job_parsed["job_name"]
     if name not in JOBS_BY_NAME:
@@ -283,7 +332,7 @@ def run_heist(
         )
 
     # 3. Casting summary
-    summary_turn = ai.ask(_summary_prompt())
+    summary_turn = _call(ai, _summary_prompt(), "casting_summary", logs)
     extras["casting_summary"] = parse_json_block(summary_turn.text).get("summary", "")
 
     # 4. Hidden depth roll
@@ -302,7 +351,7 @@ def run_heist(
         if state.aborted and scene.type != "escape":
             # Skip remaining body scenes once aborted; still narrate the escape (failed).
             continue
-        result = _execute_scene(scene, state, ai)
+        result = _execute_scene(scene, state, ai, logs)
         state.scene_results.append(result)
         extras["scene_narrations"].append(result)
         if on_scene is not None:
@@ -312,17 +361,30 @@ def run_heist(
     _finalize_reward(state)
 
     # 7. Epilogue
-    ep_turn = ai.ask(_epilogue_prompt(state))
+    ep_turn = _call(ai, _epilogue_prompt(state), "epilogue", logs)
     extras["epilogue"] = parse_json_block(ep_turn.text).get("epilogue", "")
+
+    total = time.monotonic() - heist_start
+    extras["total_seconds"] = total
+    print(
+        f"\n[heist complete: {len(logs)} rounds, "
+        f"{sum(t.seconds for t in logs):.1f}s in AI calls, "
+        f"{total:.1f}s wall clock]",
+        file=sys.stderr,
+    )
 
     return state, extras
 
 
-def _execute_scene(scene: Scene, state: HeistState, ai: HeistAI) -> SceneResult:
+def _execute_scene(
+    scene: Scene, state: HeistState, ai: HeistAI, logs: list[TurnLog]
+) -> SceneResult:
     if scene.type == "escape":
-        return _execute_escape(scene, state, ai)
+        return _execute_escape(scene, state, ai, logs)
 
-    assign_turn = ai.ask(_scene_assign_prompt(scene, state))
+    assign_turn = _call(
+        ai, _scene_assign_prompt(scene, state), f"scene_{scene.number}_assign", logs
+    )
     assign_parsed = parse_json_block(assign_turn.text)
     member_ids = [int(i) for i in assign_parsed.get("assigned_member_ids", [])]
     assigned = [ROSTER_BY_ID[i] for i in member_ids if i in ROSTER_BY_ID]
@@ -333,7 +395,9 @@ def _execute_scene(scene: Scene, state: HeistState, ai: HeistAI) -> SceneResult:
     outcome_summary: str
 
     if scene.type == "decision":
-        dec_turn = ai.ask(_scene_decision_prompt(scene))
+        dec_turn = _call(
+            ai, _scene_decision_prompt(scene), f"scene_{scene.number}_decision", logs
+        )
         dec_parsed = parse_json_block(dec_turn.text)
         pursue = bool(dec_parsed.get("pursue", False))
         decision = {"pursue": pursue, "reasoning": dec_parsed.get("reasoning", "")}
@@ -359,7 +423,10 @@ def _execute_scene(scene: Scene, state: HeistState, ai: HeistAI) -> SceneResult:
     else:
         outcome_summary = "(no resolution)"
 
-    narrate_turn = ai.ask(_scene_narrate_prompt(scene, outcome_summary))
+    narrate_turn = _call(
+        ai, _scene_narrate_prompt(scene, outcome_summary),
+        f"scene_{scene.number}_narrate", logs,
+    )
     narrate_parsed = parse_json_block(narrate_turn.text)
     narration = narrate_parsed.get("narration", "")
 
@@ -373,7 +440,9 @@ def _execute_scene(scene: Scene, state: HeistState, ai: HeistAI) -> SceneResult:
     )
 
 
-def _execute_escape(scene: Scene, state: HeistState, ai: HeistAI) -> SceneResult:
+def _execute_escape(
+    scene: Scene, state: HeistState, ai: HeistAI, logs: list[TurnLog]
+) -> SceneResult:
     success, difficulty = escape_resolves(
         state.crew, state.heat, state.job.escape_modifier
     )
@@ -389,12 +458,18 @@ def _execute_escape(scene: Scene, state: HeistState, ai: HeistAI) -> SceneResult
     )
 
     # Ask AI to assign — for escape, usually the Driver(s). Still let the AI pick.
-    assign_turn = ai.ask(_scene_assign_prompt(scene, state))
+    assign_turn = _call(
+        ai, _scene_assign_prompt(scene, state),
+        f"scene_{scene.number}_escape_assign", logs,
+    )
     assign_parsed = parse_json_block(assign_turn.text)
     member_ids = [int(i) for i in assign_parsed.get("assigned_member_ids", [])]
     assignment_reasoning = assign_parsed.get("reasoning", "")
 
-    narrate_turn = ai.ask(_scene_narrate_prompt(scene, outcome_summary))
+    narrate_turn = _call(
+        ai, _scene_narrate_prompt(scene, outcome_summary),
+        f"scene_{scene.number}_escape_narrate", logs,
+    )
     narration = parse_json_block(narrate_turn.text).get("narration", "")
 
     return SceneResult(
