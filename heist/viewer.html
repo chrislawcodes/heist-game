@@ -1,0 +1,1168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Heist — Live</title>
+<style>
+:root {
+  --bg: #0c0c0e;
+  --panel: #131316;
+  --panel2: #18181c;
+  --border: #26262c;
+  --text: #e0dfe8;
+  --muted: #72717a;
+  --accent: #e8a030;
+  --green: #52c47a;
+  --red: #e05050;
+  --blue: #5898e0;
+  --purple: #9070e0;
+  --commentator: #f5d77a;
+
+  --ai-a: #e8a030;
+  --ai-b: #5898e0;
+  --ai-c: #9070e0;
+
+  --sk-hack:  #5898e0;
+  --sk-safe:  #e8a030;
+  --sk-musc:  #e05050;
+  --sk-soc:   #9070e0;
+  --sk-drive: #52c47a;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+}
+
+/* ── topbar ── */
+#topbar {
+  height: 44px; padding: 0 16px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 14px; flex-shrink: 0;
+}
+#topbar-title { font-size: 12px; font-weight: 700; letter-spacing: 3px; color: var(--accent); }
+#job-display  { font-size: 13px; color: var(--text); }
+#heat-display { font-size: 12px; font-family: monospace; color: var(--red); letter-spacing: 1px; }
+#topbar-spacer { flex: 1; }
+#new-game-btn {
+  font-size: 11px; font-weight: 700; letter-spacing: 1px;
+  padding: 5px 12px; background: var(--panel2); color: var(--muted);
+  border: 1px solid var(--border); border-radius: 4px; cursor: pointer;
+}
+#new-game-btn:hover { color: var(--text); border-color: var(--muted); }
+#status-badge {
+  font-size: 11px; font-weight: 700; letter-spacing: 1px;
+  padding: 3px 10px; border-radius: 3px;
+}
+.s-idle    { background: #1e1e22; color: var(--muted); }
+.s-running { background: #0c1a2e; color: var(--blue); }
+.s-done    { background: #0c2018; color: var(--green); }
+.s-error   { background: #2e0c0c; color: var(--red); }
+
+/* ── tabnav ── */
+#tabnav {
+  height: 38px; padding: 0 16px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: stretch; flex-shrink: 0;
+  background: var(--panel);
+}
+.tab-btn {
+  background: none; border: none; color: var(--muted);
+  font-size: 12px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase;
+  padding: 0 18px; cursor: pointer; border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+  position: relative; top: 1px;
+}
+.tab-btn:hover:not(.tab-locked) { color: var(--text); }
+.tab-btn.tab-active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab-btn.tab-locked { color: #3a3a44; cursor: not-allowed; }
+
+/* ── content layout ── */
+#content { flex: 1; display: flex; overflow: hidden; }
+#main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.tab-panel { display: none; flex: 1; overflow: hidden; flex-direction: column; }
+.tab-panel.tab-visible { display: flex; }
+
+/* ══════════════════════ DRAFT TAB ══════════════════════ */
+#tab-draft { flex-direction: column; }
+
+#draft-board {
+  flex: 1 1 55%; min-height: 0;
+  display: flex; flex-direction: column;
+  padding: 12px 16px 10px;
+  overflow: hidden;
+}
+.section-header {
+  display: flex; align-items: baseline; gap: 12px; margin-bottom: 8px;
+  flex-shrink: 0;
+}
+.section-title {
+  font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--muted);
+}
+.section-sub { font-size: 11px; color: var(--muted); font-family: monospace; }
+.section-legend {
+  margin-left: auto; display: flex; gap: 10px;
+  font-size: 9px; color: var(--muted);
+}
+.legend-item { display: flex; align-items: center; gap: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+.legend-swatch { width: 12px; height: 4px; border-radius: 1px; }
+
+.board-grid {
+  flex: 1; overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(135px, 1fr));
+  gap: 10px;
+  align-content: start;
+  padding-right: 4px;
+}
+
+/* character card */
+.char-card {
+  position: relative;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  display: flex; flex-direction: column;
+  background: var(--panel2);
+  animation: cardIn 0.35s ease;
+}
+@keyframes cardIn {
+  from { opacity: 0; transform: scale(0.95) translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+.char-card[data-primary="hack"]  { background: linear-gradient(180deg, rgba(88,152,224,0.32) 0%, rgba(88,152,224,0.08) 100%); border-color: rgba(88,152,224,0.65); }
+.char-card[data-primary="safe"]  { background: linear-gradient(180deg, rgba(232,160,48,0.32) 0%, rgba(232,160,48,0.08) 100%); border-color: rgba(232,160,48,0.65); }
+.char-card[data-primary="musc"]  { background: linear-gradient(180deg, rgba(224,80,80,0.32) 0%, rgba(224,80,80,0.08) 100%);  border-color: rgba(224,80,80,0.65); }
+.char-card[data-primary="soc"]   { background: linear-gradient(180deg, rgba(144,112,224,0.32) 0%, rgba(144,112,224,0.08) 100%); border-color: rgba(144,112,224,0.65); }
+.char-card[data-primary="drive"] { background: linear-gradient(180deg, rgba(82,196,122,0.32) 0%, rgba(82,196,122,0.08) 100%); border-color: rgba(82,196,122,0.65); }
+
+.char-card.bidding-flash { animation: bidFlash 0.7s ease; }
+@keyframes bidFlash {
+  0%, 100% { box-shadow: none; }
+  40%      { box-shadow: 0 0 0 2px rgba(255,255,255,0.5); }
+}
+
+.cc-portrait {
+  width: 100%;
+  aspect-ratio: 1;
+  background: rgba(0,0,0,0.35);
+  overflow: hidden;
+  position: relative;
+}
+.cc-portrait img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cc-portrait-fallback {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 36px; font-weight: 700; color: rgba(255,255,255,0.25);
+  font-family: monospace;
+}
+.cc-header {
+  display: flex; justify-content: space-between; align-items: center; gap: 6px;
+  padding: 6px 10px;
+  font-weight: 800;
+}
+.char-card[data-primary="hack"]  .cc-header { background: var(--sk-hack);  color: #0a1428; }
+.char-card[data-primary="safe"]  .cc-header { background: var(--sk-safe);  color: #2a1c08; }
+.char-card[data-primary="musc"]  .cc-header { background: var(--sk-musc);  color: #2a0808; }
+.char-card[data-primary="soc"]   .cc-header { background: var(--sk-soc);   color: #1c1030; }
+.char-card[data-primary="drive"] .cc-header { background: var(--sk-drive); color: #0a2018; }
+.cc-name { font-size: 14px; letter-spacing: 0.3px; }
+.cc-cost { font-family: monospace; font-size: 12px; opacity: 0.78; }
+.cc-info { padding: 9px 10px 10px; display: flex; flex-direction: column; gap: 5px; }
+.cc-skills { display: flex; flex-direction: column; gap: 4px; }
+.cc-skill { display: flex; align-items: center; gap: 8px; }
+.cc-skill-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.8px;
+  color: var(--muted); width: 36px; flex-shrink: 0;
+  font-family: monospace;
+}
+.cc-skill-bars { display: flex; gap: 3px; }
+.seg { width: 14px; height: 6px; border-radius: 1px; background: rgba(255,255,255,0.08); }
+.seg.f-hack  { background: var(--sk-hack); }
+.seg.f-safe  { background: var(--sk-safe); }
+.seg.f-musc  { background: var(--sk-musc); }
+.seg.f-soc   { background: var(--sk-soc); }
+.seg.f-drive { background: var(--sk-drive); }
+
+/* crews bottom */
+#crews-section {
+  flex: 1 1 45%; min-height: 0;
+  border-top: 1px solid var(--border);
+  background: #0a0a0c;
+  padding: 12px 16px 12px;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.crew-columns {
+  flex: 1; min-height: 0;
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;
+}
+.crew-col {
+  background: var(--panel); border: 1px solid var(--border);
+  border-top: 3px solid var(--border); border-radius: 6px;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.crew-col[data-crew="A"] { border-top-color: var(--ai-a); }
+.crew-col[data-crew="B"] { border-top-color: var(--ai-b); }
+.crew-col[data-crew="C"] { border-top-color: var(--ai-c); }
+.crew-col-header {
+  flex-shrink: 0; padding: 8px 12px;
+  display: flex; align-items: center; gap: 8px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel2);
+}
+.cc-badge {
+  width: 20px; height: 20px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; color: #000;
+}
+.cc-crew-name {
+  font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--text); flex: 1;
+}
+.cc-meta { font-family: monospace; font-size: 10px; color: var(--muted); }
+.cc-meta strong { color: var(--text); }
+.crew-col-body {
+  flex: 1; overflow-y: auto;
+  display: flex; flex-direction: column;
+  padding: 12px 14px;
+  gap: 14px;
+}
+.crew-subhead {
+  font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 6px;
+}
+.cum-block { display: flex; flex-direction: column; }
+.cum-rows { display: flex; flex-direction: column; gap: 5px; }
+.cum-row { display: flex; align-items: center; gap: 8px; }
+.cum-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.8px;
+  color: var(--muted); width: 38px; flex-shrink: 0;
+  font-family: monospace;
+}
+.cum-bar { flex: 1; height: 8px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; }
+.cum-bar-fill { height: 100%; border-radius: 2px; transition: width 0.4s ease; }
+.cum-val {
+  font-family: monospace; font-size: 11px; font-weight: 700;
+  color: var(--text); width: 18px; text-align: right; flex-shrink: 0;
+}
+.cum-val.is-zero { color: #3a3a44; }
+.cum-members { display: flex; flex-direction: column; gap: 4px; }
+.cum-member { display: flex; align-items: center; gap: 8px; font-size: 11px; }
+.cum-mem-name {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 3px;
+  font-weight: 800; letter-spacing: 0.3px;
+}
+.cum-mem-name[data-primary="hack"]  { background: var(--sk-hack);  color: #0a1428; }
+.cum-mem-name[data-primary="safe"]  { background: var(--sk-safe);  color: #2a1c08; }
+.cum-mem-name[data-primary="musc"]  { background: var(--sk-musc);  color: #2a0808; }
+.cum-mem-name[data-primary="soc"]   { background: var(--sk-soc);   color: #1c1030; }
+.cum-mem-name[data-primary="drive"] { background: var(--sk-drive); color: #0a2018; }
+.cum-mem-cost { font-family: monospace; color: var(--muted); margin-left: auto; font-size: 10px; }
+.cum-empty-row { font-size: 10px; color: #3a3a44; font-style: italic; padding: 2px 4px; }
+
+/* ══════════════════════ RAIL (persistent) ══════════════════════ */
+#rail {
+  width: 320px; flex-shrink: 0;
+  border-left: 1px solid var(--border);
+  background: var(--panel);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+#commentary-section {
+  flex: 0 0 auto; max-height: 36%;
+  display: flex; flex-direction: column; overflow: hidden;
+  border-bottom: 2px solid var(--border);
+}
+.commentary-header {
+  padding: 7px 14px; flex-shrink: 0;
+  display: flex; align-items: center; gap: 8px;
+  border-bottom: 1px solid var(--border);
+  background: #15140e;
+}
+.commentary-icon { font-size: 12px; }
+.commentary-title {
+  font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--commentator); flex: 1;
+}
+.commentary-attrib {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.5px;
+  color: var(--muted); font-family: monospace;
+}
+.commentary-status {
+  font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  color: var(--muted); background: #1e1e22;
+  padding: 2px 6px; border-radius: 3px;
+}
+#commentary-stream {
+  flex: 1; overflow-y: auto; padding: 8px 14px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.commentary-stub {
+  font-size: 11px; color: var(--muted); line-height: 1.5;
+  padding: 12px 10px;
+  border: 1px dashed var(--border); border-radius: 5px;
+  text-align: center;
+}
+.commentary-stub strong { color: var(--text); }
+
+#ai-picker {
+  flex-shrink: 0; padding: 7px 10px;
+  display: flex; gap: 5px; align-items: center;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel2);
+}
+.ai-pick-label {
+  font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--muted); margin-right: 4px;
+}
+.ai-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 10px; border-radius: 18px;
+  font-size: 11px; font-weight: 700;
+  background: transparent; border: 1px solid var(--border);
+  color: var(--muted); cursor: pointer;
+  transition: all 0.15s;
+}
+.ai-pill:hover { color: var(--text); }
+.ai-pill.ap-active { background: var(--panel); color: var(--text); }
+.ai-pill .ap-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border); }
+.ai-pill[data-aiidx="0"].ap-active { border-color: var(--ai-a); }
+.ai-pill[data-aiidx="0"] .ap-dot { background: var(--ai-a); }
+.ai-pill[data-aiidx="1"].ap-active { border-color: var(--ai-b); }
+.ai-pill[data-aiidx="1"] .ap-dot { background: var(--ai-b); }
+.ai-pill[data-aiidx="2"].ap-active { border-color: var(--ai-c); }
+.ai-pill[data-aiidx="2"] .ap-dot { background: var(--ai-c); }
+
+#thinking-section {
+  flex: 1 1 auto; min-height: 0;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.thinking-header {
+  padding: 8px 14px; flex-shrink: 0;
+  display: flex; align-items: center; gap: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.thinking-avatar {
+  width: 16px; height: 16px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 700; color: #000;
+}
+.thinking-title {
+  font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--text); flex: 1;
+}
+.thinking-private {
+  font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  color: var(--muted); background: #1e1e22;
+  padding: 2px 6px; border-radius: 3px;
+}
+#thinking-stream {
+  flex: 1; overflow-y: auto; padding: 8px 12px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.thought-line {
+  font-size: 12px; line-height: 1.5;
+  padding: 7px 10px; border-radius: 4px;
+  background: var(--panel2);
+  border-left: 3px solid var(--border);
+  animation: slideDownIn 0.35s ease;
+}
+@keyframes slideDownIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: none; }
+}
+.thought-kind {
+  font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 3px;
+}
+.thought-body { color: #d0cee0; }
+.thought-body strong { color: var(--text); font-weight: 600; }
+.thought-line.tk-strategy { border-left-color: var(--accent); }
+.thought-line.tk-strategy .thought-kind { color: var(--accent); }
+.thought-line.tk-bid { border-left-color: var(--blue); }
+.thought-line.tk-bid .thought-kind { color: var(--blue); }
+.thought-line.tk-hire { border-left-color: var(--green); }
+.thought-line.tk-hire .thought-kind { color: var(--green); }
+.thought-line.tk-job { border-left-color: var(--purple); }
+.thought-line.tk-job .thought-kind { color: var(--purple); }
+.thought-line.tk-scene { border-left-color: var(--muted); }
+.thinking-empty { font-size: 12px; color: var(--muted); font-style: italic; text-align: center; padding: 16px 0; }
+
+/* ══════════════════════ JOB TAB ══════════════════════ */
+#tab-job { padding: 24px; gap: 24px; flex-direction: column; overflow-y: auto; }
+.job-card {
+  background: var(--panel); border: 1px solid var(--border);
+  border-left: 3px solid var(--accent); border-radius: 8px; padding: 20px 24px;
+}
+.job-card-name   { font-size: 22px; font-weight: 700; color: var(--accent); margin-bottom: 8px; }
+.job-card-flavor { font-size: 14px; font-style: italic; color: #c0bcd0; line-height: 1.7; margin-bottom: 14px; }
+.job-reward      { font-family: monospace; font-size: 13px; color: var(--green); }
+.job-section-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 10px;
+}
+.challenge-table { width: 100%; border-collapse: collapse; }
+.challenge-table td { padding: 5px 0; vertical-align: middle; }
+.ct-label { font-size: 12px; color: var(--muted); width: 130px; font-family: monospace; }
+.ct-bar   { width: 80px; }
+.ct-bar-segs { display: flex; gap: 3px; }
+.ct-seg  { width: 14px; height: 10px; border-radius: 2px; background: #26262c; }
+.ct-seg.lvl-hard   { background: var(--red); }
+.ct-seg.lvl-medium { background: var(--blue); }
+.ct-seg.lvl-low    { background: var(--muted); }
+.ct-level-name   { font-size: 12px; font-family: monospace; min-width: 70px; }
+.ct-level-hard   { color: var(--red); }
+.ct-level-medium { color: var(--blue); }
+.ct-level-low    { color: var(--muted); }
+.ct-level-none   { color: #3a3a44; }
+.job-reasoning {
+  background: var(--panel2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 14px 18px;
+}
+.job-reasoning-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 8px;
+}
+.job-reasoning-text { font-size: 13px; color: #c0bcd0; line-height: 1.65; }
+.hidden-depth-section {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 8px; padding: 16px 20px;
+}
+.hd-callout { border-radius: 5px; padding: 12px 16px; margin: 10px 0; font-size: 13px; line-height: 1.6; }
+.hd-callout-complication   { background: #2a0c0c; border-left: 3px solid var(--red); }
+.hd-callout-opportunity    { background: #2a1e04; border-left: 3px solid var(--accent); }
+.hd-callout-bonus          { background: #0a2018; border-left: 3px solid var(--green); }
+.hd-badge {
+  display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; padding: 2px 8px; border-radius: 3px; margin-bottom: 8px;
+}
+.hd-badge-complication { background: #3a1010; color: var(--red); }
+.hd-badge-opportunity  { background: #3a2a08; color: var(--accent); }
+.hd-badge-bonus        { background: #0c2a18; color: var(--green); }
+.hd-reward { font-family: monospace; font-size: 12px; color: var(--muted); margin-top: 8px; }
+
+/* ══════════════════════ HEIST TAB ══════════════════════ */
+#tab-heist { padding: 0; flex-direction: column; }
+.heist-heat-bar {
+  flex-shrink: 0; padding: 10px 24px;
+  background: var(--panel); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 12px;
+}
+.heist-heat-label { font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); }
+.heist-heat-dots  { font-family: monospace; font-size: 14px; color: var(--red); letter-spacing: 2px; }
+#scene-list { flex: 1; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
+.scene-card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 18px 20px; }
+.scene-card-header  { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.scene-card-num     { font-size: 11px; font-weight: 700; color: var(--muted); font-family: monospace; }
+.scene-card-title   { font-size: 15px; font-weight: 700; color: var(--text); flex: 1; }
+.scene-type-badge   {
+  font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  padding: 2px 8px; border-radius: 3px; background: #1a1a26; color: var(--muted);
+}
+.scene-type-badge.stype-core     { background: #0c1a2e; color: var(--blue); }
+.scene-type-badge.stype-escape   { background: #1a0c1a; color: var(--purple); }
+.scene-type-badge.stype-decision { background: #1a1a0c; color: var(--accent); }
+.scene-status-pending { font-size: 11px; color: var(--accent); animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+.scene-result-ok   { font-size: 12px; font-weight: 700; color: var(--green); }
+.scene-result-fail { font-size: 12px; font-weight: 700; color: var(--red); }
+.scene-result-none { font-size: 12px; color: var(--muted); }
+.scene-challenge-block { margin-bottom: 12px; }
+.sc-challenge-title {
+  font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 6px;
+}
+.sc-challenge-row     { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+.sc-challenge-row-lbl { font-size: 11px; color: var(--muted); width: 70px; font-family: monospace; }
+.scene-hidden-depth-warn {
+  background: #2a1a04; border-left: 3px solid var(--accent);
+  border-radius: 4px; padding: 6px 12px; font-size: 12px; color: var(--accent); margin-top: 6px;
+}
+.scene-assigned-block  { margin-bottom: 12px; }
+.scene-assigned-label  { font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+.scene-assigned-names  { font-size: 13px; color: var(--text); }
+.scene-reasoning-text  { font-size: 12px; color: var(--muted); font-style: italic; margin-top: 4px; line-height: 1.5; }
+.scene-decision-block  { margin-bottom: 12px; background: var(--panel2); border-radius: 5px; padding: 10px 14px; }
+.scene-decision-label  { font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+.scene-decision-pursue { color: var(--green); font-weight: 700; font-size: 13px; }
+.scene-decision-pass   { color: var(--muted); font-weight: 700; font-size: 13px; }
+.scene-decision-reason { font-size: 12px; color: var(--muted); font-style: italic; margin-top: 4px; }
+.scene-narration  { font-size: 13px; color: #c0bcd0; line-height: 1.75; border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px; }
+.scene-narrating  { font-size: 12px; color: var(--muted); font-style: italic; border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px; }
+.escape-info      { font-size: 13px; color: var(--muted); margin-bottom: 10px; font-family: monospace; }
+.heist-outcome-card         { background: var(--panel2); border: 2px solid var(--border); border-radius: 8px; padding: 22px 24px; margin-top: 8px; }
+.heist-outcome-heading-ok   { font-size: 18px; font-weight: 700; color: var(--green); margin-bottom: 16px; }
+.heist-outcome-heading-fail { font-size: 18px; font-weight: 700; color: var(--red); margin-bottom: 16px; }
+.heist-outcome-take         { font-family: monospace; font-size: 24px; font-weight: 700; color: var(--accent); margin-bottom: 14px; }
+.heist-outcome-row          { display: flex; gap: 12px; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+.heist-outcome-row-key      { min-width: 100px; font-family: monospace; }
+.heist-outcome-row-val      { color: var(--text); }
+
+.prose { font-size: 14px; line-height: 1.8; color: #c8c4d8; }
+.prose p { margin-bottom: 12px; }
+.prose p:last-child { margin-bottom: 0; }
+.prose strong { color: var(--text); font-weight: 600; }
+.prose em     { color: #a0a8c0; font-style: italic; }
+.prose code   { font-family: monospace; background: #1a1a22; padding: 1px 4px; border-radius: 3px; font-size: 12px; }
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #2a2a34; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #40404c; }
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <span id="topbar-title">HEIST</span>
+  <span id="job-display">—</span>
+  <span id="heat-display"></span>
+  <span id="topbar-spacer"></span>
+  <button id="new-game-btn" onclick="window.location='/'">← New Game</button>
+  <span id="status-badge" class="s-running">RUNNING</span>
+</div>
+
+<div id="tabnav">
+  <button class="tab-btn tab-active" id="tab-btn-draft"  onclick="switchTab('draft')">Draft &amp; Crew</button>
+  <button class="tab-btn tab-locked" id="tab-btn-job"    onclick="switchTab('job')">Job</button>
+  <button class="tab-btn tab-locked" id="tab-btn-heist"  onclick="switchTab('heist')">The Heist</button>
+</div>
+
+<div id="content">
+
+  <div id="main">
+
+    <!-- ═══════ DRAFT & CREW ═══════ -->
+    <div class="tab-panel tab-visible" id="tab-draft">
+
+      <div id="draft-board">
+        <div class="section-header">
+          <span class="section-title">Available Roster</span>
+          <span class="section-sub" id="board-meta">—</span>
+          <div class="section-legend">
+            <span class="legend-item"><span class="legend-swatch" style="background:var(--sk-hack)"></span>Hack</span>
+            <span class="legend-item"><span class="legend-swatch" style="background:var(--sk-safe)"></span>Safe</span>
+            <span class="legend-item"><span class="legend-swatch" style="background:var(--sk-musc)"></span>Musc</span>
+            <span class="legend-item"><span class="legend-swatch" style="background:var(--sk-soc)"></span>Soc</span>
+            <span class="legend-item"><span class="legend-swatch" style="background:var(--sk-drive)"></span>Drive</span>
+          </div>
+        </div>
+        <div class="board-grid" id="board-grid"></div>
+      </div>
+
+      <div id="crews-section">
+        <div class="section-header">
+          <span class="section-title">Crews</span>
+          <span class="section-sub" id="crews-sub">awaiting draft</span>
+        </div>
+        <div class="crew-columns" id="crew-columns"></div>
+      </div>
+    </div>
+
+    <!-- ═══════ JOB ═══════ -->
+    <div class="tab-panel" id="tab-job">
+      <div class="job-card" id="job-card" style="display:none">
+        <div class="job-card-name"   id="job-card-name"></div>
+        <div class="job-card-flavor" id="job-card-flavor"></div>
+        <div class="job-reward"      id="job-card-reward"></div>
+      </div>
+      <div id="job-profile-section" style="display:none">
+        <div class="job-section-label">Challenge Profile</div>
+        <table class="challenge-table" id="job-challenge-table"></table>
+      </div>
+      <div class="job-reasoning" id="job-reasoning-block" style="display:none">
+        <div class="job-reasoning-label">Why this job</div>
+        <div class="job-reasoning-text" id="job-reasoning-text"></div>
+      </div>
+      <div class="hidden-depth-section" id="hidden-depth-section" style="display:none">
+        <div class="job-section-label">Hidden Depth Revealed</div>
+        <div id="hd-callout-wrap"></div>
+        <div class="hd-reward" id="hd-reward"></div>
+      </div>
+    </div>
+
+    <!-- ═══════ HEIST ═══════ -->
+    <div class="tab-panel" id="tab-heist">
+      <div class="heist-heat-bar">
+        <span class="heist-heat-label">Heat</span>
+        <span class="heist-heat-dots" id="heist-heat-dots">○○○○○</span>
+      </div>
+      <div id="scene-list"></div>
+    </div>
+
+  </div>
+
+  <!-- ═══════ RAIL ═══════ -->
+  <div id="rail">
+
+    <div id="commentary-section">
+      <div class="commentary-header">
+        <span class="commentary-icon">📢</span>
+        <span class="commentary-title">Play-by-Play</span>
+        <span class="commentary-attrib">codex</span>
+        <span class="commentary-status">Not wired</span>
+      </div>
+      <div id="commentary-stream">
+        <div class="commentary-stub">
+          <strong>Commentary not configured.</strong><br>
+          A Codex commentator will narrate the game from public info here.
+        </div>
+      </div>
+    </div>
+
+    <div id="ai-picker">
+      <span class="ai-pick-label">Mind of</span>
+      <span id="ai-pills"></span>
+    </div>
+
+    <div id="thinking-section">
+      <div class="thinking-header">
+        <span class="thinking-avatar" id="thinking-avatar" style="background:var(--ai-a)">·</span>
+        <span class="thinking-title" id="thinking-title">—</span>
+        <span class="thinking-private">Private</span>
+      </div>
+      <div id="thinking-stream">
+        <div class="thinking-empty">Waiting for the game…</div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+// ═════════════════ STATE ═════════════════
+let roster = [];                  // full character list from /api/meta
+const charById = new Map();       // id -> character
+const HIRES = {};                 // char id -> ai idx (0,1,2)
+const bidRationales = {};         // char id -> string
+const hireRationales = {};        // char id -> string
+const aiStreams = [[]];           // per-ai thought arrays (newest first)
+let aiList = [{ idx: 0, label: 'AI', color: 'var(--ai-a)' }];
+let currentAI = 0;
+
+let job = null;
+let crew = null;
+let gameState = null;
+let evtSource = null;
+let bidParsed = null;
+let jobTabUnlocked = false;
+let heistTabUnlocked = false;
+const scenes = {};
+const narrations = {};
+
+// skill keys/labels from API shape (HACKING/SAFECRACKING/...)
+const SKILL_API   = ['HACKING','SAFECRACKING','MUSCLE','SOCIAL','DRIVING'];
+const SKILL_SHORT = { HACKING:'hack', SAFECRACKING:'safe', MUSCLE:'musc', SOCIAL:'soc', DRIVING:'drive' };
+const SKILL_LABEL = { hack:'HACK', safe:'SAFE', musc:'MUSC', soc:'SOC', drive:'DRIVE' };
+const SKILL_VALUE = { HIGH:3, MEDIUM:2, LOW:1, NONE:0 };
+const PORTRAIT_STYLE = { hack:'pixel-art', safe:'notionists', musc:'bottts', soc:'personas', drive:'adventurer' };
+const PORTRAIT_BG    = { hack:'1a2840', safe:'2a2008', musc:'2a0c0c', soc:'1e1430', drive:'0c2018' };
+
+// ═════════════════ BOOT ═════════════════
+boot();
+
+async function boot() {
+  // 1. Resolve which AIs are in this game so the picker can show real labels
+  try {
+    const games = await fetch('/api/games').then(r => r.json());
+    const running = [...games].reverse().find(g => g.status === 'running')
+                 || [...games].reverse().find(g => g.status === 'done')
+                 || [...games].reverse()[0];
+    if (running && running.ais && running.ais.length) {
+      aiList = running.ais.map((ai, i) => ({
+        idx: i,
+        label: ai.agent || ('AI ' + (i+1)),
+        color: ['var(--ai-a)','var(--ai-b)','var(--ai-c)'][i] || 'var(--ai-a)',
+      }));
+      while (aiStreams.length < aiList.length) aiStreams.push([]);
+    }
+  } catch {}
+
+  renderAIPicker();
+  selectAI(0);
+
+  // 2. Load the roster so the draft board can render
+  try {
+    const meta = await fetch('/api/meta').then(r => r.json());
+    roster = meta.roster || [];
+    roster.forEach(c => charById.set(c.id, c));
+    renderBoard();
+    renderCrews();
+  } catch (e) {
+    console.error('failed to load meta', e);
+  }
+
+  // 3. Wire up the live event stream
+  evtSource = new EventSource('/stream');
+  evtSource.onmessage = handleSSE;
+  evtSource.onerror = () => {
+    if (evtSource && evtSource.readyState === EventSource.CLOSED) setStatus('s-idle', 'IDLE');
+  };
+}
+
+// ═════════════════ TAB SWITCHING ═════════════════
+function switchTab(name) {
+  if (name === 'job'   && !jobTabUnlocked)   return;
+  if (name === 'heist' && !heistTabUnlocked) return;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('tab-active'));
+  document.getElementById('tab-btn-' + name).classList.add('tab-active');
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('tab-visible'));
+  document.getElementById('tab-' + name).classList.add('tab-visible');
+}
+function unlockTab(name) {
+  if (name === 'job' && !jobTabUnlocked) {
+    jobTabUnlocked = true;
+    document.getElementById('tab-btn-job').classList.remove('tab-locked');
+  } else if (name === 'heist' && !heistTabUnlocked) {
+    heistTabUnlocked = true;
+    document.getElementById('tab-btn-heist').classList.remove('tab-locked');
+  }
+}
+
+// ═════════════════ SSE HANDLER ═════════════════
+function handleSSE(evt) {
+  const e = JSON.parse(evt.data);
+
+  if (e.type === 'turn_end') {
+    if (e.label === 'bid' && e.parsed) {
+      bidParsed = e.parsed;
+      if (e.parsed.casting_strategy) {
+        addThought(0, 'strategy', 'Strategy', escapeHtml(e.parsed.casting_strategy));
+      }
+      (e.parsed.bids || []).forEach(b => {
+        if (b.rationale) bidRationales[b.character_id] = b.rationale;
+        flashCard(b.character_id);
+        const c = charById.get(b.character_id);
+        if (c) addThought(0, 'bid', 'Bid · ' + c.name, escapeHtml(b.rationale || '—'));
+      });
+    } else if (e.label === 'casting_summary' && e.parsed && e.parsed.summary) {
+      const s = e.parsed.summary;
+      addThought(0, 'strategy', 'Casting summary', escapeHtml(s.length > 240 ? s.slice(0,240) + '…' : s));
+      unlockTab('heist');
+    } else if (e.label === 'job_pick') {
+      unlockTab('job');
+      if (e.parsed && e.parsed.reasoning) {
+        addThought(0, 'job', 'Job pick', escapeHtml(e.parsed.reasoning));
+        renderJobReasoning(e.parsed.reasoning);
+      }
+    } else {
+      const narMatch = e.label && e.label.match(/^scene_(\d+)_(?:escape_)?narrate$/);
+      if (narMatch && e.parsed && e.parsed.narration) {
+        const sNum = parseInt(narMatch[1], 10);
+        narrations[sNum] = e.parsed.narration;
+        if (scenes[sNum]) { scenes[sNum].narration = e.parsed.narration; renderSceneCard(sNum); }
+      }
+    }
+
+  } else if (e.type === 'crew_known') {
+    crew = e.crew;
+    e.crew.members.forEach(member => {
+      HIRES[member.id] = 0;
+      if (bidParsed && bidParsed.bids) {
+        const b = bidParsed.bids.find(b => b.character_id == member.id);
+        if (b && b.rationale) hireRationales[member.id] = b.rationale;
+      }
+      addThought(0, 'hire', '✓ Hired · ' + member.name,
+        escapeHtml(hireRationales[member.id] || 'joined the crew'));
+    });
+    renderBoard();
+    renderCrews();
+
+  } else if (e.type === 'job_known') {
+    job = e.job;
+    document.getElementById('job-display').textContent = e.job.name;
+    renderJobTab();
+
+  } else if (e.type === 'hidden_depth_rolled') {
+    renderHiddenDepth(e);
+
+  } else if (e.type === 'scene_start') {
+    const sNum = e.scene_num;
+    if (!scenes[sNum]) scenes[sNum] = {};
+    scenes[sNum].meta = e;
+    if (narrations[sNum]) scenes[sNum].narration = narrations[sNum];
+    renderSceneCard(sNum);
+    if (e.title) addThought(0, 'scene', 'Scene ' + sNum, escapeHtml(e.title));
+
+  } else if (e.type === 'scene_done') {
+    updateHeat(e.heat);
+    updateHeistHeat(e.heat);
+    const sNum = e.scene_num;
+    if (!scenes[sNum]) scenes[sNum] = {};
+    scenes[sNum].result = e;
+    if (narrations[sNum]) scenes[sNum].narration = narrations[sNum];
+    renderSceneCard(sNum);
+
+  } else if (e.type === 'game_done') {
+    gameState = e.state;
+    crew = e.state.crew; job = e.state.job;
+    document.getElementById('job-display').textContent = e.state.job.name;
+    updateHeat(e.state.heat);
+    updateHeistHeat(e.state.heat);
+    const ok = !e.state.aborted && e.state.escape_success !== false;
+    setStatus(ok ? 's-done' : 's-error',
+      ok ? '$' + (e.state.final_take / 1e6).toFixed(2) + 'M' : 'FAILED');
+    renderHeistOutcome();
+    unlockTab('job'); unlockTab('heist');
+    if (evtSource) { evtSource.close(); evtSource = null; }
+
+  } else if (e.type === 'error') {
+    setStatus('s-error', 'ERROR');
+    addThought(0, 'scene', 'Error', escapeHtml(e.message || 'unknown error'));
+    if (evtSource) { evtSource.close(); evtSource = null; }
+  }
+}
+
+// ═════════════════ CHARACTER CARD ═════════════════
+function primarySkill(c) {
+  let bestKey = 'hack', bestVal = -1;
+  SKILL_API.forEach(api => {
+    const v = SKILL_VALUE[c.skills[api]] || 0;
+    if (v > bestVal) { bestVal = v; bestKey = SKILL_SHORT[api]; }
+  });
+  return bestKey;
+}
+function portraitUrl(c) {
+  const p = primarySkill(c);
+  const seed = (c.name || '').toLowerCase().replace(/\s+/g, '');
+  return `https://api.dicebear.com/9.x/${PORTRAIT_STYLE[p]}/svg?seed=${encodeURIComponent(seed)}&backgroundColor=${PORTRAIT_BG[p]}`;
+}
+function charCardHtml(c) {
+  const primary = primarySkill(c);
+  const initials = (c.name || '?').slice(0,1).toUpperCase();
+  const skillsHtml = SKILL_API.map(api => {
+    const sk = SKILL_SHORT[api];
+    const val = SKILL_VALUE[c.skills[api]] || 0;
+    const segs = Array.from({length:3}, (_, j) =>
+      `<span class="seg ${j < val ? 'f-' + sk : ''}"></span>`).join('');
+    return `<div class="cc-skill">
+      <span class="cc-skill-label">${SKILL_LABEL[sk]}</span>
+      <div class="cc-skill-bars">${segs}</div>
+    </div>`;
+  }).join('');
+  return `<div class="char-card" data-primary="${primary}" id="cc-${c.id}">
+    <div class="cc-portrait">
+      <div class="cc-portrait-fallback">${escapeHtml(initials)}</div>
+      <img src="${portraitUrl(c)}" alt="${escapeHtml(c.name)}" loading="lazy" onerror="this.style.display='none'">
+    </div>
+    <div class="cc-header">
+      <span class="cc-name">${escapeHtml(c.name)}</span>
+      <span class="cc-cost">$${c.floor_cost}</span>
+    </div>
+    <div class="cc-info">
+      <div class="cc-skills">${skillsHtml}</div>
+    </div>
+  </div>`;
+}
+
+function flashCard(charId) {
+  const el = document.getElementById('cc-' + charId);
+  if (!el) return;
+  el.classList.remove('bidding-flash');
+  void el.offsetWidth;
+  el.classList.add('bidding-flash');
+  el.scrollIntoView({ block:'nearest', behavior:'smooth' });
+}
+
+// ═════════════════ DRAFT BOARD ═════════════════
+function renderBoard() {
+  const el = document.getElementById('board-grid');
+  if (!el) return;
+  const available = roster.filter(c => HIRES[c.id] === undefined);
+  el.innerHTML = available.length
+    ? available.map(charCardHtml).join('')
+    : '<div style="grid-column:1/-1;color:var(--muted);font-style:italic;font-size:13px;text-align:center;padding:30px;">All characters drafted.</div>';
+  const hired = roster.length - available.length;
+  document.getElementById('board-meta').textContent =
+    `${available.length} left · ${hired} hired`;
+}
+
+// ═════════════════ CREW COLUMNS (compressed) ═════════════════
+function renderCrews() {
+  const el = document.getElementById('crew-columns');
+  if (!el) return;
+  // Render one column per AI in the game (currently usually 1).
+  const html = aiList.map(ai => crewColHtml(ai)).join('');
+  el.innerHTML = html;
+  document.getElementById('crews-sub').textContent =
+    aiList.length === 1 ? '1 crew' : `${aiList.length} crews`;
+}
+function crewColHtml(ai) {
+  const crewLetter = ['A','B','C'][ai.idx] || '?';
+  const members = roster.filter(c => HIRES[c.id] === ai.idx);
+  const empties = Math.max(0, 4 - members.length);
+
+  const sums = [0,0,0,0,0];
+  members.forEach(m => SKILL_API.forEach((api, i) => { sums[i] += SKILL_VALUE[m.skills[api]] || 0; }));
+  const skillKeys = ['hack','safe','musc','soc','drive'];
+  const cumHtml = skillKeys.map((sk, i) => {
+    const val = sums[i];
+    const pct = Math.min(100, (val / 12) * 100);
+    return `<div class="cum-row">
+      <span class="cum-label">${SKILL_LABEL[sk]}</span>
+      <div class="cum-bar">${val > 0 ? `<div class="cum-bar-fill" style="width:${pct}%;background:var(--sk-${sk});"></div>` : ''}</div>
+      <span class="cum-val ${val === 0 ? 'is-zero' : ''}">${val}</span>
+    </div>`;
+  }).join('');
+
+  const memHtml = members.map(m => `
+    <div class="cum-member">
+      <span class="cum-mem-name" data-primary="${primarySkill(m)}">${escapeHtml(m.name)}</span>
+      <span class="cum-mem-cost">$${m.floor_cost}</span>
+    </div>`).join('') +
+    Array.from({length: empties}, () => '<div class="cum-empty-row">— open slot —</div>').join('');
+
+  const spent = members.reduce((s, c) => s + (c.floor_cost || 0), 0);
+
+  return `<div class="crew-col" data-crew="${crewLetter}">
+    <div class="crew-col-header">
+      <span class="cc-badge" style="background:${ai.color}">${crewLetter}</span>
+      <span class="cc-crew-name">${escapeHtml(ai.label)}</span>
+      <span class="cc-meta">${members.length}/4 · <strong>$${spent}</strong></span>
+    </div>
+    <div class="crew-col-body">
+      <div class="cum-block">
+        <div class="crew-subhead">Coverage</div>
+        <div class="cum-rows">${cumHtml}</div>
+      </div>
+      <div class="cum-block">
+        <div class="crew-subhead">Members</div>
+        <div class="cum-members">${memHtml}</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ═════════════════ RAIL ═════════════════
+function renderAIPicker() {
+  const el = document.getElementById('ai-pills');
+  el.innerHTML = aiList.map(ai =>
+    `<button class="ai-pill ${ai.idx === currentAI ? 'ap-active' : ''}" data-aiidx="${ai.idx}" onclick="selectAI(${ai.idx})">
+      <span class="ap-dot"></span>${escapeHtml(ai.label)}
+    </button>`
+  ).join('');
+}
+function selectAI(idx) {
+  currentAI = idx;
+  document.querySelectorAll('.ai-pill').forEach(p =>
+    p.classList.toggle('ap-active', parseInt(p.dataset.aiidx) === idx));
+  const ai = aiList[idx] || aiList[0];
+  const av = document.getElementById('thinking-avatar');
+  av.textContent = ['A','B','C'][idx] || '·';
+  av.style.background = ai.color;
+  document.getElementById('thinking-title').textContent = ai.label;
+  renderThinking();
+}
+function addThought(aiIdx, kind, title, bodyHtml) {
+  while (aiStreams.length <= aiIdx) aiStreams.push([]);
+  aiStreams[aiIdx].unshift({ kind, title, body: bodyHtml });
+  if (aiIdx === currentAI) prependThought({ kind, title, body: bodyHtml });
+}
+function prependThought(t) {
+  const stream = document.getElementById('thinking-stream');
+  const empty = stream.querySelector('.thinking-empty');
+  if (empty) empty.remove();
+  const line = document.createElement('div');
+  line.className = `thought-line tk-${t.kind}`;
+  line.innerHTML = `<div class="thought-kind">${escapeHtml(t.title)}</div><div class="thought-body">${t.body}</div>`;
+  stream.insertBefore(line, stream.firstChild);
+  stream.scrollTop = 0;
+}
+function renderThinking() {
+  const stream = document.getElementById('thinking-stream');
+  stream.innerHTML = '';
+  const items = aiStreams[currentAI] || [];
+  if (!items.length) {
+    stream.innerHTML = '<div class="thinking-empty">No thoughts yet.</div>';
+    return;
+  }
+  items.forEach(t => {
+    const line = document.createElement('div');
+    line.className = `thought-line tk-${t.kind}`;
+    line.style.animation = 'none';
+    line.innerHTML = `<div class="thought-kind">${escapeHtml(t.title)}</div><div class="thought-body">${t.body}</div>`;
+    stream.appendChild(line);
+  });
+}
+
+// ═════════════════ JOB TAB ═════════════════
+function renderJobTab() {
+  if (!job) return;
+  document.getElementById('job-card-name').textContent   = job.name;
+  document.getElementById('job-card-flavor').textContent = job.flavor || '';
+  const rr = job.reward_range;
+  document.getElementById('job-card-reward').textContent = rr
+    ? '$' + (rr[0]/1e6).toFixed(1) + 'm – $' + (rr[1]/1e6).toFixed(1) + 'm' : '';
+  document.getElementById('job-card').style.display = '';
+
+  const p = job.profile || {};
+  document.getElementById('job-challenge-table').innerHTML = [
+    {label:'Electronic', key:'electronic'}, {label:'Physical', key:'physical'},
+    {label:'Confrontation', key:'confrontation'}, {label:'Social', key:'social'},
+    {label:'Escape', isEscape:true},
+  ].map(row => {
+    if (row.isEscape) {
+      const mod = job.escape_modifier != null ? job.escape_modifier : '—';
+      return `<tr><td class="ct-label">Escape</td><td class="ct-bar"></td><td class="ct-level-name ct-level-none" style="font-size:12px;font-family:monospace">modifier ${escapeHtml(String(mod))}</td></tr>`;
+    }
+    const level = (p[row.key] || 'NONE').toUpperCase();
+    return `<tr><td class="ct-label">${escapeHtml(row.label)}</td><td class="ct-bar">${buildDiffBar(level)}</td><td class="ct-level-name ${diffCls(level)}">${escapeHtml(level)}</td></tr>`;
+  }).join('');
+  document.getElementById('job-profile-section').style.display = '';
+}
+function renderJobReasoning(text) {
+  document.getElementById('job-reasoning-text').textContent = text;
+  document.getElementById('job-reasoning-block').style.display = '';
+}
+function renderHiddenDepth(hd) {
+  const types = {
+    complication:          {badge:'hd-badge-complication', callout:'hd-callout-complication', label:'Complication'},
+    opportunity_with_cost: {badge:'hd-badge-opportunity',  callout:'hd-callout-opportunity',  label:'Opportunity'},
+    bonus_with_cost:       {badge:'hd-badge-bonus',        callout:'hd-callout-bonus',        label:'Bonus'},
+  };
+  const t = types[hd.element_type] || types.complication;
+  document.getElementById('hd-callout-wrap').innerHTML =
+    `<div class="hd-callout ${t.callout}"><div class="hd-badge ${t.badge}">${t.label}</div><div>${escapeHtml(hd.description)}</div></div>`;
+  document.getElementById('hd-reward').textContent =
+    `Reward rolled: ${hd.reward_label || '—'} — ${hd.reward_amount != null ? '$' + Number(hd.reward_amount).toLocaleString() : '—'}`;
+  document.getElementById('hidden-depth-section').style.display = '';
+}
+function buildDiffBar(level) {
+  const segs = {HARD:3, MEDIUM:2, LOW:1, NONE:0}[level] || 0;
+  const cls  = {HARD:'lvl-hard', MEDIUM:'lvl-medium', LOW:'lvl-low'}[level] || '';
+  return '<div class="ct-bar-segs">' + Array.from({length:3}, (_,i) => `<span class="ct-seg ${i<segs?cls:''}"></span>`).join('') + '</div>';
+}
+function diffCls(level) {
+  return {HARD:'ct-level-hard', MEDIUM:'ct-level-medium', LOW:'ct-level-low'}[level] || 'ct-level-none';
+}
+
+// ═════════════════ HEIST TAB ═════════════════
+const skillToType = { hacker:'electronic', safecracker:'physical', muscle:'confrontation', inside_man:'social' };
+function updateHeistHeat(n) {
+  const filled = Math.min(Math.max(n || 0, 0), 5);
+  document.getElementById('heist-heat-dots').textContent = '●'.repeat(filled) + '○'.repeat(5 - filled);
+}
+function renderSceneCard(sceneNum) {
+  const s = scenes[sceneNum]; if (!s) return;
+  const cardId = 'scene-card-' + sceneNum;
+  let card = document.getElementById(cardId);
+  if (!card) {
+    card = document.createElement('div');
+    card.className = 'scene-card'; card.id = cardId;
+    document.getElementById('scene-list').appendChild(card);
+  }
+  const meta = s.meta || {}, result = s.result || null, narr = s.narration || null;
+  const typeMap = { escape:'stype-escape', decision:'stype-decision' };
+  const typeCls = typeMap[meta.scene_type] || (meta.is_core ? 'stype-core' : '');
+  const typeText = { escape:'Escape', decision:'Decision' }[meta.scene_type] || (meta.is_core ? 'Core' : meta.scene_type || 'Scene');
+
+  let resultHtml = !result ? '<span class="scene-status-pending">● in progress</span>'
+    : result.aborted ? '<span class="scene-result-none">— ABORTED</span>'
+    : meta.scene_type === 'escape' ? (result.escape_success ? '<span class="scene-result-ok">✓ CLEAN EXIT</span>' : '<span class="scene-result-fail">✗ CAUGHT</span>')
+    : result.success === true ? '<span class="scene-result-ok">✓ SUCCESS</span>'
+    : result.success === false ? '<span class="scene-result-fail">✗ FAILURE</span>'
+    : '<span class="scene-result-none">—</span>';
+
+  let challengeHtml = '';
+  if (meta.scene_type === 'escape') {
+    const diff = result ? result.escape_difficulty : '?', mod = job ? job.escape_modifier : '?', heat = result ? result.heat : '?';
+    challengeHtml = `<div class="escape-info">Escape — difficulty ${escapeHtml(String(diff))} (modifier ${escapeHtml(String(mod))} + heat ${escapeHtml(String(heat))})</div>
+      ${result ? '<div class="escape-info">Result: ' + (result.escape_success ? '<span style="color:var(--green)">✓ Clean exit</span>' : '<span style="color:var(--red)">✗ Caught</span>') + '</div>' : ''}`;
+  } else if (meta.challenge_skill && meta.scene_type !== 'setup') {
+    const skill = (meta.challenge_skill || '').toLowerCase();
+    const typeKey = skillToType[skill];
+    const expected = (job && typeKey && job.profile) ? (job.profile[typeKey] || 'NONE').toUpperCase() : null;
+    const reality  = result ? (result.challenge_level || 'NONE').toUpperCase() : null;
+    const warn = (expected && reality && expected !== reality)
+      ? `<div class="scene-hidden-depth-warn">⚠ Hidden depth modified: expected ${escapeHtml(expected)}, got ${escapeHtml(reality)}</div>` : '';
+    challengeHtml = `<div class="scene-challenge-block">
+      <div class="sc-challenge-title">Challenge · ${escapeHtml(meta.challenge_skill)}</div>
+      ${expected != null ? `<div class="sc-challenge-row"><span class="sc-challenge-row-lbl">Expected</span>${buildDiffBar(expected)}<span class="ct-level-name ${diffCls(expected)}" style="font-size:11px">${escapeHtml(expected)}</span></div>` : ''}
+      ${reality  != null ? `<div class="sc-challenge-row"><span class="sc-challenge-row-lbl">Reality</span>${buildDiffBar(reality)}<span class="ct-level-name ${diffCls(reality)}" style="font-size:11px">${escapeHtml(reality)}</span></div>` : ''}
+      ${warn}</div>`;
+  } else {
+    challengeHtml = '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Narrative scene</div>';
+  }
+
+  let assignedHtml = '';
+  if (result && result.assigned_member_ids && result.assigned_member_ids.length) {
+    const names = result.assigned_member_ids.map(id => {
+      const m = crew && crew.members ? crew.members.find(x => x.id == id) : null;
+      return m ? escapeHtml(m.name) : escapeHtml(String(id));
+    }).join(', ');
+    assignedHtml = `<div class="scene-assigned-block">
+      <div class="scene-assigned-label">Assigned</div>
+      <div class="scene-assigned-names">${names}</div>
+      ${result.reasoning ? `<div class="scene-reasoning-text">"${escapeHtml(result.reasoning)}"</div>` : ''}
+    </div>`;
+  }
+
+  let decisionHtml = '';
+  if (meta.scene_type === 'decision' && result) {
+    const pursue = result.decision === 'pursue' || result.pursue === true;
+    decisionHtml = `<div class="scene-decision-block">
+      <div class="scene-decision-label">Decision</div>
+      ${pursue ? '<span class="scene-decision-pursue">▶ PURSUE</span>' : '<span class="scene-decision-pass">— PASS</span>'}
+      ${result.reasoning ? `<div class="scene-decision-reason">"${escapeHtml(result.reasoning)}"</div>` : ''}
+    </div>`;
+  }
+
+  const narrationHtml = result
+    ? (narr ? `<div class="scene-narration prose">${renderMd(narr)}</div>` : '<div class="scene-narrating">Narrating…</div>')
+    : '';
+
+  card.innerHTML = `
+    <div class="scene-card-header">
+      <span class="scene-card-num">Scene ${sceneNum}</span>
+      <span class="scene-card-title">${escapeHtml(meta.title || '')}</span>
+      <span class="scene-type-badge ${typeCls}">${escapeHtml(typeText)}</span>
+      ${resultHtml}
+    </div>
+    ${challengeHtml}${assignedHtml}${decisionHtml}${narrationHtml}`;
+}
+function renderHeistOutcome() {
+  if (!gameState) return;
+  const existing = document.getElementById('heist-outcome');
+  if (existing) existing.remove();
+  const ok = !gameState.aborted && gameState.escape_success !== false;
+  const take = gameState.final_take != null ? '$' + Number(gameState.final_take).toLocaleString() : '—';
+  const bonusPursued = gameState.bonus_pursued;
+  const bonusStr = bonusPursued
+    ? (gameState.bonus_success ? `Pursued — succeeded ($${Number(gameState.bonus_amount).toLocaleString()})` : 'Pursued — failed')
+    : 'Not pursued';
+  const card = document.createElement('div');
+  card.id = 'heist-outcome'; card.className = 'heist-outcome-card';
+  card.innerHTML = `
+    <div class="${ok ? 'heist-outcome-heading-ok' : 'heist-outcome-heading-fail'}">${ok ? '✓ HEIST COMPLETE' : '✗ HEIST FAILED'}</div>
+    <div class="heist-outcome-take">${escapeHtml(take)}</div>
+    <div class="heist-outcome-row"><span class="heist-outcome-row-key">Escape</span><span class="heist-outcome-row-val">${gameState.escape_success ? 'Succeeded' : 'Failed'}</span></div>
+    <div class="heist-outcome-row"><span class="heist-outcome-row-key">Bonus</span><span class="heist-outcome-row-val">${escapeHtml(bonusStr)}</span></div>
+    <div class="heist-outcome-row"><span class="heist-outcome-row-key">Final heat</span><span class="heist-outcome-row-val">${gameState.heat || 0}</span></div>`;
+  document.getElementById('scene-list').appendChild(card);
+}
+
+// ═════════════════ HELPERS ═════════════════
+function setStatus(cls, text) {
+  const b = document.getElementById('status-badge');
+  b.className = cls; b.textContent = text;
+}
+function updateHeat(n) {
+  const el = document.getElementById('heat-display');
+  el.textContent = n ? '● '.repeat(n).trim() + '  heat ' + n : '';
+}
+function escapeHtml(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function renderMd(text) {
+  if (!text) return '';
+  let s = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  s = s.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>').replace(/`(.+?)`/g,'<code>$1</code>');
+  return s.split(/\n{2,}/).map(p=>`<p>${p.replace(/\n/g,'<br>')}</p>`).join('');
+}
+</script>
+</body>
+</html>
