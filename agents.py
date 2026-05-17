@@ -9,7 +9,7 @@ class Turn:
     session_id: str
 
 
-def ask_codex(prompt: str, session_id: str | None = None, timeout: int = 180) -> Turn:
+def ask_codex(prompt: str, session_id: str | None = None, timeout: int = 600) -> Turn:
     if session_id:
         cmd = ["codex", "exec", "resume", session_id,
                "--json", "--skip-git-repo-check", prompt]
@@ -30,7 +30,7 @@ def ask_codex(prompt: str, session_id: str | None = None, timeout: int = 180) ->
     return Turn(text=text, session_id=sid)
 
 
-def ask_gemini(prompt: str, session_id: str | None = None, timeout: int = 180) -> Turn:
+def ask_gemini(prompt: str, session_id: str | None = None, timeout: int = 600) -> Turn:
     cmd = ["gemini", "-o", "json"]
     if session_id:
         cmd += ["--resume", session_id]
