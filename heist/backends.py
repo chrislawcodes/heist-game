@@ -14,11 +14,12 @@ from heist.ai import AgentTurn
 
 
 class CodexHeistAI:
-    def __init__(self) -> None:
+    def __init__(self, model: str | None = None) -> None:
         self.session_id: str | None = None
+        self.model = model
 
     def ask(self, prompt: str) -> AgentTurn:
-        result: Turn = ask_codex(prompt, session_id=self.session_id)
+        result: Turn = ask_codex(prompt, session_id=self.session_id, model=self.model)
         self.session_id = result.session_id
         return AgentTurn(text=result.text, session_id=result.session_id)
 

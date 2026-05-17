@@ -14,8 +14,8 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - name: Install dev + web deps
-        run: pip install ruff mypy pytest fastapi uvicorn httpx
+      - name: Install dev deps
+        run: pip install ruff mypy pytest
       - name: Ruff lint
         run: ruff check .
       - name: Mypy typecheck

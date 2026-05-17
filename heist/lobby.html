@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Heist</title>
+<style>
+:root {
+  --bg: #0c0c0e;
+  --panel: #131316;
+  --panel2: #18181c;
+  --border: #26262c;
+  --text: #e0dfe8;
+  --muted: #72717a;
+  --accent: #e8a030;
+  --green: #52c47a;
+  --red: #e05050;
+  --blue: #5898e0;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  min-height: 100vh;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 0 24px 64px;
+}
+
+/* ── header ── */
+header {
+  width: 100%; max-width: 720px;
+  padding: 48px 0 40px;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+}
+.logo {
+  font-size: 11px; font-weight: 700; letter-spacing: 5px;
+  text-transform: uppercase; color: var(--accent);
+}
+.tagline {
+  font-size: 13px; color: var(--muted); letter-spacing: 0.02em;
+}
+
+/* ── start button ── */
+.start-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--accent); color: #000;
+  font-weight: 700; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase;
+  padding: 12px 28px; border: none; border-radius: 6px;
+  cursor: pointer; text-decoration: none;
+  transition: background 0.15s;
+  margin-top: 8px;
+}
+.start-btn:hover { background: #f0b840; }
+
+/* ── games section ── */
+.section {
+  width: 100%; max-width: 720px;
+  margin-top: 48px;
+}
+.section-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 14px;
+}
+
+/* ── game list ── */
+.game-list {
+  display: flex; flex-direction: column; gap: 8px;
+}
+.game-row {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 8px; padding: 16px 20px;
+  display: flex; align-items: center; gap: 16px;
+  cursor: pointer; text-decoration: none; color: inherit;
+  transition: border-color 0.15s, background 0.15s;
+}
+.game-row:hover { border-color: #3a3a4a; background: var(--panel2); }
+
+.game-status {
+  flex-shrink: 0;
+  width: 80px;
+}
+.status-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  padding: 3px 9px; border-radius: 3px;
+}
+.status-staging { background: #1a1a0e; color: var(--accent); }
+.status-running { background: #0c1a2e; color: var(--blue); }
+.status-done    { background: #0c2018; color: var(--green); }
+.status-failed  { background: #2e0c0c; color: var(--red); }
+.status-error   { background: #2e0c0c; color: var(--red); }
+
+.status-dot {
+  width: 6px; height: 6px; border-radius: 50%; background: currentColor;
+  animation: none;
+}
+.status-running .status-dot { animation: blink 1.2s ease-in-out infinite; }
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
+
+.game-info { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.game-job  { font-size: 14px; font-weight: 600; color: var(--text); }
+.game-sub  { font-size: 12px; color: var(--muted); }
+
+.game-take {
+  font-family: monospace; font-size: 16px; font-weight: 700;
+  color: var(--accent); flex-shrink: 0;
+}
+.game-take.failed { color: var(--red); font-size: 13px; }
+
+.game-chevron {
+  flex-shrink: 0; font-size: 14px; color: var(--muted);
+}
+
+.game-actions {
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+}
+.action-link {
+  font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  color: var(--accent); text-decoration: none; padding: 5px 10px;
+  border: 1px solid var(--accent); border-radius: 4px;
+  transition: background 0.15s;
+}
+.action-link:hover { background: rgba(232,160,48,0.1); }
+.action-btn {
+  font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  background: var(--accent); color: #000; border: none; border-radius: 4px;
+  padding: 5px 12px; cursor: pointer; transition: background 0.15s;
+}
+.action-btn:hover { background: #f0b840; }
+
+/* ── empty state ── */
+.empty-state {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 8px; padding: 32px 24px;
+  text-align: center; color: var(--muted); font-size: 13px;
+  line-height: 1.6;
+}
+.empty-state strong { color: var(--text); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Heist</div>
+  <div class="tagline">Write the strategy. Watch the crew work.</div>
+  <button class="start-btn" onclick="newGame()">+ Start New Game</button>
+</header>
+
+<div class="section">
+  <div class="section-label">Games</div>
+  <div class="game-list" id="game-list">
+    <div class="empty-state">
+      <strong>No games yet.</strong><br>
+      Hit "Start New Game" to plan your first heist.
+    </div>
+  </div>
+</div>
+
+<script>
+function timeAgo(ts) {
+  const secs = Math.floor(Date.now() / 1000 - ts);
+  if (secs < 60)  return 'just now';
+  if (secs < 3600) return Math.floor(secs / 60) + 'm ago';
+  if (secs < 86400) return Math.floor(secs / 3600) + 'h ago';
+  return Math.floor(secs / 86400) + 'd ago';
+}
+
+function renderGames(games) {
+  const el = document.getElementById('game-list');
+  if (!games.length) {
+    el.innerHTML = `<div class="empty-state"><strong>No games yet.</strong><br>Hit "Start New Game" to plan your first heist.</div>`;
+    return;
+  }
+
+  // Most recent first
+  const sorted = [...games].slice().reverse();
+  el.innerHTML = sorted.map(g => {
+    const isStaging = g.status === 'staging';
+    const isRunning = g.status === 'running';
+    const isDone    = g.status === 'done';
+    const isClean   = isDone && !g.aborted && g.escape_success !== false;
+
+    const pillCls  = isStaging ? 'status-staging' : isRunning ? 'status-running' : isClean ? 'status-done' : 'status-failed';
+    const pillText = isStaging ? 'Staging' : isRunning ? 'Running' : isClean ? 'Complete' : 'Failed';
+
+    const aiCount  = (g.ais || []).length;
+    const jobName  = g.job || (isRunning ? 'In progress…' : isStaging ? 'Not started' : 'Unknown');
+    const sub      = timeAgo(g.created_at);
+
+    let takeHtml = '';
+    if (isClean && g.take != null) {
+      takeHtml = `<div class="game-take">$${Number(g.take).toLocaleString()}</div>`;
+    } else if (isDone) {
+      takeHtml = `<div class="game-take failed">$0</div>`;
+    }
+
+    let actionHtml = '';
+    if (isStaging) {
+      actionHtml = `
+        <div class="game-actions">
+          <a class="action-link" href="/setup?game=${g.id}">+ Add AI</a>
+          ${aiCount > 0 ? `<button class="action-btn" onclick="launchGame(${g.id})">▶ Launch</button>` : ''}
+        </div>`;
+    }
+
+    const href = isStaging ? '#' : '/viewer';
+    const rowTag = isStaging ? `<div class="game-row"` : `<a class="game-row" href="${href}"`;
+    const rowClose = isStaging ? `</div>` : `</a>`;
+
+    return `${rowTag}>
+      <div class="game-status">
+        <span class="status-pill ${pillCls}">
+          <span class="status-dot"></span>${pillText}
+        </span>
+      </div>
+      <div class="game-info">
+        <div class="game-job">${esc(jobName)}</div>
+        <div class="game-sub">Game #${g.id} · ${aiCount} AI${aiCount !== 1 ? 's' : ''} · ${sub}</div>
+      </div>
+      ${takeHtml}
+      ${actionHtml || `<div class="game-chevron">›</div>`}
+    ${rowClose}`;
+  }).join('');
+}
+
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s == null ? '' : String(s);
+  return d.innerHTML;
+}
+
+async function newGame() {
+  try {
+    const resp = await fetch('/api/new-game', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    const data = await resp.json();
+    window.location = `/setup?game=${data.game_id}`;
+  } catch (e) {
+    alert('Could not create game: ' + e.message);
+  }
+}
+
+async function launchGame(id) {
+  try {
+    const resp = await fetch('/api/launch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ game_id: id }),
+    });
+    if (!resp.ok) { const d = await resp.json(); throw new Error(d.error || resp.status); }
+    window.location = '/viewer';
+  } catch (e) {
+    alert('Launch failed: ' + e.message);
+  }
+}
+
+async function refresh() {
+  try {
+    const resp = await fetch('/api/games');
+    const games = await resp.json();
+    renderGames(games);
+  } catch {}
+}
+
+refresh();
+setInterval(refresh, 3000);
+</script>
+</body>
+</html>

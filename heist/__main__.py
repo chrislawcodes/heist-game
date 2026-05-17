@@ -32,16 +32,33 @@ def _build_ai(agent: str) -> HeistAI:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="heist")
-    parser.add_argument("--prompt-file", type=Path, default=None,
-                        help="File with strategy prompt; default = built-in default.")
-    parser.add_argument("--out", type=Path, default=Path("heist_report.md"),
-                        help="Markdown output path.")
-    parser.add_argument("--seed", type=int, default=None,
-                        help="RNG seed for reproducible hidden-depth rolls.")
-    parser.add_argument("--agent", default="stub", choices=["stub", "codex", "gemini"],
-                        help="Heist AI backend.")
+    subparsers = parser.add_subparsers(dest="command")
+
+    # serve subcommand
+    serve_p = subparsers.add_parser("serve", help="Start the live viewer server.")
+    serve_p.add_argument("--port", type=int, default=8000)
+
+    # run subcommand (default behaviour)
+    run_p = subparsers.add_parser("run", help="Run a heist and write a markdown report.")
+    run_p.add_argument("--prompt-file", type=Path, default=None)
+    run_p.add_argument("--out", type=Path, default=Path("heist_report.md"))
+    run_p.add_argument("--seed", type=int, default=None)
+    run_p.add_argument("--agent", default="stub", choices=["stub", "codex", "gemini"])
+
+    # backwards-compat: bare flags with no subcommand → treat as `run`
+    parser.add_argument("--prompt-file", type=Path, default=None)
+    parser.add_argument("--out", type=Path, default=Path("heist_report.md"))
+    parser.add_argument("--seed", type=int, default=None)
+    parser.add_argument("--agent", default="stub", choices=["stub", "codex", "gemini"])
+
     args = parser.parse_args(argv)
 
+    if args.command == "serve":
+        from heist.server import serve
+        serve(port=args.port)
+        return 0
+
+    # run (subcommand or bare)
     prompt = args.prompt_file.read_text() if args.prompt_file else DEFAULT_PROMPT
     rng = random.Random(args.seed)
     ai = _build_ai(args.agent)

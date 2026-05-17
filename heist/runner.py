@@ -15,6 +15,7 @@ The AI talks in JSON for structured steps; the runner parses defensively.
 
 from __future__ import annotations
 
+import contextlib
 import random
 import sys
 import time
@@ -40,16 +41,27 @@ from heist.state import (
     TurnLog,
 )
 
+EmitFn = Callable[[dict], None] | None
 SceneCallback = Callable[[SceneResult], None]
 
 
-def _call(ai: HeistAI, prompt: str, label: str, logs: list[TurnLog]) -> AgentTurn:
-    """Time one AI call, log it, echo to stderr."""
+def _call(
+    ai: HeistAI, prompt: str, label: str, logs: list[TurnLog], emit: EmitFn = None
+) -> AgentTurn:
+    """Time one AI call, log it, echo to stderr, and optionally emit turn events."""
+    if emit:
+        emit({"type": "turn_start", "label": label, "prompt": prompt})
     t0 = time.monotonic()
     turn = ai.ask(prompt)
     elapsed = time.monotonic() - t0
     logs.append(TurnLog(label=label, seconds=elapsed))
     print(f"  [round {label}: {elapsed:.1f}s]", file=sys.stderr)
+    if emit:
+        parsed = None
+        with contextlib.suppress(Exception):
+            parsed = parse_json_block(turn.text)
+        emit({"type": "turn_end", "label": label, "seconds": elapsed,
+              "response": turn.text, "parsed": parsed})
     return turn
 
 
@@ -235,14 +247,14 @@ def _validate_bids(parsed: dict) -> list[tuple[Character, int]]:
 
 
 def _fill_crew(
-    ai: HeistAI, crew_so_far: list[Character], logs: list[TurnLog]
+    ai: HeistAI, crew_so_far: list[Character], logs: list[TurnLog], emit: EmitFn = None
 ) -> list[Character]:
     fill_attempt = 0
     while len(crew_so_far) < 4:
         fill_attempt += 1
         remaining = 4 - len(crew_so_far)
         prompt = _fill_prompt(crew_so_far, remaining)
-        turn = _call(ai, prompt, f"fill_{fill_attempt}", logs)
+        turn = _call(ai, prompt, f"fill_{fill_attempt}", logs, emit)
         parsed = parse_json_block(turn.text)
         added_any = False
         spent = sum(c.floor_cost for c in crew_so_far)
@@ -292,6 +304,7 @@ def run_heist(
     ai: HeistAI,
     rng: random.Random | None = None,
     on_scene: SceneCallback | None = None,
+    emit: EmitFn = None,
 ) -> tuple[HeistState, dict[str, Any]]:
     """Run one full heist end-to-end. Returns (final_state, extras)
     where extras carries the casting summary, scene narrations, and epilogue."""
@@ -308,16 +321,19 @@ def run_heist(
     heist_start = time.monotonic()
 
     # 1. Draft
-    bid_turn = _call(ai, _bid_prompt(strategy), "bid", logs)
+    bid_turn = _call(ai, _bid_prompt(strategy), "bid", logs, emit)
     bid_parsed = parse_json_block(bid_turn.text)
     extras["bid_logic"] = bid_parsed
     bids = _validate_bids(bid_parsed)
     crew_members = [c for c, _ in bids]
-    crew_members = _fill_crew(ai, crew_members, logs)
+    crew_members = _fill_crew(ai, crew_members, logs, emit)
     crew = Crew(members=crew_members)
+    if emit:
+        from heist.serialize import crew_to_dict
+        emit({"type": "crew_known", "crew": crew_to_dict(crew)})
 
     # 2. Job selection
-    job_turn = _call(ai, _job_prompt(crew), "job_pick", logs)
+    job_turn = _call(ai, _job_prompt(crew), "job_pick", logs, emit)
     job_parsed = parse_json_block(job_turn.text)
     name = job_parsed["job_name"]
     if name not in JOBS_BY_NAME:
@@ -329,9 +345,12 @@ def run_heist(
         extras["job_viability_warning"] = (
             f"Crew lacks required Hard coverage for {job.name}; proceeding anyway."
         )
+    if emit:
+        from heist.serialize import job_to_dict
+        emit({"type": "job_known", "job": job_to_dict(job)})
 
     # 3. Casting summary
-    summary_turn = _call(ai, _summary_prompt(), "casting_summary", logs)
+    summary_turn = _call(ai, _summary_prompt(), "casting_summary", logs, emit)
     extras["casting_summary"] = parse_json_block(summary_turn.text).get("summary", "")
 
     # 4. Hidden depth roll
@@ -341,6 +360,15 @@ def run_heist(
     hidden = HiddenDepthRoll(
         element=element, reward_label=reward_label, reward_amount=reward_amount
     )
+    if emit:
+        emit({
+            "type": "hidden_depth_rolled",
+            "element_id": element.id,
+            "description": element.description,
+            "element_type": element.type,
+            "reward_label": reward_label,
+            "reward_amount": reward_amount,
+        })
 
     state = HeistState(crew=crew, job=job, hidden_depth=hidden)
     scenes = generate_scenes(job, hidden)
@@ -350,9 +378,28 @@ def run_heist(
         if state.aborted and scene.type != "escape":
             # Skip remaining body scenes once aborted; still narrate the escape (failed).
             continue
-        result = _execute_scene(scene, state, ai, logs)
+        result = _execute_scene(scene, state, ai, logs, emit)
         state.scene_results.append(result)
         extras["scene_narrations"].append(result)
+        if emit:
+            emit({
+                "type": "scene_done",
+                "scene_num": scene.number,
+                "title": scene.title,
+                "scene_type": scene.type,
+                "challenge_skill": scene.challenge_skill,
+                "challenge_level": scene.challenge_level.name if scene.challenge_level else None,
+                "is_core": scene.is_core,
+                "context": scene.context,
+                "assigned_member_ids": result.assigned_member_ids,
+                "reasoning": result.reasoning,
+                "decision": result.decision,
+                "success": result.success,
+                "heat": state.heat,
+                "aborted": state.aborted,
+                "escape_success": state.escape_success,
+                "escape_difficulty": state.escape_difficulty,
+            })
         if on_scene is not None:
             on_scene(result)
 
@@ -360,7 +407,7 @@ def run_heist(
     _finalize_reward(state)
 
     # 7. Epilogue
-    ep_turn = _call(ai, _epilogue_prompt(state), "epilogue", logs)
+    ep_turn = _call(ai, _epilogue_prompt(state), "epilogue", logs, emit)
     extras["epilogue"] = parse_json_block(ep_turn.text).get("epilogue", "")
 
     total = time.monotonic() - heist_start
@@ -376,13 +423,25 @@ def run_heist(
 
 
 def _execute_scene(
-    scene: Scene, state: HeistState, ai: HeistAI, logs: list[TurnLog]
+    scene: Scene, state: HeistState, ai: HeistAI, logs: list[TurnLog], emit: EmitFn = None
 ) -> SceneResult:
     if scene.type == "escape":
-        return _execute_escape(scene, state, ai, logs)
+        return _execute_escape(scene, state, ai, logs, emit)
+
+    if emit:
+        emit({
+            "type": "scene_start",
+            "scene_num": scene.number,
+            "title": scene.title,
+            "scene_type": scene.type,
+            "challenge_skill": scene.challenge_skill,
+            "challenge_level": scene.challenge_level.name if scene.challenge_level else None,
+            "is_core": scene.is_core,
+            "context": scene.context,
+        })
 
     assign_turn = _call(
-        ai, _scene_assign_prompt(scene, state), f"scene_{scene.number}_assign", logs
+        ai, _scene_assign_prompt(scene, state), f"scene_{scene.number}_assign", logs, emit
     )
     assign_parsed = parse_json_block(assign_turn.text)
     member_ids = [int(i) for i in assign_parsed.get("assigned_member_ids", [])]
@@ -395,7 +454,7 @@ def _execute_scene(
 
     if scene.type == "decision":
         dec_turn = _call(
-            ai, _scene_decision_prompt(scene), f"scene_{scene.number}_decision", logs
+            ai, _scene_decision_prompt(scene), f"scene_{scene.number}_decision", logs, emit
         )
         dec_parsed = parse_json_block(dec_turn.text)
         pursue = bool(dec_parsed.get("pursue", False))
@@ -424,7 +483,7 @@ def _execute_scene(
 
     narrate_turn = _call(
         ai, _scene_narrate_prompt(scene, outcome_summary),
-        f"scene_{scene.number}_narrate", logs,
+        f"scene_{scene.number}_narrate", logs, emit,
     )
     narrate_parsed = parse_json_block(narrate_turn.text)
     narration = narrate_parsed.get("narration", "")
@@ -440,7 +499,7 @@ def _execute_scene(
 
 
 def _execute_escape(
-    scene: Scene, state: HeistState, ai: HeistAI, logs: list[TurnLog]
+    scene: Scene, state: HeistState, ai: HeistAI, logs: list[TurnLog], emit: EmitFn = None
 ) -> SceneResult:
     success, difficulty = escape_resolves(
         state.crew, state.heat, state.job.escape_modifier
@@ -457,9 +516,21 @@ def _execute_escape(
     )
 
     # Ask AI to assign — for escape, usually the Driver(s). Still let the AI pick.
+    if emit:
+        emit({
+            "type": "scene_start",
+            "scene_num": scene.number,
+            "title": scene.title,
+            "scene_type": "escape",
+            "challenge_skill": "driver",
+            "challenge_level": None,
+            "is_core": True,
+            "context": scene.context,
+        })
+
     assign_turn = _call(
         ai, _scene_assign_prompt(scene, state),
-        f"scene_{scene.number}_escape_assign", logs,
+        f"scene_{scene.number}_escape_assign", logs, emit,
     )
     assign_parsed = parse_json_block(assign_turn.text)
     member_ids = [int(i) for i in assign_parsed.get("assigned_member_ids", [])]
@@ -467,7 +538,7 @@ def _execute_escape(
 
     narrate_turn = _call(
         ai, _scene_narrate_prompt(scene, outcome_summary),
-        f"scene_{scene.number}_escape_narrate", logs,
+        f"scene_{scene.number}_escape_narrate", logs, emit,
     )
     narration = parse_json_block(narrate_turn.text).get("narration", "")
 

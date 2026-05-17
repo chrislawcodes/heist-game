@@ -31,14 +31,17 @@ Flags:
 ### Browser mode (localhost web UI)
 
 ```sh
-pip install fastapi uvicorn
-python3 -m heist.server
-# open http://127.0.0.1:8000
+python3 -m heist serve --port 8000
+# open http://localhost:8000
 ```
 
-Single-user, localhost-only. Write a prompt in the textarea, hit "Run heist,"
-scenes stream into the page as the AI writes them. Codex is the default
-backend; switch via the dropdown.
+Three-screen app, single-user, localhost-only, zero extra dependencies
+(uses the stdlib `http.server`). Flow: **Lobby** lets you start a new game
+or browse history → **Setup wizard** builds your strategy prompt and picks
+the AI → **Live viewer** streams the game with a draft board, crew columns,
+and a persistent "thinking rail" showing per-AI private reasoning. Mocks
+under `heist/mocks/<name>.html` are auto-served at `/mocks/<name>` for
+design iteration.
 
 ## Architecture
 

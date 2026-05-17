@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Heist — Plan the Job</title>
+  <style>
+    :root {
+      --bg: #0f0f0f;
+      --surface: #1a1a1a;
+      --surface2: #242424;
+      --border: #2e2e2e;
+      --accent: #c9a84c;
+      --accent-dim: #7a6020;
+      --text: #e8e8e8;
+      --text-dim: #888;
+      --text-muted: #555;
+      --radius: 8px;
+      --step-w: 1050px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { font-size: 20px; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Georgia', serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    header {
+      width: 100%;
+      border-bottom: 1px solid var(--border);
+      padding: 18px 32px;
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+    }
+    header h1 {
+      font-size: 1.1rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-weight: normal;
+    }
+    header span {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      letter-spacing: 0.06em;
+    }
+
+    /* ── Progress ── */
+    .progress-track {
+      width: var(--step-w);
+      max-width: 100%;
+      padding: 32px 0 0;
+      display: flex;
+      align-items: center;
+    }
+    .progress-step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      flex: 1;
+      cursor: pointer;
+    }
+    .progress-step .dot {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      background: var(--surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      transition: all 0.2s;
+      position: relative;
+      z-index: 1;
+    }
+    .progress-step.active .dot  { border-color: var(--accent); background: var(--accent); color: #000; font-weight: bold; }
+    .progress-step.done .dot    { border-color: var(--accent-dim); background: var(--accent-dim); color: var(--accent); }
+    .progress-step .label       { font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); white-space: nowrap; }
+    .progress-step.active .label { color: var(--accent); }
+    .progress-step.done .label  { color: var(--accent-dim); }
+    .progress-line              { flex: 1; height: 1px; background: var(--border); margin-bottom: 22px; }
+    .progress-line.done         { background: var(--accent-dim); }
+
+    /* ── Step card ── */
+    .step-card {
+      width: var(--step-w);
+      max-width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 36px 40px;
+      margin: 24px 0;
+      display: none;
+    }
+    .step-card.active { display: block; }
+
+    .step-header    { margin-bottom: 28px; }
+    .step-eyebrow   { font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
+    .step-title     { font-size: 1.6rem; font-weight: normal; color: var(--text); margin-bottom: 8px; }
+    .step-desc      { font-size: 0.85rem; color: var(--text-dim); line-height: 1.6; }
+
+    /* ── Choice grid ── */
+    .choice-group   { margin-bottom: 28px; }
+    .choice-label   { font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 10px; }
+    .choice-grid    { display: grid; gap: 10px; }
+    .choice-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+    .choice-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+
+    .choice-card {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      cursor: pointer;
+      background: var(--surface2);
+      transition: border-color 0.15s, background 0.15s;
+      user-select: none;
+    }
+    .choice-card:hover              { border-color: var(--accent-dim); }
+    .choice-card.selected           { border-color: var(--accent); background: #1e1a0e; }
+    .choice-card input[type="radio"]{ display: none; }
+    .choice-card .card-title        { font-size: 1rem; color: var(--text); margin-bottom: 4px; }
+    .choice-card.selected .card-title { color: var(--accent); }
+    .choice-card .card-body         { font-size: 0.88rem; color: var(--text-muted); line-height: 1.5; }
+    .choice-card .card-example      { font-size: 0.82rem; color: var(--text-muted); font-style: italic; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border); }
+
+    /* ── Override divider ── */
+    .override-divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 24px 0 16px;
+    }
+    .override-divider::before,
+    .override-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+    .override-divider span {
+      font-size: 0.68rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    /* ── Write your own ── */
+    .override-group { margin-bottom: 8px; }
+    .override-label {
+      font-size: 0.7rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+      display: block;
+    }
+    .override-hint {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+      font-style: italic;
+    }
+    textarea {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.85rem;
+      line-height: 1.6;
+      padding: 14px 16px;
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    textarea:focus          { border-color: var(--accent-dim); }
+    textarea::placeholder   { color: var(--text-muted); }
+
+    select {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.85rem;
+      padding: 10px 14px;
+      outline: none;
+      cursor: pointer;
+      transition: border-color 0.15s;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      padding-right: 36px;
+    }
+    select:focus { border-color: var(--accent-dim); }
+
+    /* ── Nav ── */
+    .step-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 24px;
+    }
+    .btn {
+      padding: 10px 24px;
+      border-radius: var(--radius);
+      font-size: 0.8rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.15s;
+      font-family: inherit;
+    }
+    .btn-ghost   { background: transparent; border-color: var(--border); color: var(--text-dim); }
+    .btn-ghost:hover { border-color: var(--text-dim); color: var(--text); }
+    .btn-primary { background: var(--accent); color: #000; font-weight: bold; }
+    .btn-primary:hover { background: #e0bc60; }
+    .btn-run     { background: var(--accent); color: #000; font-weight: bold; padding: 14px 36px; font-size: 0.9rem; }
+    .btn-run:hover { background: #e0bc60; }
+
+    /* ── Run It step ── */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+    .summary-pill { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 16px; }
+    .summary-pill .pill-label { font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; }
+    .summary-pill .pill-value { font-size: 0.85rem; color: var(--accent); }
+
+    .section-label { font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 10px; }
+
+    /* ── Results ── */
+    #results { display: none; width: var(--step-w); max-width: 100%; margin: 24px 0 48px; }
+    #results.visible { display: block; }
+    .run-status { font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin-bottom: 20px; min-height: 1.2em; }
+    .result-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px 28px; margin-bottom: 16px; }
+    .result-panel h2 { font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); font-weight: normal; margin-bottom: 12px; }
+    .result-panel .body { font-size: 0.9rem; line-height: 1.7; white-space: pre-wrap; color: var(--text-dim); }
+    .scene-card { border-left: 3px solid var(--border); padding: 12px 0 12px 18px; margin-bottom: 20px; }
+    .scene-card.success { border-left-color: #4caf50; }
+    .scene-card.failure { border-left-color: #e05252; }
+    .scene-title { font-size: 1rem; color: var(--text); margin-bottom: 4px; }
+    .scene-meta { font-size: 0.78rem; color: var(--text-muted); font-style: italic; margin-bottom: 10px; }
+    .scene-meta b { font-style: normal; color: var(--text-dim); }
+    .scene-narration { font-size: 0.88rem; line-height: 1.75; color: var(--text-dim); white-space: pre-wrap; }
+    .outcome-take { font-size: 1.8rem; color: var(--accent); margin: 8px 0 16px; }
+    .outcome-grid { display: grid; grid-template-columns: max-content 1fr; gap: 6px 24px; font-size: 0.85rem; }
+    .outcome-grid dt { color: var(--text-muted); }
+    .outcome-grid dd { margin: 0; color: var(--text-dim); }
+    .err-box { background: rgba(224,82,82,0.08); border: 1px solid rgba(224,82,82,0.3); border-radius: var(--radius); padding: 14px 18px; color: #e05252; font-size: 0.85rem; margin-bottom: 16px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Heist</h1>
+  <span>Plan the Job</span>
+</header>
+
+<div class="progress-track">
+  <div class="progress-step active" data-step="1" onclick="jumpTo(1)">
+    <div class="dot">1</div><div class="label">The Job</div>
+  </div>
+  <div class="progress-line" id="line-1-2"></div>
+  <div class="progress-step" data-step="2" onclick="jumpTo(2)">
+    <div class="dot">2</div><div class="label">The Crew</div>
+  </div>
+  <div class="progress-line" id="line-2-3"></div>
+  <div class="progress-step" data-step="3" onclick="jumpTo(3)">
+    <div class="dot">3</div><div class="label">Decisions</div>
+  </div>
+  <div class="progress-line" id="line-3-4"></div>
+  <div class="progress-step" data-step="4" onclick="jumpTo(4)">
+    <div class="dot">4</div><div class="label">Run It</div>
+  </div>
+</div>
+
+<!-- ══ Step 1: The Job ══ -->
+<div class="step-card active" id="step-1">
+  <div class="step-header">
+    <div class="step-eyebrow">Step 1 of 3</div>
+    <div class="step-title">What kind of jobs are you after?</div>
+    <div class="step-desc">Set the ambition level. The AI picks from the job slate with this in mind.</div>
+  </div>
+
+  <div class="choice-group">
+    <div class="choice-label">Risk appetite</div>
+    <div class="choice-grid cols-3">
+      <label class="choice-card" id="risk-low">
+        <input type="radio" name="risk" value="low" />
+        <div class="card-title">🐢 Lay Low</div>
+        <div class="card-body">Small scores, clean exits. Keep heat off the crew.</div>
+        <div class="card-example">"A string of quiet smash-and-grabs. Nothing that makes the papers."</div>
+      </label>
+      <label class="choice-card selected" id="risk-mid">
+        <input type="radio" name="risk" value="mid" checked />
+        <div class="card-title">⚖️ Balanced</div>
+        <div class="card-body">Reasonable risk for reasonable reward. Don't bite off more than we can chew.</div>
+        <div class="card-example">"A solid mid-tier score — good payday, manageable exposure."</div>
+      </label>
+      <label class="choice-card" id="risk-high">
+        <input type="radio" name="risk" value="high" />
+        <div class="card-title">🔥 Go Big</div>
+        <div class="card-body">High risk, high reward. This crew didn't come here to play it safe.</div>
+        <div class="card-example">"We want the casino vault. Full crew, full commitment."</div>
+      </label>
+    </div>
+  </div>
+
+  <div class="override-divider"><span>or write your own</span></div>
+  <div class="override-group">
+    <div class="override-hint">Overrides the selection above.</div>
+    <textarea id="step1-override" rows="3" placeholder="e.g. &quot;Hit the diplomatic reception — high society, social engineering only, no violence&quot;"></textarea>
+  </div>
+
+  <div class="step-nav">
+    <div></div>
+    <button class="btn btn-primary" onclick="goTo(2)">Next: The Crew →</button>
+  </div>
+</div>
+
+<!-- ══ Step 2: The Crew ══ -->
+<div class="step-card" id="step-2">
+  <div class="step-header">
+    <div class="step-eyebrow">Step 2 of 3</div>
+    <div class="step-title">How do you want the crew built?</div>
+    <div class="step-desc">The AI assembles 4 people from a roster of 15. Point it in a direction.</div>
+  </div>
+
+  <div class="choice-group">
+    <div class="choice-label">Budget philosophy</div>
+    <div class="choice-grid cols-3">
+      <label class="choice-card" id="budget-bargain">
+        <input type="radio" name="budget" value="bargain" />
+        <div class="card-title">💸 Stretch It</div>
+        <div class="card-body">Find value picks. Use pairing rules to punch above weight.</div>
+        <div class="card-example">"Two cheap mediums can cover a Hard challenge together."</div>
+      </label>
+      <label class="choice-card selected" id="budget-balanced">
+        <input type="radio" name="budget" value="balanced" checked />
+        <div class="card-title">⚖️ Mix It Up</div>
+        <div class="card-body">One or two stars, fill the rest with solid role-players.</div>
+        <div class="card-example">"One elite specialist anchors the plan."</div>
+      </label>
+      <label class="choice-card" id="budget-stars">
+        <input type="radio" name="budget" value="stars" />
+        <div class="card-title">⭐ All Stars</div>
+        <div class="card-body">Spend big. Bring the best people available, no compromises.</div>
+        <div class="card-example">"Only High-skill specialists on this job."</div>
+      </label>
+    </div>
+  </div>
+
+  <div class="override-divider"><span>or write your own</span></div>
+  <div class="override-group">
+    <div class="override-hint">Overrides the selection above.</div>
+    <textarea id="step2-override" rows="3" placeholder="e.g. &quot;Always bring a driver, even if it costs us elsewhere. Cover the social angle too — muscle is a last resort.&quot;"></textarea>
+  </div>
+
+  <div class="step-nav">
+    <button class="btn btn-ghost" onclick="goTo(1)">← Back</button>
+    <button class="btn btn-primary" onclick="goTo(3)">Next: Decisions →</button>
+  </div>
+</div>
+
+<!-- ══ Step 3: Decisions ══ -->
+<div class="step-card" id="step-3">
+  <div class="step-header">
+    <div class="step-eyebrow">Step 3 of 3</div>
+    <div class="step-title">How should the crew call it mid-job?</div>
+    <div class="step-desc">Every heist has a moment where something unexpected turns up — a bonus opportunity, or things going sideways. Set the defaults.</div>
+  </div>
+
+  <div class="choice-group">
+    <div class="choice-label">When a bonus opportunity surfaces</div>
+    <div class="choice-grid cols-3">
+      <label class="choice-card" id="bonus-always">
+        <input type="radio" name="bonus" value="always" />
+        <div class="card-title">🎲 Always Chase It</div>
+        <div class="card-body">If there's a score within a score, take the shot. We're here to win big.</div>
+      </label>
+      <label class="choice-card selected" id="bonus-smart">
+        <input type="radio" name="bonus" value="smart" checked />
+        <div class="card-title">🧮 Smart Risk</div>
+        <div class="card-body">Pursue it if the crew is in good shape. Walk away if we're already exposed.</div>
+      </label>
+      <label class="choice-card" id="bonus-never">
+        <input type="radio" name="bonus" value="never" />
+        <div class="card-title">🚫 Stick to the Plan</div>
+        <div class="card-body">Don't improvise. Complete the job as planned and get out clean.</div>
+      </label>
+    </div>
+  </div>
+
+  <div class="choice-group">
+    <div class="choice-label">When a core scene fails</div>
+    <div class="choice-grid cols-2">
+      <label class="choice-card" id="fail-push">
+        <input type="radio" name="fail" value="push" />
+        <div class="card-title">💪 Push Through</div>
+        <div class="card-body">Keep going unless it's physically impossible. Heat and complications are the cost of doing business.</div>
+      </label>
+      <label class="choice-card selected" id="fail-abort">
+        <input type="radio" name="fail" value="abort" checked />
+        <div class="card-title">🚪 Cut Losses</div>
+        <div class="card-body">If the plan falls apart, abort before it gets worse. Live to work another day.</div>
+      </label>
+    </div>
+  </div>
+
+  <div class="override-divider"><span>or write your own</span></div>
+  <div class="override-group">
+    <div class="override-hint">Overrides the selections above.</div>
+    <textarea id="step3-override" rows="3" placeholder="e.g. &quot;This is their last job. Take every risk. Go out on top or don't go out at all.&quot;"></textarea>
+  </div>
+
+  <div class="step-nav">
+    <button class="btn btn-ghost" onclick="goTo(2)">← Back</button>
+    <button class="btn btn-primary" onclick="goTo(4)">Preview the Brief →</button>
+  </div>
+</div>
+
+<!-- ══ Results ══ -->
+<div id="results">
+  <div class="run-status" id="run-status"></div>
+  <div id="casting-slot"></div>
+  <div id="scenes-slot"></div>
+  <div id="epilogue-slot"></div>
+  <div id="outcome-slot"></div>
+  <div id="error-slot"></div>
+  <button class="btn btn-ghost" onclick="restart()" style="margin-top:8px;">← Start over</button>
+</div>
+
+<!-- ══ Step 4: Run It ══ -->
+<div class="step-card" id="step-4">
+  <div class="step-header">
+    <div class="step-eyebrow">Ready to run</div>
+    <div class="step-title">Your brief</div>
+    <div class="step-desc">Review the strategy prompt below. Edit it directly if you want to tweak anything before launching.</div>
+  </div>
+
+  <div class="summary-grid" id="summary-grid"></div>
+
+  <div class="choice-group">
+    <div class="choice-label">AI</div>
+    <select id="ai-select" name="ai">
+      <option value="codex-mini" selected>Codex — gpt-5.4-mini</option>
+      <option value="codex">Codex — gpt-5.4</option>
+      <option value="gemini">Gemini 2.5 Flash</option>
+    </select>
+  </div>
+
+  <div style="margin-bottom:28px;">
+    <div class="section-label">Strategy prompt</div>
+    <textarea id="final-prompt" rows="10" style="font-size:0.82rem;line-height:1.8;font-family:'Courier New',monospace;"></textarea>
+  </div>
+
+  <div class="step-nav">
+    <button class="btn btn-ghost" onclick="goTo(3)">← Back</button>
+    <button class="btn btn-primary btn-run" onclick="runHeist()">▶ Add to Game</button>
+  </div>
+</div>
+
+<script>
+  let currentStep = 1;
+  const TOTAL = 4;
+
+  document.querySelectorAll('.choice-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const input = card.querySelector('input[type="radio"]');
+      if (!input) return;
+      document.querySelectorAll(`input[name="${input.name}"]`).forEach(r => {
+        r.closest('.choice-card').classList.remove('selected');
+      });
+      card.classList.add('selected');
+      input.checked = true;
+    });
+  });
+
+  function goTo(n) {
+    if (n < 1 || n > TOTAL) return;
+    document.getElementById(`step-${currentStep}`).classList.remove('active');
+    currentStep = n;
+    document.getElementById(`step-${currentStep}`).classList.add('active');
+
+    document.querySelectorAll('.progress-step').forEach(s => {
+      const sn = parseInt(s.dataset.step);
+      s.classList.remove('active', 'done');
+      if (sn === currentStep) s.classList.add('active');
+      else if (sn < currentStep) s.classList.add('done');
+    });
+    for (let i = 1; i < TOTAL; i++) {
+      const line = document.getElementById(`line-${i}-${i+1}`);
+      if (line) line.classList.toggle('done', i < currentStep);
+    }
+    if (n === TOTAL) buildPreview();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function jumpTo(n) { if (n <= currentStep) goTo(n); }
+
+  function val(name) {
+    const el = document.querySelector(`input[name="${name}"]:checked`);
+    return el ? el.value : null;
+  }
+
+  function buildPreview() {
+    const risk   = val('risk');
+    const budget = val('budget');
+    const bonus  = val('bonus');
+    const fail   = val('fail');
+
+    const s1 = document.getElementById('step1-override').value.trim();
+    const s2 = document.getElementById('step2-override').value.trim();
+    const s3 = document.getElementById('step3-override').value.trim();
+
+    const labels = {
+      risk:   { low: 'Lay Low', mid: 'Balanced', high: 'Go Big' },
+      budget: { bargain: 'Stretch Budget', balanced: 'Mix It Up', stars: 'All Stars' },
+      bonus:  { always: 'Always Chase', smart: 'Smart Risk', never: 'Stick to Plan' },
+      fail:   { push: 'Push Through', abort: 'Cut Losses' },
+    };
+
+    document.getElementById('summary-grid').innerHTML = [
+      ['Risk',          s1 ? '(custom)' : labels.risk[risk]],
+      ['Budget',        s2 ? '(custom)' : labels.budget[budget]],
+      ['Bonus play',    s3 ? '(custom)' : labels.bonus[bonus]],
+      ['If plan fails', s3 ? '(custom)' : labels.fail[fail]],
+    ].map(([l, v]) => `
+      <div class="summary-pill">
+        <div class="pill-label">${l}</div>
+        <div class="pill-value">${v || '—'}</div>
+      </div>`).join('');
+
+    const jobSection = s1 || {
+      low:  'Keep the heat down. Run clean, low-profile jobs — nothing that draws attention. A smaller payday is fine if we stay off the radar.',
+      mid:  'Look for solid opportunities with manageable risk. We want a good score, not a suicide mission.',
+      high: 'Go for the big one. High risk, high reward. This crew is capable — use them.',
+    }[risk] || '';
+
+    const crewSection = s2 || {
+      bargain:  'On crew: stretch the bankroll. Look for value picks — two mediums can pair to cover a Hard challenge, use that.',
+      balanced: 'On crew: balance the roster. One or two anchoring specialists, fill the rest with versatile players.',
+      stars:    'On crew: spend big. Bring the best available, even if that means a smaller crew.',
+    }[budget] || '';
+
+    const bonusLine = {
+      always: 'If a bonus opportunity surfaces mid-job, take it. We came here to maximise the take.',
+      smart:  "On bonus opportunities: pursue them if the crew is in good shape and exposure is manageable. Walk away if we're already stretched.",
+      never:  'Stick to the plan. If a bonus opportunity comes up, decline it — getting out clean is more important.',
+    }[bonus] || '';
+
+    const failLine = {
+      push:  'If something goes wrong, push through. Heat and complications are the cost of doing business.',
+      abort: 'If a core scene fails and the plan falls apart, cut losses and abort. Live to work another day.',
+    }[fail] || '';
+
+    const decisionsSection = s3 || [bonusLine, failLine].filter(Boolean).join('\n');
+
+    document.getElementById('final-prompt').value = [jobSection, crewSection, decisionsSection]
+      .filter(Boolean)
+      .join('\n\n')
+      .trim();
+  }
+
+  async function runHeist() {
+    const prompt = document.getElementById('final-prompt').value.trim();
+    const agent  = document.getElementById('ai-select').value;
+    if (!prompt) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const gameId = parseInt(params.get('game'));
+    if (!gameId) {
+      alert('No game ID. Please start from the lobby.');
+      return;
+    }
+
+    const btn = document.querySelector('.btn-run');
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+
+    try {
+      const resp = await fetch('/api/add-ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ game_id: gameId, prompt, agent }),
+      });
+      if (!resp.ok) throw new Error('Server error ' + resp.status);
+      window.location = '/';
+    } catch (e) {
+      btn.disabled = false;
+      btn.textContent = '▶ Add to Game';
+      document.getElementById('error-slot').innerHTML =
+        `<div class="err-box">Error: ${esc(e.message || String(e))}</div>`;
+      document.getElementById('results').classList.add('visible');
+    }
+  }
+
+  function handleEvent(ev) {
+    if (ev.type === 'started') {
+      setStatus(`Running via ${ev.agent}…`);
+    } else if (ev.type === 'scene') {
+      appendScene(ev);
+      setStatus(ev.scene_type === 'escape' ? 'Wrapping up…' : `Scene ${ev.number + 1}…`);
+      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    } else if (ev.type === 'done') {
+      renderDone(ev);
+      setStatus('');
+      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    } else if (ev.type === 'error') {
+      document.getElementById('error-slot').innerHTML =
+        `<div class="err-box">Error: ${esc(ev.message)}</div>`;
+      setStatus('');
+    }
+  }
+
+  function appendScene(ev) {
+    const cls = ev.success === true ? 'success' : ev.success === false ? 'failure' : '';
+    const meta = [];
+    if (ev.personnel && ev.personnel.length) meta.push(`<b>Personnel:</b> ${esc(ev.personnel.join(', '))}`);
+    if (ev.reasoning) meta.push(`<b>Reasoning:</b> ${esc(ev.reasoning)}`);
+    if (ev.success !== null && ev.success !== undefined)
+      meta.push(`<b>Outcome:</b> ${ev.success ? 'success' : 'failure'}`);
+    if (ev.decision)
+      meta.push(`<b>Decision:</b> ${ev.decision.pursue ? 'pursued' : 'declined'} — ${esc(ev.decision.reasoning)}`);
+
+    document.getElementById('scenes-slot').insertAdjacentHTML('beforeend', `
+      <div class="scene-card ${cls}">
+        <div class="scene-title">Scene ${ev.number} — ${esc(ev.title)}</div>
+        ${meta.length ? `<div class="scene-meta">${meta.join(' · ')}</div>` : ''}
+        <div class="scene-narration">${esc(ev.narration)}</div>
+      </div>`);
+  }
+
+  function renderDone(ev) {
+    if (ev.casting_summary) {
+      document.getElementById('casting-slot').innerHTML = `
+        <div class="result-panel">
+          <h2>Casting</h2>
+          <div class="body">${esc(ev.casting_summary)}</div>
+        </div>`;
+    }
+    if (ev.epilogue) {
+      document.getElementById('epilogue-slot').innerHTML = `
+        <div class="result-panel">
+          <h2>Epilogue</h2>
+          <div class="body">${esc(ev.epilogue)}</div>
+        </div>`;
+    }
+    const o = ev.outcome;
+    document.getElementById('outcome-slot').innerHTML = `
+      <div class="result-panel">
+        <h2>Outcome — ${esc(o.job_name)}</h2>
+        <div class="outcome-take">$${(o.take || 0).toLocaleString()}</div>
+        <dl class="outcome-grid">
+          <dt>Aborted</dt><dd>${o.aborted}</dd>
+          <dt>Escape</dt><dd>${o.escape_success ? 'succeeded' : 'failed'}</dd>
+          <dt>Hidden depth</dt><dd>${esc(o.hidden_depth)}</dd>
+          <dt>Reward roll</dt><dd>${esc(o.reward_label)} ($${o.reward_amount.toLocaleString()})</dd>
+        </dl>
+      </div>`;
+  }
+
+  function setStatus(msg) { document.getElementById('run-status').textContent = msg; }
+
+  function restart() {
+    document.querySelector('.progress-track').style.display = '';
+    document.getElementById('results').classList.remove('visible');
+    goTo(1);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function esc(s) {
+    const d = document.createElement('div');
+    d.textContent = s == null ? '' : String(s);
+    return d.innerHTML;
+  }
+</script>
+</body>
+</html>

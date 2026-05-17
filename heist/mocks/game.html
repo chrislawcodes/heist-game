@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Heist — Game View</title>
+<style>
+:root {
+  --bg: #0c0c0e;
+  --panel: #131316;
+  --panel2: #18181c;
+  --border: #26262c;
+  --text: #e0dfe8;
+  --muted: #72717a;
+  --accent: #e8a030;
+  --green: #52c47a;
+  --red: #e05050;
+  --blue: #5898e0;
+  --purple: #9070e0;
+  --commentator: #f5d77a;
+
+  --ai-a: #e8a030;
+  --ai-b: #5898e0;
+
+  --sk-hack:  #5898e0;
+  --sk-safe:  #e8a030;
+  --sk-musc:  #e05050;
+  --sk-soc:   #9070e0;
+  --sk-drive: #52c47a;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 15px; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 1rem;
+  height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+}
+
+/* ── topbar ── */
+#topbar {
+  height: 42px; padding: 0 16px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 14px; flex-shrink: 0;
+}
+#topbar-title { font-size: 12px; font-weight: 700; letter-spacing: 3px; color: var(--accent); }
+#topbar-sub   { font-size: 12px; color: var(--muted); letter-spacing: 1px; }
+#topbar-spacer { flex: 1; }
+.status-chip {
+  font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+  padding: 3px 10px; border-radius: 3px;
+}
+.status-chip.running { background: rgba(82,196,122,0.12); color: var(--green); border: 1px solid rgba(82,196,122,0.3); }
+.status-chip.done    { background: rgba(232,160,48,0.12); color: var(--accent); border: 1px solid rgba(232,160,48,0.3); }
+
+#content { flex: 1; display: flex; overflow: hidden; }
+
+/* ══════════════════════ MAIN ══════════════════════ */
+#main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+.tabs-bar {
+  height: 36px; padding: 0 16px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; background: var(--panel); flex-shrink: 0;
+}
+.tab {
+  padding: 0 18px; height: 100%; display: flex; align-items: center;
+  font-size: 12px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--muted); border-bottom: 2px solid transparent;
+  position: relative; top: 1px; cursor: pointer;
+}
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ── job header ── */
+#job-header {
+  flex-shrink: 0; padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel2);
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+}
+.job-name { font-size: 15px; font-weight: 700; color: var(--text); }
+.job-profile { display: flex; gap: 8px; align-items: center; }
+.profile-chip {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.8px;
+  padding: 3px 9px; border-radius: 3px;
+  background: var(--panel); border: 1px solid var(--border); color: var(--muted);
+}
+.profile-chip.med  { color: var(--accent); border-color: rgba(232,160,48,0.4); background: rgba(232,160,48,0.08); }
+.profile-chip.hard { color: var(--red);    border-color: rgba(224,80,80,0.4);  background: rgba(224,80,80,0.08); }
+.job-reward { margin-left: auto; font-family: monospace; font-size: 13px; color: var(--muted); }
+.job-reward strong { color: var(--accent); font-size: 14px; }
+
+/* ── scene stream ── */
+.scenes-panel {
+  flex: 1; overflow-y: auto; padding: 20px;
+  display: flex; flex-direction: column; gap: 20px;
+}
+.scenes-panel.hidden { display: none; }
+
+/* ══════════════════════ SCENE CARD ══════════════════════ */
+.scene-card {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 10px; overflow: hidden;
+  animation: cardIn 0.4s ease;
+}
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: none; }
+}
+.scene-card.success { border-left: 4px solid var(--green); }
+.scene-card.failure { border-left: 4px solid var(--red); }
+.scene-card.neutral { border-left: 4px solid var(--border); }
+.scene-card.active  { border-left: 4px solid var(--accent); }
+
+/* scene head */
+.scene-head {
+  padding: 12px 16px;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  background: var(--panel2);
+  cursor: pointer; user-select: none;
+}
+.scene-head:hover { background: #1e1e24; }
+.scene-card.expanded .scene-head { border-bottom: 1px solid var(--border); }
+.scene-chevron {
+  font-size: 11px; color: var(--muted); flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+.scene-card.expanded .scene-chevron { transform: rotate(90deg); }
+.scene-num {
+  font-size: 11px; font-weight: 700; font-family: monospace;
+  color: var(--muted); letter-spacing: 1px; flex-shrink: 0;
+}
+.scene-title { font-size: 16px; font-weight: 700; flex: 1; color: var(--text); }
+.scene-type-badge {
+  font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+  padding: 3px 9px; border-radius: 3px; flex-shrink: 0;
+}
+.stb-setup      { background: rgba(114,113,122,0.2); color: var(--muted); }
+.stb-challenge  { background: rgba(88,152,224,0.15); color: var(--blue); }
+.stb-decision   { background: rgba(232,160,48,0.15); color: var(--accent); }
+.stb-hidden     { background: rgba(144,112,224,0.15); color: var(--purple); }
+.stb-transition { background: rgba(114,113,122,0.1); color: var(--muted); }
+.stb-escape     { background: rgba(82,196,122,0.15); color: var(--green); }
+.outcome-chip {
+  font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  padding: 4px 12px; border-radius: 12px; flex-shrink: 0;
+}
+.oc-success { background: rgba(82,196,122,0.15); color: var(--green); }
+.oc-failure { background: rgba(224,80,80,0.15);  color: var(--red); }
+.oc-none    { background: rgba(114,113,122,0.1);  color: var(--muted); }
+.oc-pending { background: rgba(232,160,48,0.1);   color: var(--accent);
+              animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+
+/* scene body */
+.scene-body { padding: 16px; display: none; flex-direction: column; gap: 18px; }
+.scene-card.expanded .scene-body { display: flex; }
+
+/* section label */
+.section-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 10px;
+}
+
+/* ── assigned characters ── */
+.assigned-chars { display: flex; gap: 12px; flex-wrap: wrap; }
+
+.char-block {
+  background: var(--panel2); border: 1px solid var(--border);
+  border-radius: 8px; overflow: hidden;
+  display: flex; flex-direction: row; min-width: 220px;
+}
+.char-block[data-primary="hack"]  { border-color: rgba(88,152,224,0.4); }
+.char-block[data-primary="safe"]  { border-color: rgba(232,160,48,0.4); }
+.char-block[data-primary="musc"]  { border-color: rgba(224,80,80,0.4); }
+.char-block[data-primary="soc"]   { border-color: rgba(144,112,224,0.4); }
+.char-block[data-primary="drive"] { border-color: rgba(82,196,122,0.4); }
+
+.char-portrait {
+  width: 72px; height: 72px; flex-shrink: 0;
+  background: rgba(0,0,0,0.35); position: relative; overflow: hidden;
+}
+.char-portrait img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.char-portrait-fallback {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px; font-weight: 700; color: rgba(255,255,255,0.2); font-family: monospace;
+}
+.char-info {
+  padding: 10px 12px; display: flex; flex-direction: column; gap: 5px; flex: 1;
+}
+.char-name { font-size: 14px; font-weight: 700; color: var(--text); }
+.char-role {
+  font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--muted);
+}
+.char-skills { display: flex; flex-direction: column; gap: 4px; margin-top: 2px; }
+.char-skill-row { display: flex; align-items: center; gap: 8px; }
+.cs-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
+  font-family: monospace; color: var(--muted); width: 34px; flex-shrink: 0;
+}
+.cs-bars { display: flex; gap: 3px; }
+.seg { width: 14px; height: 6px; border-radius: 1px; background: rgba(255,255,255,0.07); }
+.seg.f-hack  { background: var(--sk-hack); }
+.seg.f-safe  { background: var(--sk-safe); }
+.seg.f-musc  { background: var(--sk-musc); }
+.seg.f-soc   { background: var(--sk-soc); }
+.seg.f-drive { background: var(--sk-drive); }
+
+.pair-note {
+  font-size: 12px; color: var(--green); font-style: italic;
+  padding: 6px 10px; background: rgba(82,196,122,0.08);
+  border-radius: 4px; border: 1px solid rgba(82,196,122,0.2);
+  margin-top: 4px;
+}
+
+/* ── challenge block ── */
+.challenge-block {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+.skill-chip {
+  font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  padding: 4px 12px; border-radius: 4px;
+}
+.sc-hack  { background: rgba(88,152,224,0.2);  color: var(--sk-hack); }
+.sc-safe  { background: rgba(232,160,48,0.2);  color: var(--sk-safe); }
+.sc-musc  { background: rgba(224,80,80,0.2);   color: var(--sk-musc); }
+.sc-soc   { background: rgba(144,112,224,0.2); color: var(--sk-soc); }
+.sc-drive { background: rgba(82,196,122,0.2);  color: var(--sk-drive); }
+.level-tag { font-size: 13px; font-weight: 700; color: var(--muted); }
+.level-tag.hard { color: var(--red); }
+.level-tag.med  { color: var(--accent); }
+.core-badge {
+  font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  background: rgba(224,80,80,0.12); color: var(--red);
+  padding: 3px 8px; border-radius: 3px;
+}
+.decision-note {
+  font-size: 13px; color: var(--accent); font-style: italic;
+}
+
+/* ── narration ── */
+.narration-block {
+  font-size: 15px; line-height: 1.8; color: #c0bdd4;
+  font-style: italic;
+  border-top: 1px solid var(--border); padding-top: 16px;
+}
+
+/* ── outcome summary ── */
+.outcome-card {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 10px; padding: 20px;
+  animation: cardIn 0.4s ease;
+}
+.outcome-card h3 {
+  font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 14px;
+}
+.outcome-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.og-cell { display: flex; flex-direction: column; gap: 4px; }
+.og-label { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+.og-value { font-size: 18px; font-weight: 700; color: var(--text); font-family: monospace; }
+.og-value.take { color: var(--accent); font-size: 26px; }
+.og-value.win  { color: var(--green); }
+.og-value.loss { color: var(--red); }
+
+/* ══════════════════════ RAIL ══════════════════════ */
+#rail {
+  width: 320px; flex-shrink: 0;
+  border-left: 1px solid var(--border);
+  background: var(--panel);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+#commentary-section {
+  flex: 0 0 auto; max-height: 36%;
+  display: flex; flex-direction: column; overflow: hidden;
+  border-bottom: 2px solid var(--border);
+}
+.commentary-header {
+  padding: 7px 14px; flex-shrink: 0;
+  display: flex; align-items: center; gap: 8px;
+  border-bottom: 1px solid var(--border);
+  background: #15140e;
+}
+.commentary-icon { font-size: 12px; }
+.commentary-title {
+  font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--commentator); flex: 1;
+}
+.commentary-attrib { font-size: 9px; font-weight: 700; color: var(--muted); font-family: monospace; }
+.live-dot {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 9px; font-weight: 700; letter-spacing: 1px; color: var(--red);
+}
+.live-dot::before {
+  content: ''; width: 5px; height: 5px; border-radius: 50%;
+  background: var(--red); animation: livePulse 1.4s ease-in-out infinite;
+}
+@keyframes livePulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+#commentary-stream {
+  flex: 1; overflow-y: auto; padding: 8px 14px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.commentary-line {
+  font-size: 13px; line-height: 1.55; color: #d8cea0;
+  padding: 7px 10px; border-radius: 4px; background: #18160a;
+  animation: slideIn 0.35s ease;
+}
+.commentary-line strong { color: var(--commentator); font-weight: 600; }
+.commentary-line.is-newest { border-left: 2px solid var(--commentator); }
+@keyframes slideIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+.commentary-empty { font-size: 13px; color: var(--muted); font-style: italic; text-align: center; padding: 10px 0; }
+
+#ai-picker {
+  flex-shrink: 0; padding: 8px 12px;
+  display: flex; gap: 6px; align-items: center;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel2);
+}
+.ai-pick-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--muted); margin-right: 4px;
+}
+.ai-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 12px; border-radius: 18px;
+  font-size: 12px; font-weight: 700;
+  background: transparent; border: 1px solid var(--border);
+  color: var(--muted); cursor: pointer; transition: all 0.15s;
+}
+.ai-pill:hover { color: var(--text); }
+.ai-pill.ap-active { background: var(--panel); color: var(--text); }
+.ai-pill .ap-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border); }
+.ai-pill[data-ai="A"].ap-active { border-color: var(--ai-a); }
+.ai-pill[data-ai="A"] .ap-dot  { background: var(--ai-a); }
+.ai-pill[data-ai="B"].ap-active { border-color: var(--ai-b); }
+.ai-pill[data-ai="B"] .ap-dot  { background: var(--ai-b); }
+.ai-pill.has-new::after {
+  content: ''; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--green); margin-left: 2px;
+  animation: livePulse 1.4s ease-in-out infinite;
+}
+
+#thinking-section {
+  flex: 1 1 auto; min-height: 0;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.thinking-header {
+  padding: 8px 14px; flex-shrink: 0;
+  display: flex; align-items: center; gap: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.thinking-avatar {
+  width: 18px; height: 18px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; color: #000;
+}
+.thinking-title {
+  font-size: 12px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--text); flex: 1;
+}
+.thinking-private {
+  font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  color: var(--muted); background: #1e1e22; padding: 2px 6px; border-radius: 3px;
+}
+#thinking-stream {
+  flex: 1; overflow-y: auto; padding: 10px 12px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.thought-line {
+  font-size: 13px; line-height: 1.55;
+  padding: 9px 12px; border-radius: 4px;
+  background: var(--panel2); border-left: 3px solid var(--border);
+  animation: slideIn 0.35s ease;
+}
+.thought-kind {
+  font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 4px;
+}
+.thought-body { color: #d0cee0; }
+.thought-body strong { color: var(--text); font-weight: 600; }
+.thought-line.tk-assign  { border-left-color: var(--blue);   }
+.thought-line.tk-assign  .thought-kind { color: var(--blue);   }
+.thought-line.tk-decide  { border-left-color: var(--accent); }
+.thought-line.tk-decide  .thought-kind { color: var(--accent); }
+.thought-line.tk-escape  { border-left-color: var(--green);  }
+.thought-line.tk-escape  .thought-kind { color: var(--green);  }
+.thinking-empty { font-size: 13px; color: var(--muted); font-style: italic; text-align: center; padding: 16px 0; }
+
+/* ── controls ── */
+#controls {
+  height: 46px; flex-shrink: 0; padding: 0 16px;
+  border-top: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+  background: #08080a;
+}
+.mock-label { font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-right: 4px; }
+.mock-btn {
+  font-size: 11px; font-weight: 700; letter-spacing: 1px;
+  padding: 6px 14px; background: var(--panel); color: var(--text);
+  border: 1px solid var(--border); border-radius: 4px; cursor: pointer; transition: all 0.15s;
+}
+.mock-btn:hover { border-color: var(--muted); }
+.mock-btn.primary { background: var(--accent); color: #000; border-color: var(--accent); }
+.mock-btn.primary:hover { background: #f0b840; }
+#controls-spacer { flex: 1; }
+#step-counter { font-family: monospace; font-size: 11px; color: var(--muted); }
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #2a2a34; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #40404c; }
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <span id="topbar-title">HEIST</span>
+  <span id="topbar-sub">2 crews · The Penthouse Caper</span>
+  <span id="topbar-spacer"></span>
+  <span class="status-chip running" id="status-chip">Running</span>
+</div>
+
+<div id="content">
+  <div id="main">
+
+    <div class="tabs-bar">
+      <div class="tab">Draft &amp; Crew</div>
+      <div class="tab">Job</div>
+      <div class="tab active">Heist</div>
+    </div>
+
+    <div id="job-header">
+      <span class="job-name">The Penthouse Caper</span>
+      <div class="job-profile">
+        <span class="profile-chip med">Social MED</span>
+        <span class="profile-chip hard">Electronic HARD</span>
+        <span class="profile-chip">Physical —</span>
+        <span class="profile-chip">Confrontation —</span>
+      </div>
+      <span class="job-reward">Reward <strong>$38,000 – $52,000</strong></span>
+    </div>
+
+    <!-- One panel per crew, shown/hidden by AI picker -->
+    <div class="scenes-panel" id="scenes-A"></div>
+    <div class="scenes-panel hidden" id="scenes-B"></div>
+
+  </div>
+
+  <!-- RAIL -->
+  <div id="rail">
+    <div id="commentary-section">
+      <div class="commentary-header">
+        <span class="commentary-icon">📢</span>
+        <span class="commentary-title">Play-by-Play</span>
+        <span class="commentary-attrib">codex</span>
+        <span class="live-dot">LIVE</span>
+      </div>
+      <div id="commentary-stream">
+        <div class="commentary-empty">Waiting for the heist to begin…</div>
+      </div>
+    </div>
+
+    <div id="ai-picker">
+      <span class="ai-pick-label">Watching</span>
+      <button class="ai-pill ap-active" data-ai="A" onclick="selectAI('A')"><span class="ap-dot"></span>Crew A</button>
+      <button class="ai-pill"           data-ai="B" onclick="selectAI('B')"><span class="ap-dot"></span>Crew B</button>
+    </div>
+
+    <div id="thinking-section">
+      <div class="thinking-header">
+        <span class="thinking-avatar" id="thinking-avatar" style="background:var(--ai-a)">A</span>
+        <span class="thinking-title" id="thinking-title">Crew A</span>
+        <span class="thinking-private">Private</span>
+      </div>
+      <div id="thinking-stream">
+        <div class="thinking-empty">No thoughts yet — hit ▶ to begin</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="controls">
+  <span class="mock-label">Mock</span>
+  <button class="mock-btn primary" onclick="step()">▶ Next event</button>
+  <button class="mock-btn" id="auto-btn" onclick="toggleAuto()">⏯ Autoplay</button>
+  <button class="mock-btn" onclick="resetAll()">⟲ Reset</button>
+  <span id="controls-spacer"></span>
+  <span id="step-counter">0 / 0</span>
+</div>
+
+<script>
+// ── character data ──────────────────────────────────────────────────────────
+// skills: { hack, safe, musc, soc, drive } → 0=none, 1=low, 2=med, 3=high
+const CHARS = {
+  jordan: { name: 'Jordan', primary: 'hack', role: 'HACKER',  skills: { hack: 3, drive: 1 } },
+  ari:    { name: 'Ari',    primary: 'hack', role: 'HACKER',  skills: { hack: 2, soc: 1 } },
+  sable:  { name: 'Sable',  primary: 'soc',  role: 'FACE',    skills: { soc: 3, safe: 1 } },
+  coyote: { name: 'Coyote', primary: 'drive',role: 'DRIVER',  skills: { drive: 2 } },
+  vex:    { name: 'Vex',    primary: 'soc',  role: 'FACE',    skills: { soc: 3, drive: 1 } },
+  lark:   { name: 'Lark',   primary: 'hack', role: 'HACKER',  skills: { hack: 2 } },
+  ash:    { name: 'Ash',    primary: 'safe', role: 'SAFECRACKER', skills: { safe: 3 } },
+  nova:   { name: 'Nova',   primary: 'drive',role: 'DRIVER',  skills: { drive: 2, musc: 1 } },
+};
+const SK_CLASS = { hack: 'f-hack', safe: 'f-safe', musc: 'f-musc', soc: 'f-soc', drive: 'f-drive' };
+const SK_LABEL = { hack: 'HACK', safe: 'SAFE', musc: 'MUSC', soc: 'SOC', drive: 'DRV' };
+const PORTRAIT_STYLE = { hack: 'pixel-art', safe: 'notionists', musc: 'bottts', soc: 'personas', drive: 'adventurer' };
+const PORTRAIT_BG    = { hack: '1a2840', safe: '2a2008', musc: '2a0c0c', soc: '1e1430', drive: '0c2018' };
+
+// ── timeline ────────────────────────────────────────────────────────────────
+const TIMELINE = [
+  { t: 'commentary', text: 'The Penthouse Caper. <strong>Two crews, one job.</strong> Different strategies, same target.' },
+
+  // ── Scene 1: Setup ───────────────────────────────────────────────
+  { t: 'scene-open', ai: 'A', scene: {
+      num: 1, title: 'Setup & Approach', type: 'setup',
+      chars: ['sable', 'coyote'], challenge: null, core: false,
+  }},
+  { t: 'private', ai: 'A', kind: 'assign', title: 'Scene 1 · Assign',
+    body: 'Setup needs no challenge. <strong>Sable</strong> covers the lobby approach. <strong>Coyote</strong> parks and waits.' },
+  { t: 'scene-open', ai: 'B', scene: {
+      num: 1, title: 'Setup & Approach', type: 'setup',
+      chars: ['vex', 'nova'], challenge: null, core: false,
+  }},
+  { t: 'private', ai: 'B', kind: 'assign', title: 'Scene 1 · Assign',
+    body: '<strong>Vex</strong> on the entry. <strong>Nova</strong> staged on the corner.' },
+  { t: 'scene-resolve', ai: 'A', sceneNum: 1, success: null,
+    narration: 'Sable walked into the Meridian lobby at 9:47 PM wearing the smile she saved for marks. Coyote pulled the van into the side alley and killed the lights.' },
+  { t: 'scene-resolve', ai: 'B', sceneNum: 1, success: null,
+    narration: 'Vex slipped in through the service entrance, badge in hand. Nova idled at the corner, radio off, window cracked.' },
+
+  // ── Scene 2: Social (Medium) ─────────────────────────────────────
+  { t: 'commentary', text: 'Social layer first. <strong>Medium challenge.</strong> Talking your way past the concierge.' },
+  { t: 'scene-open', ai: 'A', scene: {
+      num: 2, title: 'Challenge — Social', type: 'challenge',
+      chars: ['sable'], challenge: { skill: 'soc', label: 'SOCIAL', level: 'MEDIUM', cls: 'med' }, core: false,
+  }},
+  { t: 'private', ai: 'A', kind: 'assign', title: 'Scene 2 · Assign',
+    body: '<strong>Sable</strong> is Social High — clears Medium alone with room to spare. No reason to burn a second slot.' },
+  { t: 'scene-open', ai: 'B', scene: {
+      num: 2, title: 'Challenge — Social', type: 'challenge',
+      chars: ['vex', 'ash'], challenge: { skill: 'soc', label: 'SOCIAL', level: 'MEDIUM', cls: 'med' }, core: false,
+      pair: 'Vex (Social High) + Ash (Social Low) — overkill, but Crew B wants the clean pass.',
+  }},
+  { t: 'private', ai: 'B', kind: 'assign', title: 'Scene 2 · Assign',
+    body: 'Pairing <strong>Vex</strong> (Soc H) with <strong>Ash</strong> (Soc L). Overkill for Medium but I want zero risk here.' },
+  { t: 'scene-resolve', ai: 'A', sceneNum: 2, success: true,
+    narration: '"I\'m on the guest list," Sable said pleasantly, and handed over a card with a name that didn\'t match her face. The concierge never looked up.' },
+  { t: 'scene-resolve', ai: 'B', sceneNum: 2, success: true,
+    narration: 'Vex and Ash walked in together — a couple attending the gallery event on forty-two. Nobody gave them a second look.' },
+
+  // ── Scene 3: Electronic (Hard, Core) ────────────────────────────
+  { t: 'commentary', text: 'Electronic — <strong>HARD. Core scene.</strong> Fail this and the heist is over.' },
+  { t: 'scene-open', ai: 'A', scene: {
+      num: 3, title: 'Challenge — Electronic', type: 'challenge',
+      chars: ['jordan', 'ari'],
+      challenge: { skill: 'hack', label: 'ELECTRONIC', level: 'HARD', cls: 'hard' }, core: true,
+      pair: 'Jordan (Hack High) + Ari (Hack Medium) — redundancy on the core scene.',
+  }},
+  { t: 'private', ai: 'A', kind: 'assign', title: 'Scene 3 · Assign',
+    body: '<strong>Jordan</strong> (Hack H) solo covers Hard. Adding <strong>Ari</strong> anyway — can\'t afford an abort on the core scene.' },
+  { t: 'scene-open', ai: 'B', scene: {
+      num: 3, title: 'Challenge — Electronic', type: 'challenge',
+      chars: ['lark', 'ari'],
+      challenge: { skill: 'hack', label: 'ELECTRONIC', level: 'HARD', cls: 'hard' }, core: true,
+      pair: 'Lark (Hack Med) + Ari (Hack Med) → paired to High. Covers Hard exactly.',
+  }},
+  { t: 'private', ai: 'B', kind: 'assign', title: 'Scene 3 · Assign',
+    body: '<strong>Lark</strong> (Hack M) + <strong>Ari</strong> (Hack M) — two Mediums pair to High. Covers Hard exactly. Tight but it holds.' },
+  { t: 'scene-resolve', ai: 'A', sceneNum: 3, success: true,
+    narration: 'Jordan\'s fingers moved faster than the display could render. The smart home went dark for eleven seconds. Ari killed the motion sensors from a secondary terminal down the hall.' },
+  { t: 'scene-resolve', ai: 'B', sceneNum: 3, success: true,
+    narration: 'Lark ran the primary exploit while Ari handled the redundant failsafe. The penthouse cameras cycled to a four-minute loop.' },
+
+  // ── Scene 4: Decision (bonus) ────────────────────────────────────
+  { t: 'commentary', text: 'Decision point — hidden safe behind the Rothko. <strong>Extra $12–18k.</strong> Do you take the risk?' },
+  { t: 'scene-open', ai: 'A', scene: {
+      num: 4, title: 'Decision — Hidden safe behind the Rothko', type: 'decision',
+      chars: ['sable'],
+      challenge: { skill: 'safe', label: 'SAFECRACKING', level: 'MEDIUM', cls: 'med' }, core: false,
+      decision: 'Pursued — bonus worth the risk.',
+  }},
+  { t: 'private', ai: 'A', kind: 'decide', title: 'Scene 4 · Decision',
+    body: 'Bonus is $12–18k. Sable is Safe Medium vs. Medium challenge — <strong>pursuing</strong>. The prompt says go big.' },
+  { t: 'scene-open', ai: 'B', scene: {
+      num: 4, title: 'Decision — Hidden safe behind the Rothko', type: 'decision',
+      chars: ['ash'],
+      challenge: { skill: 'safe', label: 'SAFECRACKING', level: 'MEDIUM', cls: 'med' }, core: false,
+      decision: 'Pursued — Ash is Hard safecracker, Medium is trivial.',
+  }},
+  { t: 'private', ai: 'B', kind: 'decide', title: 'Scene 4 · Decision',
+    body: '<strong>Ash</strong> is Safe High. Medium safe is no challenge for her. Heat is 0. <strong>Pursuing.</strong>' },
+  { t: 'scene-resolve', ai: 'A', sceneNum: 4, success: true,
+    narration: 'The safe behind the Rothko was a Boberg 220 — old but stubborn. Sable had it open in four minutes. Inside: bearer bonds, and something in a velvet pouch nobody asked about.' },
+  { t: 'scene-resolve', ai: 'B', sceneNum: 4, success: true,
+    narration: 'Ash looked at the safe, looked at Vex, and opened it in under two minutes. "Amateur hour," she said quietly.' },
+
+  // ── Scene 5: Transition ──────────────────────────────────────────
+  { t: 'commentary', text: 'Both crews heading for the exit. Clean run so far.' },
+  { t: 'scene-open', ai: 'A', scene: {
+      num: 5, title: 'Transition to Exit', type: 'transition',
+      chars: ['sable', 'jordan'], challenge: null, core: false,
+  }},
+  { t: 'scene-open', ai: 'B', scene: {
+      num: 5, title: 'Transition to Exit', type: 'transition',
+      chars: ['vex', 'lark'], challenge: null, core: false,
+  }},
+  { t: 'scene-resolve', ai: 'A', sceneNum: 5, success: null,
+    narration: 'They took the service stairs. Jordan cleared the stairwell camera on the way down. Nobody in the lobby noticed four people who hadn\'t been there ten minutes ago.' },
+  { t: 'scene-resolve', ai: 'B', sceneNum: 5, success: null,
+    narration: 'Lark wiped the camera log as they moved. Vex talked past a guard who was eating a sandwich and didn\'t particularly care.' },
+
+  // ── Scene 6: Escape ──────────────────────────────────────────────
+  { t: 'commentary', text: 'Escape. Heat is 0 for both — clean run. The driver carries it home.' },
+  { t: 'scene-open', ai: 'A', scene: {
+      num: 6, title: 'Escape', type: 'escape',
+      chars: ['coyote'],
+      challenge: { skill: 'drive', label: 'DRIVER', level: null, cls: '' }, core: false,
+  }},
+  { t: 'private', ai: 'A', kind: 'escape', title: 'Scene 6 · Escape',
+    body: '<strong>Coyote</strong> (Drive M) vs. difficulty 1 (mod 1 + heat 0). Clears comfortably.' },
+  { t: 'scene-open', ai: 'B', scene: {
+      num: 6, title: 'Escape', type: 'escape',
+      chars: ['nova'],
+      challenge: { skill: 'drive', label: 'DRIVER', level: null, cls: '' }, core: false,
+  }},
+  { t: 'private', ai: 'B', kind: 'escape', title: 'Scene 6 · Escape',
+    body: '<strong>Nova</strong> (Drive M) — same difficulty, same result.' },
+  { t: 'scene-resolve', ai: 'A', sceneNum: 6, success: true,
+    narration: 'Coyote had the van moving before the last door shut. Three turns, two red lights, and they were gone. The city didn\'t notice.' },
+  { t: 'scene-resolve', ai: 'B', sceneNum: 6, success: true,
+    narration: 'Nova drove like she wasn\'t in a hurry. That was the trick. Nobody chases what doesn\'t run.' },
+
+  // ── Outcome ──────────────────────────────────────────────────────
+  { t: 'commentary', text: 'Both crews out clean. <strong>Crew A took the bonus gamble and won.</strong> Final scores in.' },
+  { t: 'outcome', ai: 'A', take: 50000, aborted: false, escape: true },
+  { t: 'outcome', ai: 'B', take: 44000, aborted: false, escape: true },
+];
+
+// ── state ────────────────────────────────────────────────────────────────────
+let step_i = 0;
+let currentAI = 'A';
+let autoTimer = null;
+const aiStreams = { A: [], B: [] };
+const aiColors  = { A: 'var(--ai-a)', B: 'var(--ai-b)' };
+const aiNames   = { A: 'Crew A', B: 'Crew B' };
+const openCards = {}; // `${sceneNum}_${ai}` → card element
+
+document.getElementById('step-counter').textContent = `0 / ${TIMELINE.length}`;
+
+// ── controls ─────────────────────────────────────────────────────────────────
+function step() {
+  if (step_i >= TIMELINE.length) return;
+  dispatch(TIMELINE[step_i++]);
+  document.getElementById('step-counter').textContent = `${step_i} / ${TIMELINE.length}`;
+  if (step_i >= TIMELINE.length) {
+    if (autoTimer) toggleAuto();
+    document.getElementById('status-chip').textContent = 'Done';
+    document.getElementById('status-chip').className = 'status-chip done';
+    document.querySelector('.live-dot').style.display = 'none';
+  }
+}
+function toggleAuto() {
+  const btn = document.getElementById('auto-btn');
+  if (autoTimer) { clearInterval(autoTimer); autoTimer = null; btn.textContent = '⏯ Autoplay'; btn.classList.remove('primary'); }
+  else           { autoTimer = setInterval(step, 1100); btn.textContent = '⏸ Pause'; btn.classList.add('primary'); }
+}
+function resetAll() {
+  step_i = 0; if (autoTimer) toggleAuto();
+  for (const k of ['A','B']) { aiStreams[k] = []; document.getElementById('scenes-'+k).innerHTML = ''; }
+  for (const k of Object.keys(openCards)) delete openCards[k];
+  document.getElementById('commentary-stream').innerHTML = '<div class="commentary-empty">Waiting for the heist to begin…</div>';
+  document.getElementById('thinking-stream').innerHTML = '<div class="thinking-empty">No thoughts yet — hit ▶ to begin</div>';
+  document.querySelectorAll('.ai-pill').forEach(p => p.classList.remove('has-new'));
+  document.getElementById('step-counter').textContent = `0 / ${TIMELINE.length}`;
+  document.getElementById('status-chip').textContent = 'Running';
+  document.getElementById('status-chip').className = 'status-chip running';
+  document.querySelector('.live-dot').style.display = '';
+}
+
+// ── dispatcher ────────────────────────────────────────────────────────────────
+function dispatch(evt) {
+  if (evt.t === 'commentary')    addCommentary(evt.text);
+  if (evt.t === 'private')       addThought(evt);
+  if (evt.t === 'scene-open')    openScene(evt);
+  if (evt.t === 'scene-resolve') resolveScene(evt);
+  if (evt.t === 'outcome')       addOutcome(evt);
+}
+
+// ── commentary ────────────────────────────────────────────────────────────────
+function addCommentary(text) {
+  const stream = document.getElementById('commentary-stream');
+  stream.querySelector('.commentary-empty')?.remove();
+  stream.querySelectorAll('.is-newest').forEach(l => l.classList.remove('is-newest'));
+  const line = document.createElement('div');
+  line.className = 'commentary-line is-newest';
+  line.innerHTML = text;
+  stream.insertBefore(line, stream.firstChild);
+}
+
+// ── thinking stream ───────────────────────────────────────────────────────────
+function addThought(evt) {
+  aiStreams[evt.ai].unshift(evt);
+  if (evt.ai !== currentAI) document.querySelector(`.ai-pill[data-ai="${evt.ai}"]`).classList.add('has-new');
+  else prependThoughtLine(evt);
+}
+function prependThoughtLine(evt) {
+  const stream = document.getElementById('thinking-stream');
+  stream.querySelector('.thinking-empty')?.remove();
+  const line = document.createElement('div');
+  line.className = `thought-line tk-${evt.kind}`;
+  line.innerHTML = `<div class="thought-kind">${evt.title}</div><div class="thought-body">${evt.body}</div>`;
+  stream.insertBefore(line, stream.firstChild);
+}
+function renderThinking() {
+  const stream = document.getElementById('thinking-stream');
+  stream.innerHTML = '';
+  const items = aiStreams[currentAI];
+  if (!items.length) { stream.innerHTML = `<div class="thinking-empty">No thoughts yet for ${aiNames[currentAI]}</div>`; return; }
+  items.forEach(evt => {
+    const line = document.createElement('div');
+    line.className = `thought-line tk-${evt.kind}`;
+    line.style.animation = 'none';
+    line.innerHTML = `<div class="thought-kind">${evt.title}</div><div class="thought-body">${evt.body}</div>`;
+    stream.appendChild(line);
+  });
+}
+function selectAI(ai) {
+  currentAI = ai;
+  document.querySelectorAll('.ai-pill').forEach(p => {
+    p.classList.toggle('ap-active', p.dataset.ai === ai);
+    if (p.dataset.ai === ai) p.classList.remove('has-new');
+  });
+  document.getElementById('thinking-avatar').textContent = ai;
+  document.getElementById('thinking-avatar').style.background = aiColors[ai];
+  document.getElementById('thinking-title').textContent = aiNames[ai];
+  // Switch scene panels
+  document.querySelectorAll('.scenes-panel').forEach(p => p.classList.add('hidden'));
+  document.getElementById('scenes-' + ai).classList.remove('hidden');
+  renderThinking();
+}
+
+// ── scene cards ───────────────────────────────────────────────────────────────
+const TYPE_BADGE = {
+  setup:      ['SETUP',      'stb-setup'],
+  challenge:  ['CHALLENGE',  'stb-challenge'],
+  decision:   ['DECISION',   'stb-decision'],
+  hidden_depth:['HIDDEN',    'stb-hidden'],
+  transition: ['TRANSITION', 'stb-transition'],
+  escape:     ['ESCAPE',     'stb-escape'],
+};
+
+function charBlockHtml(id) {
+  const c = CHARS[id];
+  if (!c) return '';
+  const skillsHtml = Object.entries(c.skills).map(([sk, lvl]) => {
+    const segs = [0,1,2].map(i => `<span class="seg ${i < lvl ? SK_CLASS[sk] : ''}"></span>`).join('');
+    return `<div class="char-skill-row"><span class="cs-label">${SK_LABEL[sk]}</span><div class="cs-bars">${segs}</div></div>`;
+  }).join('');
+  const style = PORTRAIT_STYLE[c.primary] || 'pixel-art';
+  const bg    = PORTRAIT_BG[c.primary]    || '111111';
+  const src   = `https://api.dicebear.com/9.x/${style}/svg?seed=${encodeURIComponent(id)}&backgroundColor=${bg}`;
+  return `<div class="char-block" data-primary="${c.primary}">
+    <div class="char-portrait">
+      <img src="${src}" alt="${esc(c.name)}" loading="lazy">
+      <div class="char-portrait-fallback">${esc(c.name[0])}</div>
+    </div>
+    <div class="char-info">
+      <div class="char-name">${esc(c.name)}</div>
+      <div class="char-role">${esc(c.role)}</div>
+      <div class="char-skills">${skillsHtml}</div>
+    </div>
+  </div>`;
+}
+
+function openScene(evt) {
+  const s = evt.scene;
+  const key = `${s.num}_${evt.ai}`;
+  const [typeLabel, typeCls] = TYPE_BADGE[s.type] || ['?', 'stb-setup'];
+
+  const charsHtml = s.chars.map(charBlockHtml).join('');
+  const pairHtml = s.pair
+    ? `<div class="pair-note">⬆ ${esc(s.pair)}</div>` : '';
+
+  let challengeHtml = '';
+  if (s.challenge && s.challenge.label) {
+    const levelStr = s.challenge.level || 'varies';
+    const coreHtml = s.core ? '<span class="core-badge">CORE SCENE</span>' : '';
+    challengeHtml = `
+      <div>
+        <div class="section-label">Challenge</div>
+        <div class="challenge-block">
+          <span class="skill-chip sc-${s.challenge.skill}">${esc(s.challenge.label)}</span>
+          <span class="level-tag ${s.challenge.cls}">${levelStr}</span>
+          ${coreHtml}
+        </div>
+      </div>`;
+  }
+
+  const decisionHtml = s.decision
+    ? `<div><div class="section-label">Decision</div><div class="decision-note">${esc(s.decision)}</div></div>`
+    : '';
+
+  const card = document.createElement('div');
+  card.className = 'scene-card active';
+  card.id = `card-${key}`;
+  card.innerHTML = `
+    <div class="scene-head">
+      <span class="scene-chevron">▶</span>
+      <span class="scene-num">SCENE ${s.num}</span>
+      <span class="scene-title">${esc(s.title)}</span>
+      <span class="scene-type-badge ${typeCls}">${typeLabel}</span>
+      <span class="outcome-chip oc-pending" id="oc-${key}">…</span>
+    </div>
+    <div class="scene-body">
+      <div>
+        <div class="section-label">Assigned</div>
+        <div class="assigned-chars">${charsHtml}</div>
+        ${pairHtml}
+      </div>
+      ${challengeHtml}
+      ${decisionHtml}
+      <div class="narration-block" id="narr-${key}" style="display:none"></div>
+    </div>`;
+
+  // click header to toggle expand/collapse
+  card.querySelector('.scene-head').addEventListener('click', () => card.classList.toggle('expanded'));
+
+  const panel = document.getElementById('scenes-' + evt.ai);
+  panel.insertBefore(card, panel.firstChild);
+  card.classList.add('expanded'); // auto-expand newest
+  openCards[key] = card;
+  if (evt.ai === currentAI) panel.scrollTop = 0;
+}
+
+function resolveScene(evt) {
+  const key = `${evt.sceneNum}_${evt.ai}`;
+  const card = openCards[key]; if (!card) return;
+  const oc = document.getElementById(`oc-${key}`);
+  if (evt.success === true)       { oc.className = 'outcome-chip oc-success'; oc.textContent = 'SUCCESS ✓'; card.className = 'scene-card success'; }
+  else if (evt.success === false) { oc.className = 'outcome-chip oc-failure'; oc.textContent = 'FAILED ✗';  card.className = 'scene-card failure'; }
+  else                            { oc.className = 'outcome-chip oc-none';    oc.textContent = '—';         card.className = 'scene-card neutral'; }
+  const narr = document.getElementById(`narr-${key}`);
+  narr.textContent = evt.narration; narr.style.display = '';
+}
+
+function addOutcome(evt) {
+  const el = document.createElement('div');
+  el.className = 'outcome-card';
+  el.innerHTML = `
+    <h3>Final Result — ${aiNames[evt.ai]}</h3>
+    <div class="outcome-grid">
+      <div class="og-cell"><span class="og-label">Take</span><span class="og-value take">$${evt.take.toLocaleString()}</span></div>
+      <div class="og-cell"><span class="og-label">Escape</span><span class="og-value ${evt.escape ? 'win':'loss'}">${evt.escape ? 'Clean' : 'Blown'}</span></div>
+      <div class="og-cell"><span class="og-label">Aborted</span><span class="og-value ${evt.aborted ? 'loss':'win'}">${evt.aborted ? 'Yes' : 'No'}</span></div>
+    </div>`;
+  const panel = document.getElementById('scenes-' + evt.ai);
+  panel.insertBefore(el, panel.firstChild);
+  if (evt.ai === currentAI) panel.scrollTop = 0;
+}
+
+function esc(s) {
+  const d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML;
+}
+</script>
+</body>
+</html>
