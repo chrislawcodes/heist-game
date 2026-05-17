@@ -9,13 +9,16 @@ class Turn:
     session_id: str
 
 
-def ask_codex(prompt: str, session_id: str | None = None, timeout: int = 600) -> Turn:
+def ask_codex(prompt: str, session_id: str | None = None, timeout: int = 600, model: str | None = None) -> Turn:
     if session_id:
         cmd = ["codex", "exec", "resume", session_id,
                "--json", "--skip-git-repo-check", prompt]
     else:
         cmd = ["codex", "exec",
-               "--json", "--sandbox", "read-only", "--skip-git-repo-check", prompt]
+               "--json", "--sandbox", "read-only", "--skip-git-repo-check"]
+        if model:
+            cmd += ["-m", model]
+        cmd += [prompt]
     r = subprocess.run(cmd, capture_output=True, text=True,
                        stdin=subprocess.DEVNULL, timeout=timeout, check=True)
     events = [json.loads(line) for line in r.stdout.splitlines() if line.strip()]
