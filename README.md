@@ -16,15 +16,29 @@ in subsequent iterations.
 
 ## Run
 
+### CLI mode (writes a markdown file)
+
 ```sh
-python3 -m heist --seed 42 --out /tmp/heist.md
+python3 -m heist --agent codex --seed 42 --out /tmp/heist.md
 ```
 
 Flags:
 - `--prompt-file PATH` — strategy prompt file (default: built-in default prompt)
 - `--out PATH` — markdown output (default: `heist_report.md`)
 - `--seed N` — RNG seed for reproducible hidden-depth rolls
-- `--agent stub|codex|gemini` — Heist AI backend (only `stub` works in iteration 1)
+- `--agent stub|codex|gemini` — Heist AI backend
+
+### Browser mode (localhost web UI)
+
+```sh
+pip install fastapi uvicorn
+python3 -m heist.server
+# open http://127.0.0.1:8000
+```
+
+Single-user, localhost-only. Write a prompt in the textarea, hit "Run heist,"
+scenes stream into the page as the AI writes them. Codex is the default
+backend; switch via the dropdown.
 
 ## Architecture
 
@@ -38,7 +52,9 @@ Flags:
 | `heist/stub_responses.py` | Iteration 1 hardcoded AI |
 | `heist/runner.py` | The heist loop: drafting → job selection → scene loop → escape → reward |
 | `heist/output.py` | Markdown emission |
-| `heist/__main__.py` | CLI entrypoint |
+| `heist/__main__.py` | CLI entrypoint (writes a markdown file) |
+| `heist/server.py` | FastAPI server for the browser UI; streams scenes via NDJSON |
+| `heist/web/index.html` | Single-page browser UI (textarea + streaming output) |
 | `agents.py` | Existing codex/gemini wrappers (used by iteration 3 once wired in) |
 
 ## Decisions on the design doc's "open items"

@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Heist Game</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root {
+      --bg: #0e0f12;
+      --panel: #15171c;
+      --panel-2: #1c1f26;
+      --text: #e8e8ea;
+      --muted: #8b8e98;
+      --accent: #d4a35a;
+      --accent-2: #4a6cf7;
+      --danger: #ff7070;
+      --success: #6dd47f;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); }
+    body {
+      font: 16px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      max-width: 820px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 6rem;
+    }
+    h1 {
+      font-weight: 600;
+      font-size: 1.6rem;
+      letter-spacing: -0.01em;
+      margin: 0 0 0.25rem;
+    }
+    .tagline {
+      color: var(--muted);
+      margin: 0 0 2rem;
+    }
+    textarea {
+      width: 100%;
+      background: var(--panel);
+      color: var(--text);
+      border: 1px solid #2a2d35;
+      border-radius: 8px;
+      padding: 0.85rem 0.95rem;
+      font: inherit;
+      resize: vertical;
+      min-height: 9rem;
+    }
+    textarea:focus { outline: none; border-color: var(--accent-2); }
+    .controls {
+      margin: 0.75rem 0 0;
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    select, input[type="number"] {
+      background: var(--panel);
+      color: var(--text);
+      border: 1px solid #2a2d35;
+      border-radius: 6px;
+      padding: 0.45rem 0.6rem;
+      font: inherit;
+    }
+    input[type="number"] { width: 110px; }
+    button {
+      background: var(--accent);
+      color: #1a1308;
+      border: none;
+      padding: 0.55rem 1.1rem;
+      border-radius: 6px;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button.secondary {
+      background: var(--panel-2);
+      color: var(--text);
+      font-weight: 400;
+    }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .status {
+      color: var(--muted);
+      font-style: italic;
+      margin: 1.5rem 0 0;
+      min-height: 1.55em;
+    }
+    #output { margin-top: 1.5rem; }
+    .scene {
+      border-left: 3px solid var(--accent-2);
+      padding: 0.4rem 0 0.4rem 1rem;
+      margin: 1.5rem 0;
+    }
+    .scene-head {
+      font-weight: 600;
+      margin-bottom: 0.3rem;
+    }
+    .scene-meta {
+      color: var(--muted);
+      font-size: 0.88rem;
+      font-style: italic;
+      margin-bottom: 0.6rem;
+    }
+    .scene-meta b { font-style: normal; color: var(--text); }
+    .scene-narration { white-space: pre-wrap; }
+    .scene-narration p:first-child { margin-top: 0; }
+    .scene.outcome-failure { border-left-color: var(--danger); }
+    .scene.outcome-success { border-left-color: var(--success); }
+    .panel {
+      background: var(--panel);
+      padding: 1rem 1.2rem;
+      border-radius: 8px;
+      margin: 1.5rem 0;
+    }
+    .panel h2 {
+      margin: 0 0 0.5rem;
+      font-size: 1.05rem;
+      color: var(--accent);
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+    .outcome-grid {
+      display: grid;
+      grid-template-columns: max-content 1fr;
+      gap: 0.3rem 1.5rem;
+      margin-top: 0.5rem;
+    }
+    .outcome-grid dt { color: var(--muted); }
+    .outcome-grid dd { margin: 0; }
+    .take {
+      font-size: 1.8rem;
+      font-weight: 600;
+      color: var(--accent);
+      margin: 0.25rem 0 0.5rem;
+    }
+    .err {
+      color: var(--danger);
+      background: rgba(255, 112, 112, 0.07);
+      border: 1px solid rgba(255, 112, 112, 0.25);
+      padding: 0.7rem 0.95rem;
+      border-radius: 8px;
+      margin: 1rem 0;
+    }
+    details summary {
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    details[open] summary { color: var(--text); }
+    table.timing {
+      border-collapse: collapse;
+      width: 100%;
+      margin-top: 0.5rem;
+      font-size: 0.9rem;
+    }
+    table.timing td {
+      padding: 0.2rem 0.5rem;
+      border-bottom: 1px solid #23252c;
+    }
+    table.timing td:last-child { text-align: right; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <h1>Heist Game</h1>
+  <p class="tagline">Write a strategy. Watch the heist play out.</p>
+
+  <textarea id="prompt" placeholder="I want to run a clean, professional heist with a balanced crew..."></textarea>
+
+  <div class="controls">
+    <button id="run">Run heist</button>
+    <button id="load-default" class="secondary" type="button">Load default prompt</button>
+    <select id="agent" title="Heist AI backend">
+      <option value="codex" selected>codex</option>
+      <option value="gemini">gemini</option>
+      <option value="stub">stub (instant)</option>
+    </select>
+    <input id="seed" type="number" placeholder="seed" title="Optional RNG seed for reproducibility">
+  </div>
+
+  <div id="status" class="status"></div>
+  <div id="output"></div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const promptEl = $('prompt');
+    const output = $('output');
+    const status = $('status');
+    const runBtn = $('run');
+
+    $('load-default').onclick = async () => {
+      const resp = await fetch('/api/default-prompt');
+      const data = await resp.json();
+      promptEl.value = data.prompt;
+    };
+
+    runBtn.onclick = async () => {
+      const prompt = promptEl.value.trim();
+      if (!prompt) { promptEl.focus(); return; }
+      const agent = $('agent').value;
+      const seedVal = $('seed').value;
+      const seed = seedVal ? parseInt(seedVal, 10) : null;
+
+      runBtn.disabled = true;
+      output.innerHTML = '';
+      status.textContent = 'Drafting crew...';
+
+      try {
+        const resp = await fetch('/api/heist', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt, agent, seed }),
+        });
+        if (!resp.ok) throw new Error('server error ' + resp.status);
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop();
+          for (const line of lines) {
+            if (line.trim()) handle(JSON.parse(line));
+          }
+        }
+      } catch (e) {
+        appendError(e.message || String(e));
+      } finally {
+        runBtn.disabled = false;
+      }
+    };
+
+    function handle(ev) {
+      if (ev.type === 'started') {
+        status.textContent = `Drafting crew (via ${ev.agent})...`;
+      } else if (ev.type === 'scene') {
+        appendScene(ev);
+        const next = ev.scene_type === 'escape' ? 'Wrapping up...'
+                   : `Working on scene ${ev.number + 1}...`;
+        status.textContent = next;
+        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+      } else if (ev.type === 'done') {
+        renderDone(ev);
+        status.textContent = '';
+        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+      } else if (ev.type === 'error') {
+        appendError(ev.message);
+      }
+    }
+
+    function appendScene(ev) {
+      const d = document.createElement('div');
+      d.className = 'scene'
+        + (ev.success === true ? ' outcome-success'
+        : ev.success === false ? ' outcome-failure' : '');
+      d.appendChild(line('scene-head', `Scene ${ev.number} — ${ev.title}`));
+      const meta = [];
+      if (ev.personnel && ev.personnel.length) {
+        meta.push(['Personnel', ev.personnel.join(', ')]);
+      }
+      if (ev.reasoning) meta.push(['Reasoning', ev.reasoning]);
+      if (ev.success !== null && ev.success !== undefined) {
+        meta.push(['Outcome', ev.success ? 'success' : 'failure']);
+      }
+      if (ev.decision) {
+        meta.push(['Decision',
+          (ev.decision.pursue ? 'pursued' : 'declined') + ' — ' + ev.decision.reasoning]);
+      }
+      if (meta.length) {
+        const m = document.createElement('div');
+        m.className = 'scene-meta';
+        m.innerHTML = meta.map(([k, v]) => `<b>${k}:</b> ${escapeHTML(v)}`).join(' · ');
+        d.appendChild(m);
+      }
+      const n = document.createElement('div');
+      n.className = 'scene-narration';
+      n.textContent = ev.narration;
+      d.appendChild(n);
+      output.appendChild(d);
+    }
+
+    function renderDone(ev) {
+      const casting = panel('Casting summary', ev.casting_summary);
+      const epilogue = panel('Epilogue', ev.epilogue);
+      const out = document.createElement('div');
+      out.className = 'panel';
+      out.innerHTML = `
+        <h2>Outcome</h2>
+        <div class="take">$${(ev.outcome.take || 0).toLocaleString()}</div>
+        <dl class="outcome-grid">
+          <dt>Job</dt><dd>${escapeHTML(ev.outcome.job_name)}</dd>
+          <dt>Aborted</dt><dd>${ev.outcome.aborted}</dd>
+          <dt>Escape</dt><dd>${ev.outcome.escape_success ? 'succeeded' : 'failed'}</dd>
+          <dt>Hidden depth</dt><dd>${escapeHTML(ev.outcome.hidden_depth)}</dd>
+          <dt>Reward roll</dt><dd>${escapeHTML(ev.outcome.reward_label)} ($${ev.outcome.reward_amount.toLocaleString()})</dd>
+        </dl>`;
+      const timing = document.createElement('details');
+      timing.innerHTML = `<summary>Timing — ${ev.timing.total_seconds}s across ${ev.timing.rounds.length} rounds</summary>`;
+      const tbl = document.createElement('table');
+      tbl.className = 'timing';
+      tbl.innerHTML = ev.timing.rounds
+        .map(r => `<tr><td>${escapeHTML(r.label)}</td><td>${r.seconds.toFixed(1)}s</td></tr>`)
+        .join('');
+      timing.appendChild(tbl);
+
+      // Insert casting BEFORE scenes (which are already in #output)
+      output.insertAdjacentElement('afterbegin', casting);
+      output.appendChild(epilogue);
+      output.appendChild(out);
+      output.appendChild(timing);
+    }
+
+    function panel(heading, body) {
+      const d = document.createElement('div');
+      d.className = 'panel';
+      const h = document.createElement('h2');
+      h.textContent = heading;
+      const b = document.createElement('div');
+      b.style.whiteSpace = 'pre-wrap';
+      b.textContent = body || '(none)';
+      d.appendChild(h);
+      d.appendChild(b);
+      return d;
+    }
+
+    function appendError(msg) {
+      const d = document.createElement('div');
+      d.className = 'err';
+      d.textContent = 'Error: ' + msg;
+      output.appendChild(d);
+    }
+
+    function line(cls, text) {
+      const d = document.createElement('div');
+      d.className = cls;
+      d.textContent = text;
+      return d;
+    }
+
+    function escapeHTML(s) {
+      const d = document.createElement('div');
+      d.textContent = s == null ? '' : String(s);
+      return d.innerHTML;
+    }
+  </script>
+</body>
+</html>
