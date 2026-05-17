@@ -317,11 +317,13 @@ class _Handler(http.server.BaseHTTPRequestHandler):
 def _run_game(strategy: str, agent: str, seed: int | None, game_id: int) -> None:
     global _game_running
     try:
+        from heist.ai import HeistAI
         from heist.backends import CodexHeistAI, GeminiHeistAI
         from heist.runner import run_heist
         from heist.serialize import state_to_dict
         from heist.stub_responses import build_stub_ai
 
+        ai: HeistAI
         if agent == "stub":
             ai = build_stub_ai()
         elif agent == "codex":

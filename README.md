@@ -16,15 +16,32 @@ in subsequent iterations.
 
 ## Run
 
+### CLI mode (writes a markdown file)
+
 ```sh
-python3 -m heist --seed 42 --out /tmp/heist.md
+python3 -m heist --agent codex --seed 42 --out /tmp/heist.md
 ```
 
 Flags:
 - `--prompt-file PATH` — strategy prompt file (default: built-in default prompt)
 - `--out PATH` — markdown output (default: `heist_report.md`)
 - `--seed N` — RNG seed for reproducible hidden-depth rolls
-- `--agent stub|codex|gemini` — Heist AI backend (only `stub` works in iteration 1)
+- `--agent stub|codex|gemini` — Heist AI backend
+
+### Browser mode (localhost web UI)
+
+```sh
+python3 -m heist serve --port 8000
+# open http://localhost:8000
+```
+
+Three-screen app, single-user, localhost-only, zero extra dependencies
+(uses the stdlib `http.server`). Flow: **Lobby** lets you start a new game
+or browse history → **Setup wizard** builds your strategy prompt and picks
+the AI → **Live viewer** streams the game with a draft board, crew columns,
+and a persistent "thinking rail" showing per-AI private reasoning. Mocks
+under `heist/mocks/<name>.html` are auto-served at `/mocks/<name>` for
+design iteration.
 
 ## Architecture
 
@@ -38,7 +55,9 @@ Flags:
 | `heist/stub_responses.py` | Iteration 1 hardcoded AI |
 | `heist/runner.py` | The heist loop: drafting → job selection → scene loop → escape → reward |
 | `heist/output.py` | Markdown emission |
-| `heist/__main__.py` | CLI entrypoint |
+| `heist/__main__.py` | CLI entrypoint (writes a markdown file) |
+| `heist/server.py` | FastAPI server for the browser UI; streams scenes via NDJSON |
+| `heist/web/index.html` | Single-page browser UI (textarea + streaming output) |
 | `agents.py` | Existing codex/gemini wrappers (used by iteration 3 once wired in) |
 
 ## Decisions on the design doc's "open items"

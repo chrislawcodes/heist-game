@@ -21,6 +21,6 @@ jobs:
       - name: Mypy typecheck
         run: mypy heist/ agents.py demo.py
       - name: Import smoke test
-        run: python -c "import agents, demo, heist, heist.runner, heist.scenes, heist.mechanics"
+        run: python -c "import agents, demo, heist, heist.runner, heist.scenes, heist.mechanics, heist.server"
       - name: Pytest
         run: pytest -q
