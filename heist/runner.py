@@ -15,6 +15,7 @@ The AI talks in JSON for structured steps; the runner parses defensively.
 
 from __future__ import annotations
 
+import contextlib
 import random
 import sys
 import time
@@ -22,8 +23,6 @@ from collections.abc import Callable
 from typing import Any
 
 from heist.ai import AgentTurn, HeistAI, parse_json_block
-
-EmitFn = Callable[[dict], None] | None
 from heist.content import BANKROLL, JOBS, JOBS_BY_NAME, ROSTER, ROSTER_BY_ID
 from heist.mechanics import (
     effective_skill,
@@ -42,6 +41,7 @@ from heist.state import (
     TurnLog,
 )
 
+EmitFn = Callable[[dict], None] | None
 SceneCallback = Callable[[SceneResult], None]
 
 
@@ -58,10 +58,8 @@ def _call(
     print(f"  [round {label}: {elapsed:.1f}s]", file=sys.stderr)
     if emit:
         parsed = None
-        try:
+        with contextlib.suppress(Exception):
             parsed = parse_json_block(turn.text)
-        except Exception:
-            pass
         emit({"type": "turn_end", "label": label, "seconds": elapsed,
               "response": turn.text, "parsed": parsed})
     return turn

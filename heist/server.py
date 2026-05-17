@@ -22,7 +22,6 @@ import socketserver
 import threading
 import time
 from pathlib import Path
-from typing import Any
 
 # ── shared state ──────────────────────────────────────────────────────────────
 
@@ -121,14 +120,24 @@ class _Handler(http.server.BaseHTTPRequestHandler):
 
     def _serve_mock(self, name: str) -> None:
         # path-traversal guard: resolved path must stay inside _MOCKS_DIR
-        candidate = (_MOCKS_DIR / name).with_suffix(".html") if not name.endswith(".html") else (_MOCKS_DIR / name)
+        candidate = (
+            (_MOCKS_DIR / name)
+            if name.endswith(".html")
+            else (_MOCKS_DIR / name).with_suffix(".html")
+        )
         try:
             resolved = candidate.resolve()
             mocks_root = _MOCKS_DIR.resolve()
-            if not str(resolved).startswith(str(mocks_root) + "/") or not resolved.is_file():
-                self.send_response(404); self.end_headers(); return
+            ok = (
+                str(resolved).startswith(str(mocks_root) + "/")
+                and resolved.is_file()
+            )
         except OSError:
-            self.send_response(404); self.end_headers(); return
+            ok = False
+        if not ok:
+            self.send_response(404)
+            self.end_headers()
+            return
         self._serve_file(resolved)
 
     def _serve_mocks_index(self) -> None:
@@ -136,17 +145,24 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         items = "".join(
             f'<li><a href="/mocks/{f.name}">{f.stem}</a></li>' for f in files
         ) or '<li class="empty">No mocks in heist/mocks/ yet.</li>'
-        html = (
-            "<!doctype html><html><head><meta charset='utf-8'><title>Mocks</title><style>"
-            "body{background:#0c0c0e;color:#e0dfe8;font-family:-apple-system,sans-serif;padding:48px;margin:0}"
-            "h1{font-size:11px;letter-spacing:3px;color:#e8a030;text-transform:uppercase;margin:0 0 24px}"
+        css = (
+            "body{background:#0c0c0e;color:#e0dfe8;"
+            "font-family:-apple-system,sans-serif;padding:48px;margin:0}"
+            "h1{font-size:11px;letter-spacing:3px;color:#e8a030;"
+            "text-transform:uppercase;margin:0 0 24px}"
             "ul{list-style:none;padding:0;margin:0;max-width:480px}"
-            "li{padding:10px 14px;border:1px solid #26262c;border-radius:6px;margin-bottom:8px;background:#131316}"
+            "li{padding:10px 14px;border:1px solid #26262c;border-radius:6px;"
+            "margin-bottom:8px;background:#131316}"
             "li:hover{border-color:#3a3a44}"
             "li.empty{color:#72717a;font-style:italic;border-style:dashed}"
-            "a{color:#e0dfe8;text-decoration:none;font-size:14px;font-weight:600;display:block}"
+            "a{color:#e0dfe8;text-decoration:none;font-size:14px;"
+            "font-weight:600;display:block}"
             "a::before{content:'▸ ';color:#e8a030;margin-right:4px}"
-            "</style></head><body><h1>Mocks</h1><ul>" + items + "</ul></body></html>"
+        )
+        html = (
+            "<!doctype html><html><head><meta charset='utf-8'>"
+            "<title>Mocks</title><style>" + css + "</style></head>"
+            "<body><h1>Mocks</h1><ul>" + items + "</ul></body></html>"
         )
         data = html.encode()
         self.send_response(200)

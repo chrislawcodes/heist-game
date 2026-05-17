@@ -9,7 +9,12 @@ class Turn:
     session_id: str
 
 
-def ask_codex(prompt: str, session_id: str | None = None, timeout: int = 600, model: str | None = None) -> Turn:
+def ask_codex(
+    prompt: str,
+    session_id: str | None = None,
+    timeout: int = 600,
+    model: str | None = None,
+) -> Turn:
     if session_id:
         cmd = ["codex", "exec", "resume", session_id,
                "--json", "--skip-git-repo-check", prompt]
