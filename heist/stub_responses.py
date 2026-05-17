@@ -9,24 +9,37 @@ import re
 
 from heist.ai import StubHeistAI
 
+_JOB_BIDS: dict[str, list[tuple[int, int, str]]] = {
+    "The Museum Gala": [
+        (10, 700, "High safecracker."),
+        (8, 200, "Inside Man M; half of the collaboration."),
+        (9, 400, "Inside Man M + Muscle L; other half of collaboration."),
+        (13, 700, "High driver for a clean exit."),
+    ],
+    "The Armored Car": [
+        (4, 700, "High muscle for the guards."),
+        (11, 400, "Safecracker M for the truck's locks."),
+        (13, 700, "High driver for the getaway."),
+        (6, 200, "Muscle L + Driver L support."),
+    ],
+    "The Corporate Server Farm": [
+        (1, 1100, "High hacker plus backup driver in one body."),
+        (8, 200, "Inside Man M for the social layer."),
+        (11, 400, "Safecracker M for the server-room lock."),
+        (6, 200, "Muscle L + Driver L support."),
+    ],
+}
 
-def _bid_response() -> str:
-    # Sensible balanced crew within $2000: Marcus + Vance is over budget;
-    # this picks a credible Museum-leaning crew.
+
+def _bid_response(job_name: str) -> str:
+    bids = [
+        {"character_id": cid, "bid": amt, "priority": i + 1, "rationale": why}
+        for i, (cid, amt, why) in enumerate(_JOB_BIDS[job_name])
+    ]
     return json.dumps({
-        "casting_strategy": "Balanced crew with Inside Man coverage via collaboration.",
-        "bids": [
-            {"character_id": 10, "bid": 700, "priority": 1,
-             "rationale": "High safecracker."},
-            {"character_id": 8, "bid": 200, "priority": 2,
-             "rationale": "Inside Man M; half of the collaboration."},
-            {"character_id": 9, "bid": 400, "priority": 3,
-             "rationale": "Inside Man M + Muscle L; other half of collaboration."},
-            {"character_id": 13, "bid": 700, "priority": 4,
-             "rationale": "High driver for a clean exit."},
-        ],
-        "reasoning": "Two Mediums in Inside Man stack to effective High via collaboration, "
-                    "keeping us under budget and covering the Museum's twin Hard challenges."
+        "casting_strategy": f"Crew built for {job_name}.",
+        "bids": bids,
+        "reasoning": f"Composition picked to cover every Hard challenge in {job_name}.",
     })
 
 
@@ -34,27 +47,17 @@ def _fill_response() -> str:
     return json.dumps({"additions": [], "reasoning": "Crew already full."})
 
 
-def _job_response() -> str:
+def _job_response(job_name: str) -> str:
     return json.dumps({
-        "job_name": "The Museum Gala",
-        "reasoning": "We have High Safecracker (Rook) and collaboration-effective High Inside Man "
-                    "(Theo + Pearl). This crew was built for the Museum."
+        "job_name": job_name,
+        "reasoning": f"This crew was assembled to take on {job_name}.",
     })
 
 
-def _casting_summary_response() -> str:
+def _casting_summary_response(job_name: str) -> str:
     return json.dumps({
         "summary": (
-            "**Crew:** Rook Ferreira (High Safecracker), Theo Ashland (Inside Man M), "
-            "Pearl Sutton (Inside Man M + Muscle L), Slim Adesanya (High Driver). "
-            "Total spend $2,000 — every dollar in play.\n\n"
-            "**Logic:** The Museum needs Hard Safecracker AND Hard Inside Man. A solo "
-            "High Inside Man (Lin) would cost $1,100, which makes the rest of the crew "
-            "untenable. Using the collaboration rule, Theo + Pearl (both Medium) act as an "
-            "effective High — same coverage, $700 cheaper. That buys us Rook for the vault "
-            "and Slim for the exit.\n\n"
-            "**Job:** The Museum Gala. Big purse, clean profile, and the puzzle the crew "
-            "is built to solve."
+            f"_(stub casting summary for {job_name} — replaced with real model output in iter 3)_"
         )
     })
 
@@ -90,6 +93,10 @@ class _GenericStub(StubHeistAI):
     """A stub that supplies generic responses based on prompt content,
     so we can iterate without hand-curating every turn."""
 
+    def __init__(self, job_name: str = "The Museum Gala"):
+        super().__init__(responses=[])
+        self._job_name = job_name
+
     def ask(self, prompt: str):
         text = self._dispatch(prompt)
         self._asked.append(prompt)
@@ -99,13 +106,13 @@ class _GenericStub(StubHeistAI):
 
     def _dispatch(self, prompt: str) -> str:
         if "Draft your crew" in prompt:
-            return _bid_response()
+            return _bid_response(self._job_name)
         if "fill in" in prompt or "Pick from the remaining roster" in prompt:
             return _fill_response()
         if "Pick the job this crew" in prompt:
-            return _job_response()
+            return _job_response(self._job_name)
         if "casting summary" in prompt:
-            return _casting_summary_response()
+            return _casting_summary_response(self._job_name)
         if "Decision point" in prompt:
             # Default: decline bonus (conservative).
             return _decision_response(False, "Risk outweighs the bonus given the player's prompt.")
@@ -145,5 +152,5 @@ class _GenericStub(StubHeistAI):
         )
 
 
-def build_stub_ai() -> StubHeistAI:
-    return _GenericStub(responses=[])
+def build_stub_ai(job_name: str = "The Museum Gala") -> StubHeistAI:
+    return _GenericStub(job_name=job_name)

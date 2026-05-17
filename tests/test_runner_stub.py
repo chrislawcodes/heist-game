@@ -1,5 +1,7 @@
 import random
 
+import pytest
+
 from heist.content import DEFAULT_PROMPT
 from heist.output import render_markdown
 from heist.runner import run_heist
@@ -29,6 +31,33 @@ def test_markdown_renders_without_error():
     assert "## Heist" in md
     assert "## Outcome" in md
     assert state.job.name in md
+
+
+@pytest.mark.parametrize("job_name", [
+    "The Museum Gala",
+    "The Armored Car",
+    "The Corporate Server Farm",
+])
+def test_every_job_runs_cleanly_with_stub(job_name):
+    """All three jobs must execute end-to-end without runtime errors. The
+    mechanical outcome (success/abort/fail) doesn't matter here — we only
+    assert the structural invariants of a finished run."""
+    state, _ = run_heist(
+        DEFAULT_PROMPT, build_stub_ai(job_name=job_name), rng=random.Random(7)
+    )
+    assert state.job.name == job_name
+    assert len(state.crew.members) == 4
+    assert state.crew.total_cost <= 2000
+    assert state.scene_results, "no scenes resolved"
+    assert state.scene_results[0].scene.type == "setup"
+    assert state.scene_results[-1].scene.type == "escape"
+    assert state.escape_success is not None
+    assert state.escape_difficulty is not None
+    # final_take is either 0 (abort/failed escape) or hidden-depth reward + maybe bonus
+    if state.aborted or state.escape_success is False:
+        assert state.final_take == 0
+    else:
+        assert state.final_take >= state.hidden_depth.reward_amount
 
 
 def test_zero_take_on_failed_escape(monkeypatch):
