@@ -21,9 +21,13 @@ from heist.stub_responses import build_stub_ai
 def _build_ai(agent: str) -> HeistAI:
     if agent == "stub":
         return build_stub_ai()
-    raise SystemExit(
-        f"agent={agent!r} not wired yet — iteration 1 only supports --agent stub"
-    )
+    if agent == "codex":
+        from heist.backends import CodexHeistAI
+        return CodexHeistAI()
+    if agent == "gemini":
+        from heist.backends import GeminiHeistAI
+        return GeminiHeistAI()
+    raise SystemExit(f"unknown agent {agent!r}")
 
 
 def main(argv: list[str] | None = None) -> int:

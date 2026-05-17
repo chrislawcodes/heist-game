@@ -45,10 +45,16 @@ class StubHeistAI:
 
 
 def parse_json_block(text: str) -> dict:
-    """Parse a JSON object embedded in agent text. Strips common chatter."""
-    start = text.find("{")
-    end = text.rfind("}")
+    """Parse a JSON object embedded in agent text. Tolerates markdown code
+    fences and surrounding prose."""
+    # Strip common markdown fences. Real models often wrap JSON like:
+    #   ```json
+    #   { ... }
+    #   ```
+    cleaned = text.replace("```json", "").replace("```JSON", "").replace("```", "")
+    start = cleaned.find("{")
+    end = cleaned.rfind("}")
     if start < 0 or end < 0 or end <= start:
         raise ValueError(f"No JSON object found in agent response: {text[:200]!r}")
-    snippet = text[start : end + 1]
+    snippet = cleaned[start : end + 1]
     return json.loads(snippet)
