@@ -16,6 +16,7 @@ GET  /stream        → SSE event stream
 """
 from __future__ import annotations
 
+import contextlib
 import http.server
 import json
 import queue
@@ -27,6 +28,13 @@ import traceback
 from pathlib import Path
 
 from heist.logs import log
+from heist.persist import (
+    delete_runner_snapshot,
+    list_pending_snapshots,
+    load_game_records,
+    save_game_record,
+    save_runner_snapshot,
+)
 
 # ── shared state ──────────────────────────────────────────────────────────────
 
@@ -47,6 +55,7 @@ _MOCKS_DIR   = Path(__file__).parent / "mocks"
 
 
 def _broadcast(event: dict) -> None:
+    persist_game: dict | None = None
     with _lock:
         _event_history.append(event)
         # Mirror into the relevant game's persistent event log so we can replay
@@ -59,8 +68,16 @@ def _broadcast(event: dict) -> None:
                 break
         if target_gid is not None:
             _games[target_gid].setdefault("events", []).append(event)
+            # Snapshot the dict inside the lock; persist outside it so we
+            # don't hold the lock during file I/O.
+            persist_game = dict(_games[target_gid])
         subs = list(_subscribers)
     log.info("broadcast", payload=event)
+    if persist_game is not None:
+        try:
+            save_game_record(persist_game)
+        except Exception as exc:
+            log.warn("save_game_record_failed", error=str(exc))
     for q in subs:
         q.put(event)
 
@@ -71,9 +88,16 @@ def _get_game(game_id: int) -> dict | None:
 
 
 def _update_game(game_id: int, **fields) -> None:
+    persist_game: dict | None = None
     with _lock:
         if game_id in _games:
             _games[game_id].update(fields)
+            persist_game = dict(_games[game_id])
+    if persist_game is not None:
+        try:
+            save_game_record(persist_game)
+        except Exception as exc:
+            log.warn("save_game_record_failed", error=str(exc))
 
 
 # ── HTTP handler ──────────────────────────────────────────────────────────────
@@ -442,11 +466,18 @@ class _Handler(http.server.BaseHTTPRequestHandler):
 
 # ── game runner thread ────────────────────────────────────────────────────────
 
-def _run_game(strategy: str, agent: str, seed: int | None, game_id: int, ai_idx: int = 0) -> None:
+def _run_game(
+    strategy: str,
+    agent: str,
+    seed: int | None,
+    game_id: int,
+    ai_idx: int = 0,
+    resume_snapshot: dict | None = None,
+) -> None:
     global _game_running
     started_at = time.monotonic()
     log.info(
-        "game_started",
+        "game_started" if resume_snapshot is None else "game_resumed",
         game_id=game_id,
         ai_idx=ai_idx,
         agent=agent,
@@ -457,10 +488,19 @@ def _run_game(strategy: str, agent: str, seed: int | None, game_id: int, ai_idx:
     def emit_tagged(evt: dict) -> None:
         _broadcast({**evt, "ai_idx": ai_idx})
 
+    def snapshot_cb(payload: dict) -> None:
+        payload = {**payload, "game_id": game_id, "ai_idx": ai_idx, "agent": agent}
+        try:
+            save_runner_snapshot(game_id, ai_idx, payload)
+        except Exception as exc:
+            log.warn("save_runner_snapshot_failed",
+                     game_id=game_id, ai_idx=ai_idx, error=str(exc))
+
     def _record_result(result: dict) -> None:
         """Stash this AI's outcome in game["ai_results"][ai_idx]; flip game-level
         status to "done" once every AI has finished."""
         global _game_running
+        persist_game: dict | None = None
         with _lock:
             game = _games.get(game_id)
             if not game:
@@ -480,11 +520,18 @@ def _run_game(strategy: str, agent: str, seed: int | None, game_id: int, ai_idx:
             if game["ais_remaining"] == 0:
                 game["status"] = "done"
                 _game_running = False
+            persist_game = dict(game)
+        if persist_game is not None:
+            try:
+                save_game_record(persist_game)
+            except Exception as exc:
+                log.warn("save_game_record_failed",
+                         game_id=game_id, error=str(exc))
 
     try:
         from heist.ai import HeistAI
         from heist.backends import CodexHeistAI, GeminiHeistAI
-        from heist.runner import run_heist
+        from heist.runner import resume_heist, run_heist
         from heist.serialize import state_to_dict
         from heist.stub_responses import build_stub_ai
 
@@ -504,10 +551,24 @@ def _run_game(strategy: str, agent: str, seed: int | None, game_id: int, ai_idx:
             _record_result({"error": err})
             return
 
-        # Different seed per AI so parallel runs diverge meaningfully.
-        rng_seed = seed if seed is not None else random.randint(0, 1 << 30) + ai_idx
-        rng = random.Random(rng_seed)
-        state, extras = run_heist(strategy, ai, rng=rng, emit=emit_tagged)
+        if resume_snapshot is not None:
+            # Re-attach the codex session so the CLI picks up the in-flight
+            # conversation. If the session has expired on disk, the next AI
+            # call will fail and we mark this AI errored — same path as any
+            # other AI failure, no special-case logic needed.
+            sid = resume_snapshot.get("session_id")
+            if sid and hasattr(ai, "session_id"):
+                ai.session_id = sid
+            state, extras = resume_heist(
+                resume_snapshot, ai, emit=emit_tagged, snapshot_fn=snapshot_cb,
+            )
+        else:
+            # Different seed per AI so parallel runs diverge meaningfully.
+            rng_seed = seed if seed is not None else random.randint(0, 1 << 30) + ai_idx
+            rng = random.Random(rng_seed)
+            state, extras = run_heist(
+                strategy, ai, rng=rng, emit=emit_tagged, snapshot_fn=snapshot_cb,
+            )
 
         emit_tagged({
             "type": "game_done",
@@ -533,6 +594,13 @@ def _run_game(strategy: str, agent: str, seed: int | None, game_id: int, ai_idx:
             "aborted": state.aborted,
             "escape_success": state.escape_success,
         })
+        # Snapshot served its purpose — clean up so the recovery path doesn't
+        # try to re-resume a finished game.
+        try:
+            delete_runner_snapshot(game_id, ai_idx)
+        except Exception as exc:
+            log.warn("delete_snapshot_failed",
+                     game_id=game_id, ai_idx=ai_idx, error=str(exc))
     except Exception as exc:
         emit_tagged({"type": "error", "message": str(exc)})
         log.error(
@@ -544,6 +612,8 @@ def _run_game(strategy: str, agent: str, seed: int | None, game_id: int, ai_idx:
             duration_ms=int((time.monotonic() - started_at) * 1000),
         )
         _record_result({"error": str(exc)})
+        with contextlib.suppress(Exception):
+            delete_runner_snapshot(game_id, ai_idx)
 
 
 # ── server entry point ────────────────────────────────────────────────────────
@@ -552,9 +622,87 @@ class _ThreadingServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
     daemon_threads = True
 
 
+def _recover_games() -> tuple[int, int]:
+    """Reload games + snapshots from ``./state/``, spawn resume threads for
+    any AI that was mid-run when the server stopped. Returns
+    (games_recovered, ai_threads_resuming)."""
+    global _next_id, _game_running
+    records = load_game_records()
+    if not records:
+        return (0, 0)
+
+    games_recovered = 0
+    ai_resuming = 0
+    pending: list[tuple[int, int, dict, dict]] = []  # (gid, ai_idx, snap, ai_cfg)
+
+    with _lock:
+        for gid, record in records.items():
+            _games[gid] = record
+            _next_id = max(_next_id, gid + 1)
+            games_recovered += 1
+
+            if record.get("status") != "running":
+                continue
+
+            ais = record.get("ais", [])
+            results = record.get("ai_results") or [None] * len(ais)
+            # Pad in case of a stale file.
+            if len(results) < len(ais):
+                results = results + [None] * (len(ais) - len(results))
+
+            snapshots = list_pending_snapshots(gid)
+            still_remaining = 0
+            for ai_idx, ai_cfg in enumerate(ais):
+                if results[ai_idx] is not None:
+                    continue
+                if ai_idx in snapshots:
+                    pending.append((gid, ai_idx, snapshots[ai_idx], ai_cfg))
+                    still_remaining += 1
+                else:
+                    # No snapshot — game crashed before this AI made any
+                    # observable progress. Mark it errored and move on.
+                    results[ai_idx] = {"error": "no snapshot — crashed before first turn"}
+
+            record["ai_results"] = results
+            record["ais_remaining"] = still_remaining
+            if still_remaining == 0:
+                record["status"] = "done"
+            else:
+                _game_running = True
+
+            ai_resuming += still_remaining
+
+    # Persist any status flips we made above (errored AIs, status→done).
+    for gid in records:
+        try:
+            with _lock:
+                snap = dict(_games[gid])
+            save_game_record(snap)
+        except Exception as exc:
+            log.warn("save_game_record_failed", game_id=gid, error=str(exc))
+
+    for gid, ai_idx, snap, ai_cfg in pending:
+        log.info("game_recovered", game_id=gid, ai_idx=ai_idx,
+                 stage=snap.get("stage"), scene_idx=snap.get("scene_idx"))
+        t = threading.Thread(
+            target=_run_game,
+            args=(ai_cfg.get("prompt", ""), ai_cfg.get("agent", "stub"),
+                  None, gid, ai_idx),
+            kwargs={"resume_snapshot": snap},
+            daemon=True,
+        )
+        t.start()
+
+    return (games_recovered, ai_resuming)
+
+
 def serve(port: int = 8000) -> None:
+    games_recovered, ai_resuming = _recover_games()
     server = _ThreadingServer(("", port), _Handler)
     print(f"Heist → http://localhost:{port}")
+    if games_recovered > 0:
+        print(f"Recovered {games_recovered} games "
+              f"({ai_resuming} AI threads resuming)")
     print(f"Logging → {log.log_path()}")
     print("Press Ctrl-C to stop.")
     try:
