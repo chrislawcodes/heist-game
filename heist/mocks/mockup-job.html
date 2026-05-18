@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Job Tab — Mockup</title>
+  <style>
+    :root {
+      --bg: #0f0f0f;
+      --surface: #1a1a1a;
+      --surface2: #242424;
+      --border: #2e2e2e;
+      --accent: #c9a84c;
+      --accent-dim: #7a6020;
+      --text: #e8e8e8;
+      --text-dim: #888;
+      --text-muted: #555;
+      --danger: #e05252;
+      --success: #4caf50;
+      --warn: #d4943a;
+      --radius: 8px;
+      --step-w: 1050px;
+
+      /* Skill colours — matches game.html */
+      --sk-hack:  #5898e0;
+      --sk-safe:  #e8a030;
+      --sk-musc:  #e05050;
+      --sk-soc:   #9070e0;
+      --sk-drive: #52c47a;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 20px; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Georgia', serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    header {
+      width: 100%;
+      border-bottom: 1px solid var(--border);
+      padding: 18px 32px;
+      display: flex; align-items: baseline; gap: 16px;
+    }
+    header h1 { font-size: 1.1rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); font-weight: normal; }
+    header span { font-size: 0.8rem; color: var(--text-muted); letter-spacing: 0.06em; }
+
+    .shell { width: var(--step-w); max-width: 100%; padding: 0 12px 80px; }
+
+    .results-header { display: flex; align-items: center; gap: 16px; padding: 28px 0 20px; border-bottom: 1px solid var(--border); margin-bottom: 8px; }
+    .results-header h2 { font-size: 1rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text); font-weight: normal; flex: 1; }
+
+    .btn { padding: 10px 24px; border-radius: var(--radius); font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; border: 1px solid transparent; transition: all 0.15s; font-family: inherit; }
+    .btn-ghost { background: transparent; border-color: var(--border); color: var(--text-dim); }
+    .btn-ghost:hover { border-color: var(--text-dim); color: var(--text); }
+
+    .tab-bar { display: flex; margin: 8px 0 0; border-bottom: 1px solid var(--border); }
+    .tab { padding: 9px 22px; font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; font-family: inherit; }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    .player-bar { display: flex; align-items: center; gap: 8px; padding: 14px 0; border-bottom: 1px solid var(--border); }
+    .player-bar-label { font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin-right: 4px; }
+    .player-chip { font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; padding: 3px 12px; border-radius: 4px; cursor: pointer; border: 1px solid; }
+    .player-chip.active   { color: var(--accent); border-color: var(--accent-dim); background: rgba(201,168,76,0.06); }
+    .player-chip.inactive { color: var(--text-muted); border-color: var(--border); }
+
+    /* ── Outer two-column layout ── */
+    .content-split { display: grid; grid-template-columns: 1fr 280px; gap: 24px; margin-top: 20px; align-items: start; }
+
+    /* ── Section heading ── */
+    .section-heading {
+      font-size: 0.65rem; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--text-dim); margin: 24px 0 12px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .section-heading::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+    /* ══════════════════════════════════════════
+       SKILL / DIFFICULTY SEGMENT BARS
+       Matches game.html character bar style exactly.
+    ══════════════════════════════════════════ */
+    .cs-bars { display: flex; gap: 3px; align-items: center; }
+    .seg { width: 14px; height: 6px; border-radius: 1px; background: rgba(255,255,255,0.07); flex-shrink: 0; }
+    .seg.f-hack  { background: var(--sk-hack); }
+    .seg.f-safe  { background: var(--sk-safe); }
+    .seg.f-musc  { background: var(--sk-musc); }
+    .seg.f-soc   { background: var(--sk-soc); }
+    .seg.f-drive { background: var(--sk-drive); }
+
+    /* Status badges — only for job state (Selected / Taken) */
+    .badge { font-size: 0.6rem; font-weight: bold; padding: 2px 7px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.06em; border: 1px solid; white-space: nowrap; flex-shrink: 0; }
+    .b-selected { background: var(--accent); color: #000; border-color: var(--accent); }
+    .b-taken    { color: var(--text-muted); border-color: var(--border); background: transparent; }
+
+    /* ══════════════════════════════════════════
+       PHOTO PLACEHOLDER
+    ══════════════════════════════════════════ */
+    .job-photo {
+      position: relative; overflow: hidden;
+      display: flex; align-items: flex-end; padding: 10px 14px;
+    }
+    .job-photo::after {
+      content: '';
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+      background-size: 22px 22px;
+    }
+    .job-photo-label { font-size: 0.55rem; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255,255,255,0.2); position: relative; z-index: 1; }
+    .job-photo-icon  { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-size: 2.4rem; opacity: 0.13; z-index: 1; }
+
+    .photo-crew      { background: linear-gradient(160deg, #0e1e10 0%, #132818 60%, #091208 100%); }
+    .photo-museum    { background: linear-gradient(160deg, #1a1430 0%, #251a42 60%, #121026 100%); }
+    .photo-armored   { background: linear-gradient(160deg, #181818 0%, #222222 60%, #111111 100%); }
+    .photo-server    { background: linear-gradient(160deg, #0d2020 0%, #122c2c 60%, #091818 100%); }
+    .photo-penthouse { background: linear-gradient(160deg, #1e1230 0%, #2a1845 60%, #14102a 100%); }
+    .photo-cargo     { background: linear-gradient(160deg, #201408 0%, #2e1c0a 60%, #160e04 100%); }
+    .photo-diplomat  { background: linear-gradient(160deg, #0a1428 0%, #0e1c38 60%, #080f1e 100%); }
+    .photo-casino    { background: linear-gradient(160deg, #200a0a 0%, #300f0f 60%, #180606 100%); }
+
+    /* ══════════════════════════════════════════
+       COMPARISON  (team skills | selected location)
+    ══════════════════════════════════════════ */
+    .comparison-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; }
+
+    .comp-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden;
+    }
+    .comp-card-body { padding: 18px 20px; }
+
+    /* Selected location card has accent treatment */
+    .comp-card-selected { border-color: var(--accent-dim); background: #181500; }
+
+    .comp-card-title {
+      font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--text-dim); margin-bottom: 12px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .comp-card-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+    .location-name {
+      font-size: 1.1rem; color: var(--accent); font-weight: normal;
+      margin-bottom: 14px; line-height: 1.2;
+    }
+
+    .comp-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
+    .comp-row:last-child { border-bottom: none; }
+    .comp-label { font-size: 0.6rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); flex: 1; }
+    .comp-warn  { font-size: 0.65rem; color: var(--warn); flex-shrink: 0; }
+
+    /* ══════════════════════════════════════════
+       OTHER JOB CARDS  (no photo, 2-col grid)
+       Body-only version of the selected card look.
+    ══════════════════════════════════════════ */
+    .job-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    .job-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); border-left: 3px solid transparent;
+      cursor: pointer; transition: border-color 0.15s;
+      padding: 16px 20px;
+    }
+    .job-card:hover:not(.taken) { border-left-color: var(--accent-dim); }
+    .job-card.taken { opacity: 0.4; cursor: default; }
+
+    .job-card-top    { display: flex; align-items: baseline; gap: 10px; margin-bottom: 2px; }
+    .job-card-name   { font-size: 1.0rem; color: var(--text); flex: 1; }
+    .job-card-reward { font-size: 0.65rem; color: var(--text-muted); margin-bottom: 12px; }
+
+    /* Vertical column of challenge bars inside job card */
+    .job-challenges { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+    .job-ch-row     { display: flex; align-items: center; gap: 8px; }
+    .job-ch-label   { font-size: 0.55rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); width: 88px; flex-shrink: 0; }
+    .job-ch-warn    { font-size: 0.65rem; color: var(--warn); flex-shrink: 0; }
+
+    /* ── AI Reasoning panel ── */
+    .reasoning-panel {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 24px 22px;
+      position: sticky; top: 20px;
+    }
+    .reasoning-eyebrow { font-size: 0.65rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); margin-bottom: 6px; }
+    .reasoning-title   { font-size: 1.1rem; font-weight: normal; color: var(--text); margin-bottom: 20px; }
+    .reasoning-group   { margin-bottom: 20px; }
+    .reasoning-group:last-child { margin-bottom: 0; }
+    .reasoning-label   { font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 10px; }
+    .reasoning-quote   { font-size: 0.82rem; line-height: 1.65; color: var(--text-dim); font-style: italic; padding: 10px 14px; border-left: 2px solid var(--accent-dim); background: var(--surface2); border-radius: 0 4px 4px 0; }
+    .reasoning-items   { display: flex; flex-direction: column; }
+    .reasoning-item    { display: flex; align-items: baseline; gap: 10px; font-size: 0.8rem; color: var(--text-dim); line-height: 1.55; padding: 7px 0; border-bottom: 1px solid var(--border); }
+    .reasoning-item:last-child { border-bottom: none; }
+    .ri-icon      { font-size: 0.75rem; flex-shrink: 0; width: 14px; text-align: center; }
+    .ri-icon.ok   { color: var(--success); }
+    .ri-icon.warn { color: var(--warn); }
+    .ri-icon.bad  { color: var(--danger); }
+    .ri-icon.dot  { color: var(--text-muted); }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Heist</h1>
+  <span>Game 1</span>
+</header>
+
+<div class="shell">
+
+  <div class="results-header">
+    <h2>Game 1</h2>
+    <button class="btn btn-ghost">← Lobby</button>
+  </div>
+
+  <div class="tab-bar">
+    <div class="tab">Draft &amp; Crew</div>
+    <div class="tab active">Job</div>
+    <div class="tab">Heist</div>
+  </div>
+
+  <div class="player-bar">
+    <span class="player-bar-label">Viewing:</span>
+    <span class="player-chip active">Player 1</span>
+    <span class="player-chip inactive">Player 2</span>
+  </div>
+
+  <div class="content-split">
+
+    <!-- ── Main column ── -->
+    <div>
+
+      <div class="section-heading">Job Slate</div>
+
+      <!-- ── Comparison: Team Skills vs Selected Location ── -->
+      <div class="comparison-grid">
+
+        <!-- Team Skills -->
+        <div class="comp-card">
+          <div class="job-photo photo-crew" style="height: 130px;">
+            <div class="job-photo-icon" style="font-size: 3.2rem; opacity: 0.18;">👥</div>
+            <div class="job-photo-label">Crew</div>
+          </div>
+          <div class="comp-card-body">
+            <div style="margin-bottom: 14px;">
+              <div class="location-name" style="margin-bottom: 0;">Player 1's Crew</div>
+            </div>
+            <div class="comp-card-title">Team Skills</div>
+            <div class="comp-row">
+              <span class="comp-label">Inside Man</span>
+              <div class="cs-bars">
+                <span class="seg f-soc"></span><span class="seg f-soc"></span><span class="seg f-soc"></span>
+              </div>
+            </div>
+            <div class="comp-row">
+              <span class="comp-label">Safecracker</span>
+              <div class="cs-bars">
+                <span class="seg f-safe"></span><span class="seg f-safe"></span><span class="seg f-safe"></span>
+              </div>
+            </div>
+            <div class="comp-row">
+              <span class="comp-label">Hacker</span>
+              <div class="cs-bars">
+                <span class="seg f-hack"></span><span class="seg f-hack"></span><span class="seg f-hack"></span>
+              </div>
+            </div>
+            <div class="comp-row">
+              <span class="comp-label">Muscle</span>
+              <div class="cs-bars">
+                <span class="seg f-musc"></span><span class="seg"></span><span class="seg"></span>
+              </div>
+            </div>
+            <div class="comp-row">
+              <span class="comp-label">Driver</span>
+              <div class="cs-bars">
+                <span class="seg f-drive"></span><span class="seg"></span><span class="seg"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Selected Location -->
+        <div class="comp-card comp-card-selected">
+          <div class="job-photo photo-museum" style="height: 130px;">
+            <div class="job-photo-icon" style="font-size: 3.2rem; opacity: 0.18;">🏛️</div>
+            <div class="job-photo-label">Location</div>
+          </div>
+          <div class="comp-card-body">
+            <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 14px;">
+              <div class="location-name" style="margin-bottom: 0;">The Museum Gala</div>
+              <div style="font-size: 0.68rem; color: var(--accent-dim); white-space: nowrap; flex-shrink: 0;">$600K – $2.0M</div>
+            </div>
+            <div class="comp-card-title">Known Difficulty</div>
+            <div class="comp-row">
+              <span class="comp-label">Social</span>
+              <div class="cs-bars">
+                <span class="seg f-soc"></span><span class="seg f-soc"></span><span class="seg f-soc"></span>
+              </div>
+            </div>
+            <div class="comp-row">
+              <span class="comp-label">Physical</span>
+              <div class="cs-bars">
+                <span class="seg f-safe"></span><span class="seg f-safe"></span><span class="seg f-safe"></span>
+              </div>
+            </div>
+            <div class="comp-row">
+              <span class="comp-label">Electronic</span>
+              <div class="cs-bars">
+                <span class="seg f-hack"></span><span class="seg f-hack"></span><span class="seg"></span>
+              </div>
+            </div>
+            <div class="comp-row">
+              <span class="comp-label">Confrontation</span>
+              <div class="cs-bars">
+                <span class="seg f-musc"></span><span class="seg"></span><span class="seg"></span>
+              </div>
+            </div>
+            <div class="comp-row">
+              <span class="comp-label">Escape</span>
+              <span class="comp-warn">⚠</span>
+              <div class="cs-bars">
+                <span class="seg f-drive"></span><span class="seg"></span><span class="seg"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ── Other jobs ── -->
+      <div class="section-heading" style="margin-top: 32px;">Other Jobs</div>
+      <div class="job-grid">
+
+        <!-- Armored Car — Taken -->
+        <div class="job-card taken">
+          <div class="job-card-top">
+            <span class="job-card-name">The Armored Car</span>
+            <span class="badge b-taken">Taken — P2</span>
+          </div>
+          <div class="job-card-reward">$400K – $1.2M</div>
+          <div class="job-challenges">
+            <div class="job-ch-row"><span class="job-ch-label">Social</span><div class="cs-bars"><span class="seg"></span><span class="seg"></span><span class="seg"></span></div></div>
+            <div class="job-ch-row"><span class="job-ch-label">Physical</span><div class="cs-bars"><span class="seg f-safe"></span><span class="seg f-safe"></span><span class="seg"></span></div></div>
+            <div class="job-ch-row"><span class="job-ch-label">Electronic</span><div class="cs-bars"><span class="seg f-hack"></span><span class="seg"></span><span class="seg"></span></div></div>
+            <div class="job-ch-row"><span class="job-ch-label">Confrontation</span><div class="cs-bars"><span class="seg f-musc"></span><span class="seg f-musc"></span><span class="seg f-musc"></span></div></div>
+            <div class="job-ch-row"><span class="job-ch-label">Escape</span><div class="cs-bars"><span class="seg"></span><span class="seg"></span><span class="seg"></span></div></div>
+          </div>
+        </div>
+
+        <!-- Corporate Server Farm -->
+        <div class="job-card">
+          <div class="job-card-top"><span class="job-card-name">The Corporate Server Farm</span></div>
+          <div class="job-card-reward">$800K – $2.4M</div>
+          <div class="job-challenges">
+            <div class="job-ch-row"><span class="job-ch-label">Social</span><div class="cs-bars"><span class="seg f-soc"></span><span class="seg f-soc"></span><span class="seg"></span></div></div>
+            <div class="job-ch-row"><span class="job-ch-label">Physical</span><div class="cs-bars"><span class="seg f-safe"></span><span class="seg f-safe"></span><span class="seg"></span></div></div>
+            <div class="job-ch-row"><span class="job-ch-label">Electronic</span><div class="cs-bars"><span class="seg f-hack"></span><span class="seg f-hack"></span><span class="seg f-hack"></span></div></div>
+            <div class="job-ch-row"><span class="job-ch-label">Confrontation</span><div class="cs-bars"><span class="seg f-musc"></span><span class="seg"></span><span class="seg"></span></div></div>
+            <div class="job-ch-row"><span class="job-ch-label">Escape</span><div class="cs-bars"><span class="seg f-drive"></span><span class="seg"></span><span class="seg"></span></div></div>
+          </div>
+        </div>
+
+        <!-- Penthouse Caper -->
+        <div class="job-card">
+          <div class="job-card-top"><span class="job-card-name">The Penthouse Caper</span></div>
+          <div class="job-card-reward">$400K – $1.2M</div>
+          <div class="job-challenges">
+            <div class="job-ch-row"><span class="job-ch-label">Social</span><div class="cs-bars"><span class="seg f-soc"></span><span class="seg"></span><span class="seg"></span></div></div>
+            <div class="job-ch-row"><span class="job-ch-label">Physical</span><div class="cs-bars"><span class="seg f-safe"></span><span class="seg f-safe"></span><span class="seg"></span></div></div>
+            <div class="job-ch-row"><span class="job-ch-label">Electronic</span><div class="cs-bars"><span class="seg f-hack"></span><span class="seg f-hack"></span><span class="seg"></span></div></div>
+            <div class="job-ch-row"><span class="job-ch-label">Confrontation</span><div class="cs-bars"><span class="seg"></span><span class="seg"></span><span class="seg"></span></div></div>
+            <div class="job-ch-row"><span class="job-ch-label">Escape</span><div class="cs-bars"><span class="seg f-drive"></span><span class="seg f-drive"></span><span class="seg"></span></div></div>
+          </div>
+        </div>
+
+        <!-- Cargo Yard -->
+        <div class="job-card">
+          <div class="job-card-top"><span class="job-card-name">The Cargo Yard</span></div>
+          <div class="job-card-reward">$600K – $1.8M</div>
+          <div class="job-challenges">
+            <div class="job-ch-row"><span class="job-ch-label">Social</span><div class="cs-bars"><span class="seg"></span><span class="seg"></span><span class="seg"></span></div></div>
+            <div class="job-ch-row"><span class="job-ch-label">Physical</span><div class="cs-bars"><span class="seg f-safe"></span><span class="seg f-safe"></span><span class="seg f-safe"></span></div></div>
+            <div class="job-ch-row"><span class="job-ch-label">Electronic</span><div class="cs-bars"><span class="seg f-hack"></span><span class="seg"></span><span class="seg"></span></div></div>
+            <div class="job-ch-row"><span class="job-ch-label">Confrontation</span><div class="cs-bars"><span class="seg f-musc"></span><span class="seg f-musc"></span><span class="seg"></span></div></div>
+            <div class="job-ch-row"><span class="job-ch-label">Escape</span><div class="cs-bars"><span class="seg f-drive"></span><span class="seg f-drive"></span><span class="seg"></span></div></div>
+          </div>
+        </div>
+
+        <!-- Diplomatic Reception -->
+        <div class="job-card">
+          <div class="job-card-top"><span class="job-card-name">The Diplomatic Reception</span></div>
+          <div class="job-card-reward">$800K – $2.4M</div>
+          <div class="job-challenges">
+            <div class="job-ch-row"><span class="job-ch-label">Social</span><div class="cs-bars"><span class="seg f-soc"></span><span class="seg f-soc"></span><span class="seg f-soc"></span></div></div>
+            <div class="job-ch-row"><span class="job-ch-label">Physical</span><div class="cs-bars"><span class="seg f-safe"></span><span class="seg f-safe"></span><span class="seg"></span></div></div>
+            <div class="job-ch-row"><span class="job-ch-label">Electronic</span><div class="cs-bars"><span class="seg f-hack"></span><span class="seg"></span><span class="seg"></span></div></div>
+            <div class="job-ch-row"><span class="job-ch-label">Confrontation</span><div class="cs-bars"><span class="seg f-musc"></span><span class="seg"></span><span class="seg"></span></div></div>
+            <div class="job-ch-row"><span class="job-ch-label">Escape</span><div class="cs-bars"><span class="seg f-drive"></span><span class="seg"></span><span class="seg"></span></div></div>
+          </div>
+        </div>
+
+        <!-- Casino Vault -->
+        <div class="job-card">
+          <div class="job-card-top"><span class="job-card-name">The Casino Vault</span></div>
+          <div class="job-card-reward">$1.4M – $4.2M</div>
+          <div class="job-challenges">
+            <div class="job-ch-row"><span class="job-ch-label">Social</span><div class="cs-bars"><span class="seg f-soc"></span><span class="seg f-soc"></span><span class="seg"></span></div></div>
+            <div class="job-ch-row"><span class="job-ch-label">Physical</span><div class="cs-bars"><span class="seg f-safe"></span><span class="seg f-safe"></span><span class="seg f-safe"></span></div></div>
+            <div class="job-ch-row"><span class="job-ch-label">Electronic</span><div class="cs-bars"><span class="seg f-hack"></span><span class="seg f-hack"></span><span class="seg f-hack"></span></div></div>
+            <div class="job-ch-row"><span class="job-ch-label">Confrontation</span><div class="cs-bars"><span class="seg f-musc"></span><span class="seg f-musc"></span><span class="seg"></span></div></div>
+            <div class="job-ch-row"><span class="job-ch-label">Escape</span><div class="cs-bars"><span class="seg f-drive"></span><span class="seg f-drive"></span><span class="seg f-drive"></span></div></div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ── AI Reasoning sidebar ── -->
+    <div class="reasoning-panel">
+      <div class="reasoning-eyebrow">AI Reasoning</div>
+      <div class="reasoning-title">Why this job</div>
+
+      <div class="reasoning-group">
+        <div class="reasoning-label">Strategy brief</div>
+        <div class="reasoning-quote">
+          "Solid mid-tier score, manageable risk. Balance the roster — anchor specialists, fill the rest."
+        </div>
+      </div>
+
+      <div class="reasoning-group">
+        <div class="reasoning-label">Decision factors</div>
+        <div class="reasoning-items">
+          <div class="reasoning-item"><span class="ri-icon ok">✓</span>Inside Man covers Social Hard solo — strongest asset</div>
+          <div class="reasoning-item"><span class="ri-icon ok">✓</span>Safecracker covers Physical Hard — exact match</div>
+          <div class="reasoning-item"><span class="ri-icon ok">✓</span>Hacker handles Electronic with margin</div>
+          <div class="reasoning-item"><span class="ri-icon warn">⚠</span>Driver only Low — escape is the weak point</div>
+          <div class="reasoning-item"><span class="ri-icon ok">✓</span>$2M ceiling fits the mid-risk brief</div>
+        </div>
+      </div>
+
+    </div>
+
+  </div><!-- /.content-split -->
+
+</div><!-- /.shell -->
+
+</body>
+</html>
