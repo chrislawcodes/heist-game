@@ -2,7 +2,11 @@
 
 GET  /              → lobby.html
 GET  /setup         → setup.html  (accepts ?game=ID)
-GET  /viewer        → viewer.html
+GET  /hiring        → hiring.html  (phase 1 — ?game=ID)
+GET  /job           → job.html     (phase 2 — ?game=ID)
+GET  /heist         → heist.html   (phase 3 — ?game=ID)
+GET  /epilogue      → epilogue.html (phase 4 — ?game=ID)
+GET  /shell.js      → web/shell.js  (shared JS module)
 
 POST /api/new-game  → create a staged game, returns {game_id}
 POST /api/add-ai    → {game_id, prompt, agent} → stage an AI onto a game
@@ -48,11 +52,15 @@ _game_running = False
 _games: dict[int, dict] = {}
 _next_id = 1
 
-_LOBBY_HTML  = Path(__file__).parent / "lobby.html"
-_SETUP_HTML  = Path(__file__).parent / "web" / "setup.html"
-_VIEWER_HTML = Path(__file__).parent / "viewer.html"
-_MOCKS_DIR   = Path(__file__).parent / "mocks"
-_TABS_DIR    = Path(__file__).parent / "web" / "tabs"
+_LOBBY_HTML    = Path(__file__).parent / "lobby.html"
+_SETUP_HTML    = Path(__file__).parent / "web" / "setup.html"
+_HIRING_HTML   = Path(__file__).parent / "hiring.html"
+_JOB_HTML      = Path(__file__).parent / "job.html"
+_HEIST_HTML    = Path(__file__).parent / "heist.html"
+_EPILOGUE_HTML = Path(__file__).parent / "epilogue.html"
+_SHELL_JS      = Path(__file__).parent / "web" / "shell.js"
+_MOCKS_DIR     = Path(__file__).parent / "mocks"
+_TABS_DIR      = Path(__file__).parent / "web" / "tabs"
 
 
 def _broadcast(event: dict) -> None:
@@ -137,8 +145,16 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             self._serve_file(_LOBBY_HTML)
         elif p == "/setup":
             self._serve_file(_SETUP_HTML)
-        elif p == "/viewer":
-            self._serve_file(_VIEWER_HTML)
+        elif p == "/hiring":
+            self._serve_file(_HIRING_HTML)
+        elif p == "/job":
+            self._serve_file(_JOB_HTML)
+        elif p == "/heist":
+            self._serve_file(_HEIST_HTML)
+        elif p == "/epilogue":
+            self._serve_file(_EPILOGUE_HTML)
+        elif p == "/shell.js":
+            self._serve_js(_SHELL_JS)
         elif p == "/mocks" or p == "/mocks/":
             self._serve_mocks_index()
         elif p.startswith("/mocks/"):
@@ -190,6 +206,15 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         content = path.read_bytes()
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Length", str(len(content)))
+        self.end_headers()
+        self.wfile.write(content)
+
+    def _serve_js(self, path: Path):
+        content = path.read_bytes()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/javascript; charset=utf-8")
         self.send_header("Cache-Control", "no-store")
         self.send_header("Content-Length", str(len(content)))
         self.end_headers()

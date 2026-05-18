@@ -217,7 +217,7 @@ function renderGames(games) {
     } else if (isDone) {
       actionHtml = `
         <div class="game-actions">
-          <a class="action-link" href="/viewer?replay=${g.id}">↻ Replay</a>
+          <a class="action-link" href="/hiring?game=${g.id}">↻ Replay</a>
         </div>`;
     }
 
@@ -225,7 +225,7 @@ function renderGames(games) {
     // <a> doesn't get eaten by a row-wide anchor. Running games stay as a
     // clickable row that goes to the live viewer.
     const wrapAsRow = isStaging || isDone;
-    const href = isRunning ? '/viewer' : '#';
+    const href = isRunning ? `/hiring?game=${g.id}` : '#';
     const rowTag = wrapAsRow ? `<div class="game-row"` : `<a class="game-row" href="${href}"`;
     const rowClose = wrapAsRow ? `</div>` : `</a>`;
 
@@ -265,7 +265,8 @@ async function quickTest() {
   try {
     const resp = await fetch('/api/quick-game', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
     if (!resp.ok) { const d = await resp.json(); throw new Error(d.error || resp.status); }
-    window.location = '/viewer';
+    const data = await resp.json();
+    window.location = `/hiring?game=${data.game_id}`;
   } catch (e) {
     alert('Quick test failed: ' + e.message);
   }
@@ -279,7 +280,7 @@ async function launchGame(id) {
       body: JSON.stringify({ game_id: id }),
     });
     if (!resp.ok) { const d = await resp.json(); throw new Error(d.error || resp.status); }
-    window.location = '/viewer';
+    window.location = `/hiring?game=${id}`;
   } catch (e) {
     alert('Launch failed: ' + e.message);
   }

@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Heist — The Heist</title>
+<style>
+:root {
+  --bg: #0c0c0e;
+  --panel: #131316;
+  --panel2: #18181c;
+  --border: #26262c;
+  --text: #e0dfe8;
+  --muted: #72717a;
+  --accent: #e8a030;
+  --green: #52c47a;
+  --red: #e05050;
+  --blue: #5898e0;
+  --purple: #9070e0;
+  --commentator: #f5d77a;
+  --ai-a: #e8a030;
+  --ai-b: #5898e0;
+  --ai-c: #9070e0;
+  --sk-hack:  #5898e0;
+  --sk-safe:  #e8a030;
+  --sk-musc:  #e05050;
+  --sk-soc:   #9070e0;
+  --sk-drive: #52c47a;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+}
+
+/* ── topbar ── */
+#topbar {
+  height: 44px; padding: 0 16px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 14px; flex-shrink: 0;
+}
+#topbar-title {
+  font-size: 12px; font-weight: 700; letter-spacing: 3px; color: var(--accent);
+  text-decoration: none; cursor: pointer; transition: opacity 0.15s;
+}
+#topbar-title:hover { opacity: 0.7; }
+#job-display  { font-size: 13px; color: var(--text); }
+#heat-display { font-size: 12px; font-family: monospace; color: var(--red); letter-spacing: 1px; }
+#topbar-spacer { flex: 1; }
+#new-game-btn {
+  font-size: 11px; font-weight: 700; letter-spacing: 1px;
+  padding: 5px 12px; background: var(--panel2); color: var(--muted);
+  border: 1px solid var(--border); border-radius: 4px; cursor: pointer;
+}
+#new-game-btn:hover { color: var(--text); border-color: var(--muted); }
+.replay-btn {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.5px;
+  padding: 4px 10px; margin-right: 4px;
+  background: var(--panel2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 4px; cursor: pointer;
+}
+.replay-btn:hover { border-color: var(--accent); color: var(--accent); }
+#replay-controls { display: inline-flex; align-items: center; gap: 2px; }
+#status-badge {
+  font-size: 11px; font-weight: 700; letter-spacing: 1px;
+  padding: 3px 10px; border-radius: 3px;
+}
+.s-idle    { background: #1e1e22; color: var(--muted); }
+.s-running { background: #0c1a2e; color: var(--blue); }
+.s-done    { background: #0c2018; color: var(--green); }
+.s-error   { background: #2e0c0c; color: var(--red); }
+
+/* ── phase breadcrumb ── */
+#phasenav {
+  height: 38px; padding: 0 16px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+  background: var(--panel);
+}
+.phase-item {
+  font-size: 12px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase;
+  color: #3a3a44;
+}
+.phase-item.phase-active { color: var(--accent); }
+.phase-item.phase-done   { color: var(--muted); }
+.phase-sep { font-size: 11px; color: #2a2a34; }
+
+/* ── content layout ── */
+#content { flex: 1; display: flex; overflow: hidden; }
+#main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+/* ── right rail ── */
+#rail {
+  width: 320px; flex-shrink: 0;
+  border-left: 1px solid var(--border);
+  background: var(--panel);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+#commentary-section {
+  flex: 0 0 auto; max-height: 36%;
+  display: flex; flex-direction: column; overflow: hidden;
+  border-bottom: 2px solid var(--border);
+}
+.commentary-header {
+  padding: 7px 14px; flex-shrink: 0;
+  display: flex; align-items: center; gap: 8px;
+  border-bottom: 1px solid var(--border);
+  background: #15140e;
+}
+.commentary-icon { font-size: 12px; }
+.commentary-title { font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--commentator); flex: 1; }
+.commentary-attrib { font-size: 9px; font-weight: 700; letter-spacing: 0.5px; color: var(--muted); font-family: monospace; }
+.commentary-status { font-size: 9px; font-weight: 700; letter-spacing: 1px; color: var(--muted); background: #1e1e22; padding: 2px 6px; border-radius: 3px; }
+#commentary-stream { flex: 1; overflow-y: auto; padding: 8px 14px; display: flex; flex-direction: column; gap: 6px; }
+.commentary-stub { font-size: 11px; color: var(--muted); line-height: 1.5; padding: 12px 10px; border: 1px dashed var(--border); border-radius: 5px; text-align: center; }
+.commentary-stub strong { color: var(--text); }
+
+#ai-picker {
+  flex-shrink: 0; padding: 7px 10px;
+  display: flex; gap: 5px; align-items: center;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel2);
+}
+.ai-pick-label { font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-right: 4px; }
+.ai-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 10px; border-radius: 18px;
+  font-size: 11px; font-weight: 700;
+  background: transparent; border: 1px solid var(--border);
+  color: var(--muted); cursor: pointer; transition: all 0.15s;
+}
+.ai-pill:hover { color: var(--text); }
+.ai-pill.ap-active { background: var(--panel); color: var(--text); }
+.ai-pill .ap-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border); }
+.ai-pill[data-aiidx="0"].ap-active { border-color: var(--ai-a); }
+.ai-pill[data-aiidx="0"] .ap-dot { background: var(--ai-a); }
+.ai-pill[data-aiidx="1"].ap-active { border-color: var(--ai-b); }
+.ai-pill[data-aiidx="1"] .ap-dot { background: var(--ai-b); }
+.ai-pill[data-aiidx="2"].ap-active { border-color: var(--ai-c); }
+.ai-pill[data-aiidx="2"] .ap-dot { background: var(--ai-c); }
+
+#thinking-section { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.thinking-header { padding: 8px 14px; flex-shrink: 0; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--border); }
+.thinking-avatar { width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: #000; }
+.thinking-title  { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text); flex: 1; }
+.thinking-private { font-size: 9px; font-weight: 700; letter-spacing: 1px; color: var(--muted); background: #1e1e22; padding: 2px 6px; border-radius: 3px; }
+#thinking-stream { flex: 1; overflow-y: auto; padding: 8px 12px; display: flex; flex-direction: column; gap: 6px; }
+.thought-line { font-size: 12px; line-height: 1.5; padding: 7px 10px; border-radius: 4px; background: var(--panel2); border-left: 3px solid var(--border); animation: slideDownIn 0.35s ease; }
+@keyframes slideDownIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+.thought-kind { font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 3px; }
+.thought-body { color: #d0cee0; }
+.thought-body strong { color: var(--text); font-weight: 600; }
+.thought-line.tk-strategy { border-left-color: var(--accent); }
+.thought-line.tk-strategy .thought-kind { color: var(--accent); }
+.thought-line.tk-bid { border-left-color: var(--blue); }
+.thought-line.tk-bid .thought-kind { color: var(--blue); }
+.thought-line.tk-hire { border-left-color: var(--green); }
+.thought-line.tk-hire .thought-kind { color: var(--green); }
+.thought-line.tk-job { border-left-color: var(--purple); }
+.thought-line.tk-job .thought-kind { color: var(--purple); }
+.thought-line.tk-scene { border-left-color: var(--muted); }
+.thought-sub-head { font-size: 9px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: var(--purple); margin-top: 6px; margin-bottom: 2px; }
+.thought-sub-head:first-child { margin-top: 0; }
+.thinking-empty { font-size: 12px; color: var(--muted); font-style: italic; text-align: center; padding: 16px 0; }
+.thought-hired-badge { margin-top: 6px; display: inline-flex; align-items: center; gap: 4px; background: #0c2018; color: var(--green); padding: 2px 7px; border-radius: 3px; font-size: 10px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; }
+
+.prose { font-size: 14px; line-height: 1.8; color: #c8c4d8; }
+.prose p { margin-bottom: 12px; }
+.prose p:last-child { margin-bottom: 0; }
+.prose strong { color: var(--text); font-weight: 600; }
+.prose em     { color: #a0a8c0; font-style: italic; }
+.prose code   { font-family: monospace; background: #1a1a22; padding: 1px 4px; border-radius: 3px; font-size: 12px; }
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #2a2a34; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #40404c; }
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <a id="topbar-title" href="/" title="Back to lobby">HEIST</a>
+  <span id="job-display">—</span>
+  <span id="heat-display"></span>
+  <span id="topbar-spacer"></span>
+  <span id="replay-controls" style="display:none">
+    <button class="replay-btn" id="replay-play"  onclick="replayToggle()">▶ Play</button>
+    <button class="replay-btn" onclick="replayStep()">⏭ Step</button>
+    <button class="replay-btn" onclick="replayReset()">⟲ Reset</button>
+    <span id="replay-counter" style="font-family:monospace;font-size:11px;color:var(--muted);margin-left:6px">0 / 0</span>
+  </span>
+  <button id="new-game-btn" onclick="window.location='/'">← New Game</button>
+  <span id="status-badge" class="s-running">RUNNING</span>
+</div>
+
+<div id="phasenav">
+  <span class="phase-item phase-done">Hiring</span>
+  <span class="phase-sep">→</span>
+  <span class="phase-item phase-done">Job</span>
+  <span class="phase-sep">→</span>
+  <span class="phase-item phase-active">Heist</span>
+  <span class="phase-sep">→</span>
+  <span class="phase-item">Epilogue</span>
+</div>
+
+<div id="content">
+  <div id="main"></div>
+
+  <div id="rail">
+    <div id="commentary-section">
+      <div class="commentary-header">
+        <span class="commentary-icon">📢</span>
+        <span class="commentary-title">Play-by-Play</span>
+        <span class="commentary-attrib">codex</span>
+        <span class="commentary-status">Not wired</span>
+      </div>
+      <div id="commentary-stream">
+        <div class="commentary-stub">
+          <strong>Commentary not configured.</strong><br>
+          A Codex commentator will narrate the game from public info here.
+        </div>
+      </div>
+    </div>
+
+    <div id="ai-picker">
+      <span class="ai-pick-label">Mind of</span>
+      <span id="ai-pills"></span>
+    </div>
+
+    <div id="thinking-section">
+      <div class="thinking-header">
+        <span class="thinking-avatar" id="thinking-avatar" style="background:var(--ai-a)">·</span>
+        <span class="thinking-title" id="thinking-title">—</span>
+        <span class="thinking-private">Private</span>
+      </div>
+      <div id="thinking-stream">
+        <div class="thinking-empty">Waiting for the game…</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/shell.js"></script>
+<script>
+(async function() {
+  const gameId = new URLSearchParams(location.search).get('game');
+
+  try { await loadTabFragment('heist'); } catch (e) { console.error('heist fragment failed:', e); }
+  if (window.HeistTab) HeistTab.mount(document.getElementById('main'), { shell: Shell });
+
+  await initShell({
+    gameId,
+    onEvent(e) {
+      if (e.type === '_reset') {
+        if (window.HeistTab) HeistTab.reset();
+        return;
+      }
+      if (window.HeistTab) HeistTab.handleEvent(e);
+      if (e.type === 'game_done') {
+        window.location = `/epilogue?game=${gameId}`;
+      }
+    }
+  });
+})();
+</script>
+</body>
+</html>
