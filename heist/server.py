@@ -21,7 +21,10 @@ import random
 import socketserver
 import threading
 import time
+import traceback
 from pathlib import Path
+
+from heist.logs import log
 
 # ── shared state ──────────────────────────────────────────────────────────────
 
@@ -45,6 +48,7 @@ def _broadcast(event: dict) -> None:
     with _lock:
         _event_history.append(event)
         subs = list(_subscribers)
+    log.info("broadcast", payload=event)
     for q in subs:
         q.put(event)
 
@@ -64,8 +68,34 @@ def _update_game(game_id: int, **fields) -> None:
 
 class _Handler(http.server.BaseHTTPRequestHandler):
 
+    def _http_log(self, method: str, t0: float) -> None:
+        """Emit a structured access-log line. Skip /stream (long-lived SSE)."""
+        path = self.path.split("?")[0]
+        if path == "/stream":
+            return
+        status = getattr(self, "_status_code", None)
+        log.info(
+            "http",
+            method=method,
+            path=path,
+            status=status,
+            duration_ms=int((time.monotonic() - t0) * 1000),
+        )
+
+    def send_response(self, code, message=None):
+        # Capture the status code so the access log can report it.
+        self._status_code = code
+        super().send_response(code, message)
+
     def do_GET(self):
+        t0 = time.monotonic()
         p = self.path.split("?")[0]
+        try:
+            self._dispatch_get(p)
+        finally:
+            self._http_log("GET", t0)
+
+    def _dispatch_get(self, p: str) -> None:
         if p == "/":
             self._serve_file(_LOBBY_HTML)
         elif p == "/setup":
@@ -89,16 +119,20 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
 
     def do_POST(self):
+        t0 = time.monotonic()
         p = self.path.split("?")[0]
-        if p == "/api/new-game":
-            self._handle_new_game()
-        elif p == "/api/add-ai":
-            self._handle_add_ai()
-        elif p == "/api/launch":
-            self._handle_launch()
-        else:
-            self.send_response(404)
-            self.end_headers()
+        try:
+            if p == "/api/new-game":
+                self._handle_new_game()
+            elif p == "/api/add-ai":
+                self._handle_add_ai()
+            elif p == "/api/launch":
+                self._handle_launch()
+            else:
+                self.send_response(404)
+                self.end_headers()
+        finally:
+            self._http_log("POST", t0)
 
     def do_OPTIONS(self):
         self.send_response(200)
@@ -271,16 +305,16 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         with _lock:
             history = list(_event_history)
             _subscribers.add(sub_q)
-
-        for evt in history:
-            try:
-                self._send_event(evt)
-            except (BrokenPipeError, ConnectionResetError):
-                with _lock:
-                    _subscribers.discard(sub_q)
-                return
+        log.info("stream_connected", history_len=len(history))
+        connected_at = time.monotonic()
 
         try:
+            for evt in history:
+                try:
+                    self._send_event(evt)
+                except (BrokenPipeError, ConnectionResetError):
+                    return
+
             while True:
                 try:
                     evt = sub_q.get(timeout=20)
@@ -295,6 +329,10 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         finally:
             with _lock:
                 _subscribers.discard(sub_q)
+            log.info(
+                "stream_disconnected",
+                duration_ms=int((time.monotonic() - connected_at) * 1000),
+            )
 
     def _send_event(self, evt: dict) -> None:
         self.wfile.write(f"data: {json.dumps(evt)}\n\n".encode())
@@ -325,6 +363,7 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def log_message(self, fmt, *args):
+        # Default stderr access log is replaced by structured logs via _http_log.
         pass
 
 
@@ -332,6 +371,14 @@ class _Handler(http.server.BaseHTTPRequestHandler):
 
 def _run_game(strategy: str, agent: str, seed: int | None, game_id: int) -> None:
     global _game_running
+    started_at = time.monotonic()
+    log.info(
+        "game_started",
+        game_id=game_id,
+        agent=agent,
+        prompt_len=len(strategy),
+        seed=seed,
+    )
     try:
         from heist.ai import HeistAI
         from heist.backends import CodexHeistAI, GeminiHeistAI
@@ -351,6 +398,7 @@ def _run_game(strategy: str, agent: str, seed: int | None, game_id: int) -> None
         else:
             _broadcast({"type": "error", "message": f"Unknown agent: {agent}"})
             _update_game(game_id, status="error")
+            log.error("game_crashed", game_id=game_id, error=f"Unknown agent: {agent}")
             return
 
         rng = random.Random(seed)
@@ -373,9 +421,24 @@ def _run_game(strategy: str, agent: str, seed: int | None, game_id: int) -> None
                 "strategy": extras.get("strategy", ""),
             },
         })
+        log.info(
+            "game_ended",
+            game_id=game_id,
+            take=state.final_take,
+            aborted=state.aborted,
+            escape_success=state.escape_success,
+            duration_ms=int((time.monotonic() - started_at) * 1000),
+        )
     except Exception as exc:
         _update_game(game_id, status="error")
         _broadcast({"type": "error", "message": str(exc)})
+        log.error(
+            "game_crashed",
+            game_id=game_id,
+            error=str(exc),
+            traceback=traceback.format_exc(),
+            duration_ms=int((time.monotonic() - started_at) * 1000),
+        )
     finally:
         _game_running = False
 
@@ -389,6 +452,7 @@ class _ThreadingServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
 def serve(port: int = 8000) -> None:
     server = _ThreadingServer(("", port), _Handler)
     print(f"Heist → http://localhost:{port}")
+    print(f"Logging → {log.log_path()}")
     print("Press Ctrl-C to stop.")
     try:
         server.serve_forever()

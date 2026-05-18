@@ -19,6 +19,7 @@ serialises writes so JSON lines never interleave).
 
 from __future__ import annotations
 
+import contextlib
 import inspect
 import json
 import os
@@ -67,14 +68,13 @@ class _Logger:
             return
         # path changed (or first open) — close old, open new
         if self._fh is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._fh.close()
-            except Exception:
-                pass
             self._fh = None
         desired.parent.mkdir(parents=True, exist_ok=True)
-        # line-buffered text append; UTF-8 so logs are grep/jq-friendly
-        self._fh = open(desired, "a", buffering=1, encoding="utf-8")
+        # Long-lived line-buffered append handle — kept open for the process
+        # lifetime, so a context-manager doesn't fit. Closed in _reset_for_tests.
+        self._fh = open(desired, "a", buffering=1, encoding="utf-8")  # noqa: SIM115
         self._path = desired
 
     def _write(self, level: str, event: str, fields: dict[str, Any]) -> None:
@@ -117,10 +117,8 @@ class _Logger:
         """
         with self._lock:
             if self._fh is not None:
-                try:
+                with contextlib.suppress(Exception):
                     self._fh.close()
-                except Exception:
-                    pass
             self._fh = None
             self._path = None
 
