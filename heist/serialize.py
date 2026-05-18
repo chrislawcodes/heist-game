@@ -41,7 +41,14 @@ def character_to_dict(c: Character) -> dict:
         "name": c.name,
         "skills": {k: v.name for k, v in c.skills.items()},
         "floor_cost": c.floor_cost,
-        "personality": c.personality,
+        "backstory": c.backstory,
+        "voice": c.voice,
+        "motivation": c.motivation,
+        "quirk": c.quirk,
+        "crew_dynamic": c.crew_dynamic,
+        "weakness": c.weakness,
+        "look": c.look,
+        "signature_line": c.signature_line,
     }
 
 

@@ -1,5 +1,30 @@
-"""Roster + jobs. Personalities and location flavor are placeholders in iteration 1
-and get polished in iteration 4."""
+"""Roster + jobs. Mechanical fields (id, name, skills, floor_cost) are locked.
+Descriptive profile fields are empty — fill them in per character to bring
+the roster to life.
+
+CHARACTER PROFILE TEMPLATE
+==========================
+Every Character has these descriptive fields (all default to ""):
+
+    backstory       where they came from, how they got into this work
+                    (1–2 sentences)
+    voice           how they talk: cadence, vocabulary, tics
+                    (1 sentence — most important for narration)
+    motivation      why they keep doing heists
+                    (1 sentence — drives risk/decision behavior)
+    quirk           a memorable tic or habit
+                    (1 sentence — makes them visible in scene text)
+    crew_dynamic    how they treat teammates
+                    (1 sentence — gives the AI dialogue material)
+    weakness        what shakes them or what they refuse to do
+                    (1 sentence — useful for failures and decision points)
+    look            one visual hook
+                    (optional, 1 phrase — supports future portrait gen)
+    signature_line  a sample line in their voice
+                    (optional, 1 line — anchors the AI's narration)
+
+Target ~80–150 words total per character when fully filled in.
+"""
 
 from heist.state import (
     ChallengeLevel,
@@ -14,36 +39,21 @@ M = SkillLevel.MEDIUM
 L = SkillLevel.LOW
 
 ROSTER: list[Character] = [
-    Character(1, 'Marcus "Prodigy" Renault', {"hacker": H, "driver": L}, 1100,
-              "[placeholder personality — iteration 4]"),
-    Character(2, "Sasha Kuznetsova", {"hacker": M}, 200,
-              "[placeholder personality — iteration 4]"),
-    Character(3, 'Eli "Owl" Park', {"hacker": L, "inside_man": L}, 200,
-              "[placeholder personality — iteration 4]"),
-    Character(4, 'Vance "The Wall" Tobin', {"muscle": H}, 700,
-              "[placeholder personality — iteration 4]"),
-    Character(5, "Carla Reyes", {"muscle": M, "driver": L}, 400,
-              "[placeholder personality — iteration 4]"),
-    Character(6, "Big Mike Donato", {"muscle": L, "driver": L}, 200,
-              "[placeholder personality — iteration 4]"),
-    Character(7, 'Lin "Closer" Park', {"inside_man": H, "safecracker": L}, 1100,
-              "[placeholder personality — iteration 4]"),
-    Character(8, "Theo Ashland", {"inside_man": M}, 200,
-              "[placeholder personality — iteration 4]"),
-    Character(9, "Pearl Sutton", {"inside_man": M, "muscle": L}, 400,
-              "[placeholder personality — iteration 4]"),
-    Character(10, "Rook Ferreira", {"safecracker": H}, 700,
-              "[placeholder personality — iteration 4]"),
-    Character(11, 'Jolene "Jo" Hayes', {"safecracker": M, "hacker": L}, 400,
-              "[placeholder personality — iteration 4]"),
-    Character(12, "Nestor Bly", {"safecracker": L, "hacker": L}, 200,
-              "[placeholder personality — iteration 4]"),
-    Character(13, '"Slim" Adesanya', {"driver": H}, 700,
-              "[placeholder personality — iteration 4]"),
-    Character(14, "Margot Vinter", {"driver": M, "inside_man": L}, 400,
-              "[placeholder personality — iteration 4]"),
-    Character(15, "Dex Owusu", {"driver": L, "muscle": L}, 200,
-              "[placeholder personality — iteration 4]"),
+    Character(1,  'Marcus "Prodigy" Renault', {"hacker": H, "driver": L},      1100),
+    Character(2,  "Sasha Kuznetsova",         {"hacker": M},                    200),
+    Character(3,  'Eli "Owl" Park',           {"hacker": L, "inside_man": L},   200),
+    Character(4,  'Vance "The Wall" Tobin',   {"muscle": H},                    700),
+    Character(5,  "Carla Reyes",              {"muscle": M, "driver": L},       400),
+    Character(6,  "Big Mike Donato",          {"muscle": L, "driver": L},       200),
+    Character(7,  'Lin "Closer" Park',        {"inside_man": H, "safecracker": L}, 1100),
+    Character(8,  "Theo Ashland",             {"inside_man": M},                200),
+    Character(9,  "Pearl Sutton",             {"inside_man": M, "muscle": L},   400),
+    Character(10, "Rook Ferreira",            {"safecracker": H},               700),
+    Character(11, 'Jolene "Jo" Hayes',        {"safecracker": M, "hacker": L},  400),
+    Character(12, "Nestor Bly",               {"safecracker": L, "hacker": L},  200),
+    Character(13, '"Slim" Adesanya',          {"driver": H},                    700),
+    Character(14, "Margot Vinter",            {"driver": M, "inside_man": L},   400),
+    Character(15, "Dex Owusu",                {"driver": L, "muscle": L},       200),
 ]
 
 ROSTER_BY_ID: dict[int, Character] = {c.id: c for c in ROSTER}

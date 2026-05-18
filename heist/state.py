@@ -31,7 +31,18 @@ class Character:
     name: str
     skills: dict[str, SkillLevel]
     floor_cost: int
-    personality: str
+    # ── descriptive profile ──────────────────────────────────────────────
+    # Drives bidding decisions, scene assignment, narration, dialogue, and
+    # (later) portrait generation. All default to "" so legacy constructors
+    # keep working; fill them in per-character in content.py.
+    backstory: str      = ""  # where they came from, how they got into this
+    voice: str          = ""  # how they talk: cadence, vocabulary, tics
+    motivation: str     = ""  # why they keep doing heists
+    quirk: str          = ""  # a memorable tic or habit
+    crew_dynamic: str   = ""  # how they treat teammates
+    weakness: str       = ""  # what shakes them or what they refuse to do
+    look: str           = ""  # one visual hook (supports future portraits)
+    signature_line: str = ""  # a sample line in their voice (anchors AI narration)
 
 
 @dataclass(frozen=True)
