@@ -20,11 +20,13 @@ import os
 import random
 import sys
 import time
+import traceback
 from collections.abc import Callable
 from typing import Any
 
 from heist.ai import AgentTurn, HeistAI, parse_json_block
 from heist.content import BANKROLL, JOBS, JOBS_BY_NAME, ROSTER, ROSTER_BY_ID
+from heist.logs import log
 from heist.mechanics import (
     effective_skill,
     escape_resolves,
@@ -52,6 +54,7 @@ TURN_DELAY_SECONDS = float(os.environ.get("HEIST_TURN_DELAY", "10"))
 _last_turn_end_at: float | None = None
 
 
+
 def _call(
     ai: HeistAI, prompt: str, label: str, logs: list[TurnLog], emit: EmitFn = None
 ) -> AgentTurn:
@@ -64,14 +67,34 @@ def _call(
     if emit:
         emit({"type": "turn_start", "label": label, "prompt": prompt})
     t0 = time.monotonic()
-    turn = ai.ask(prompt)
+    try:
+        turn = ai.ask(prompt)
+    except Exception as exc:
+        elapsed = time.monotonic() - t0
+        log.error(
+            "ai_call_error",
+            label=label,
+            elapsed_ms=int(elapsed * 1000),
+            prompt_len=len(prompt),
+            error=str(exc),
+            traceback=traceback.format_exc(),
+        )
+        raise
     elapsed = time.monotonic() - t0
     logs.append(TurnLog(label=label, seconds=elapsed))
     print(f"  [round {label}: {elapsed:.1f}s]", file=sys.stderr)
+    parsed = None
+    with contextlib.suppress(Exception):
+        parsed = parse_json_block(turn.text)
+    log.info(
+        "ai_call",
+        label=label,
+        elapsed_ms=int(elapsed * 1000),
+        prompt_len=len(prompt),
+        response_len=len(turn.text),
+        parsed_ok=parsed is not None,
+    )
     if emit:
-        parsed = None
-        with contextlib.suppress(Exception):
-            parsed = parse_json_block(turn.text)
         emit({"type": "turn_end", "label": label, "seconds": elapsed,
               "response": turn.text, "parsed": parsed})
         _last_turn_end_at = time.monotonic()
