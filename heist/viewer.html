@@ -433,6 +433,14 @@ body {
 .thought-line.tk-job { border-left-color: var(--purple); }
 .thought-line.tk-job .thought-kind { color: var(--purple); }
 .thought-line.tk-scene { border-left-color: var(--muted); }
+/* Mini-headers inside a thought card body (e.g. "Why this job" / "Why not the
+   others" inside a job_pick card). */
+.thought-sub-head {
+  font-size: 9px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--purple);
+  margin-top: 6px; margin-bottom: 2px;
+}
+.thought-sub-head:first-child { margin-top: 0; }
 .thinking-empty { font-size: 12px; color: var(--muted); font-style: italic; text-align: center; padding: 16px 0; }
 /* Inline "✓ HIRED" stripe added to a bid card once the crew is finalized.
    Avoids a separate hire card cluttering the rail. */
@@ -480,6 +488,13 @@ body {
   color: var(--muted); margin-bottom: 8px;
 }
 .job-reasoning-text { font-size: 13px; color: #c0bcd0; line-height: 1.65; }
+.job-reasoning-subhead {
+  font-size: 10px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--accent);
+  margin-top: 10px; margin-bottom: 4px;
+}
+.job-reasoning-subhead:first-child { margin-top: 0; }
+.job-reasoning-body { font-size: 13px; color: #c0bcd0; line-height: 1.65; margin-bottom: 4px; }
 .hidden-depth-section {
   background: var(--panel); border: 1px solid var(--border);
   border-radius: 8px; padding: 16px 20px;
@@ -637,7 +652,7 @@ body {
         <table class="challenge-table" id="job-challenge-table"></table>
       </div>
       <div class="job-reasoning" id="job-reasoning-block" style="display:none">
-        <div class="job-reasoning-label">Why this job</div>
+        <div class="job-reasoning-label">AI rationale</div>
         <div class="job-reasoning-text" id="job-reasoning-text"></div>
       </div>
       <div class="hidden-depth-section" id="hidden-depth-section" style="display:none">
@@ -925,9 +940,23 @@ function handleSSE(evt) {
       unlockTab('heist');
     } else if (e.label === 'job_pick') {
       unlockTab('job');
-      if (e.parsed && e.parsed.reasoning) {
-        addThought(aiIdx, 'job', 'Job pick', escapeHtml(e.parsed.reasoning));
-        jobReasoningByAI[aiIdx] = e.parsed.reasoning;
+      if (e.parsed) {
+        // New AI schema: {job_name, why_this, why_not}. Old replays may still
+        // carry a single `reasoning` blob — fall back to that.
+        const whyThis = e.parsed.why_this || '';
+        const whyNot  = e.parsed.why_not  || '';
+        const legacy  = e.parsed.reasoning || '';
+        jobReasoningByAI[aiIdx] = { why_this: whyThis, why_not: whyNot, legacy };
+        // Render the thought card with mini-headers if structured fields are present.
+        let body;
+        if (whyThis || whyNot) {
+          body = '';
+          if (whyThis) body += `<div class="thought-sub-head">Why this job</div>${escapeHtml(whyThis)}`;
+          if (whyNot)  body += `<div class="thought-sub-head">Why not the others</div>${escapeHtml(whyNot)}`;
+        } else {
+          body = escapeHtml(legacy || '—');
+        }
+        addThought(aiIdx, 'job', 'Job pick', body);
         if (aiIdx === currentAI) renderJobTab();
       }
     } else {
@@ -1212,7 +1241,7 @@ function selectAI(idx) {
 const THOUGHT_CARD_DELAY_MS = (() => {
   const p = new URLSearchParams(window.location.search);
   const n = parseInt(p.get('cardDelay') || '', 10);
-  return Number.isFinite(n) ? n : 10000;
+  return Number.isFinite(n) ? n : 5000;
 })();
 const _thoughtQueue = [];
 let   _thoughtTimer = null;
@@ -1364,8 +1393,26 @@ function renderJobTab() {
   profileBlock.style.display = '';
 
   const reasoning = jobReasoningByAI[currentAI];
-  if (reasoning) {
-    document.getElementById('job-reasoning-text').textContent = reasoning;
+  if (reasoning && (reasoning.why_this || reasoning.why_not || reasoning.legacy || typeof reasoning === 'string')) {
+    const target = document.getElementById('job-reasoning-text');
+    // New shape: object with why_this/why_not. Old shape (legacy replays):
+    // a plain string. Handle both.
+    if (typeof reasoning === 'string') {
+      target.textContent = reasoning;
+    } else if (reasoning.why_this || reasoning.why_not) {
+      let html = '';
+      if (reasoning.why_this) {
+        html += `<div class="job-reasoning-subhead">Why this job</div>` +
+                `<div class="job-reasoning-body">${escapeHtml(reasoning.why_this)}</div>`;
+      }
+      if (reasoning.why_not) {
+        html += `<div class="job-reasoning-subhead">Why not the others</div>` +
+                `<div class="job-reasoning-body">${escapeHtml(reasoning.why_not)}</div>`;
+      }
+      target.innerHTML = html;
+    } else {
+      target.textContent = reasoning.legacy || '';
+    }
     reasoningBlk.style.display = '';
   } else {
     reasoningBlk.style.display = 'none';
