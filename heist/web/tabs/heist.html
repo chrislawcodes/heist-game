@@ -43,11 +43,6 @@
 .heist-root .h2-profile-chip.low  { color: var(--green);  border-color: rgba(82,196,122,0.4); background: rgba(82,196,122,0.08); }
 .heist-root .h2-job-reward { margin-left: auto; font-family: monospace; font-size: 13px; color: var(--muted); }
 .heist-root .h2-job-reward strong { color: var(--accent); font-size: 14px; }
-.heist-root .h2-heat-chip {
-  font-size: 11px; font-weight: 700; letter-spacing: 0.8px;
-  padding: 3px 9px; border-radius: 3px; font-family: monospace;
-  background: var(--panel); border: 1px solid var(--border); color: var(--red);
-}
 
 /* ── scenes panel ─────────────────────────────────────────────────────────── */
 .heist-root .h2-scenes {
@@ -255,7 +250,6 @@
     <div class="h2-job-header" data-ht="job-header" style="display:none">
       <span class="h2-job-name" data-ht="job-name">—</span>
       <div class="h2-job-profile" data-ht="job-profile"></div>
-      <span class="h2-heat-chip" data-ht="heat-chip">Heat ○○○○○</span>
       <span class="h2-job-reward" data-ht="job-reward"></span>
     </div>
     <div class="h2-scenes" data-ht="scenes">
@@ -322,7 +316,6 @@
     if (!root || !Shell) return;
     const esc = Shell.helpers.escapeHtml;
     const job = jobByAI[Shell.currentAI];
-    const heat = heatByAI[Shell.currentAI] || 0;
     const header = $$('job-header');
     if (!job) { if (header) header.style.display = 'none'; return; }
     if (header) header.style.display = '';
@@ -340,11 +333,9 @@
 
     const rr = job.reward_range;
     const rewardEl = $$('job-reward');
-    if (rr) rewardEl.innerHTML = `Reward <strong>$${(rr[0]/1e6).toFixed(1)}m – $${(rr[1]/1e6).toFixed(1)}m</strong>`;
+    if (rr) rewardEl.innerHTML =
+      `Reward <strong>$${Number(rr[0]).toLocaleString()} – $${Number(rr[1]).toLocaleString()}</strong>`;
     else rewardEl.innerHTML = '';
-
-    const filled = Math.min(Math.max(heat, 0), 5);
-    $$('heat-chip').textContent = 'Heat ' + '●'.repeat(filled) + '○'.repeat(5 - filled);
   }
 
   // ── scene list ──────────────────────────────────────────────────────────────
@@ -379,7 +370,8 @@
     if (isNew) {
       card = document.createElement('div');
       card.id = cardId;
-      listEl.appendChild(card);
+      // newest-first: insert at the top of the scenes panel
+      listEl.insertBefore(card, listEl.firstChild);
     }
     const meta = s.meta || {}, result = s.result || null, narr = s.narration || null;
 
@@ -568,7 +560,8 @@
           <span class="h2-og-value ${gs.aborted ? 'loss' : 'win'}">${gs.aborted ? 'Yes' : 'No'}</span>
         </div>
       </div>`;
-    listEl.appendChild(card);
+    // newest-first: outcome card sits at the very top
+    listEl.insertBefore(card, listEl.firstChild);
   }
 
   // ── lifecycle ──────────────────────────────────────────────────────────────
@@ -584,6 +577,8 @@
     if (Shell.onAISelected) Shell.onAISelected(() => {
       renderJobHeader();
       renderSceneList();
+      // Sync topbar heat with the newly-selected AI's last-known heat
+      if (Shell.setHeat) Shell.setHeat(heatByAI[Shell.currentAI] || 0);
     });
   }
 
@@ -620,7 +615,6 @@
 
     } else if (e.type === 'scene_done') {
       heatByAI[aiIdx] = e.heat;
-      if (aiIdx === Shell.currentAI) renderJobHeader();
       const sNum = e.scene_num;
       if (!scenes[sNum]) scenes[sNum] = {};
       scenes[sNum].result = e;
