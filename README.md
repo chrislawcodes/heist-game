@@ -82,6 +82,40 @@ roster table lists Low Inside Man on Eli "Owl" Park (id 3) and Margot Vinter (id
 `test_low_inside_man_only_on_eli_and_margot` pins the contradiction so it
 surfaces if the doc gets reconciled.
 
+## Logs
+
+The backend writes one JSON object per event to `./logs/heist.jsonl` (created on
+first write). Override the destination with `HEIST_LOG_PATH=/path/to.jsonl`.
+Every line carries `ts` (ISO-8601 UTC), `level`, `source` (caller's module), and
+`event`, plus event-specific fields. Server startup prints
+`Logging → <abs path>` so you know where to tail.
+
+Useful events:
+- `ai_call` / `ai_call_error` — per AI round (label, elapsed_ms, prompt_len, response_len, parsed_ok)
+- `game_started` / `game_ended` / `game_crashed` — game lifecycle on the server
+- `broadcast` — every SSE payload the server emits (full event under `payload`)
+- `http` — access log for everything except `/stream`
+- `stream_connected` / `stream_disconnected` — SSE lifecycle
+- `subprocess_failed` / `subprocess_timeout` — codex/gemini CLI errors with captured stderr
+
+Recipes:
+
+```sh
+# Five slowest AI calls
+jq -s 'map(select(.event=="ai_call")) | sort_by(-.elapsed_ms) | .[0:5]' logs/heist.jsonl
+
+# Any crashed games (full traceback)
+jq 'select(.event=="game_crashed")' logs/heist.jsonl
+
+# Average AI call time by label
+jq -s 'map(select(.event=="ai_call")) | group_by(.label)
+       | map({label: .[0].label, avg_ms: ((map(.elapsed_ms) | add) / length), n: length})' \
+   logs/heist.jsonl
+
+# Tail the live game stream
+tail -f logs/heist.jsonl | jq -c 'select(.event=="broadcast") | .payload.type'
+```
+
 ## Test policy
 
 Every new feature ships with CI tests in the same commit. See

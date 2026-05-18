@@ -8,6 +8,7 @@ venv/
 .mypy_cache/
 .pytest_cache/
 .ruff_cache/
+/logs/
 # Gemini --yolo occasionally writes its JSON response to disk as a side effect.
 # We don't want these in the repo. Real outputs go to examples/ via --out.
 /casting_summary.json
