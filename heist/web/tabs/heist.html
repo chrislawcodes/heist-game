@@ -1,5 +1,5 @@
 <!--
-  The Heist tab. Loaded into the viewer shell at boot via /tabs/heist.
+  The Heist tab. Loaded into the page shell at boot via /tabs/heist.
 
   Shell contract:
     1. Shell loads this fragment (style + template + script all activate).
@@ -8,83 +8,259 @@
     4. Shell calls HeistTab.reset() on replay reset
 
   Events the tab acts on:
-    scene_start             → create/update scene card (in-progress state)
-    scene_done              → update scene card (success/failure, heat)
+    job_known               → fix job, render job header
+    crew_known              → fix crew membership (used to look up assigned chars)
+    scene_start             → create scene card (in-progress state)
+    scene_done              → update scene card (success/failure, narration if any)
     turn_end (narration)    → fill in scene narration once it lands
     game_done               → render the heist outcome card at the bottom
 
-  Re-renders the full scene list when shell switches AI.
+  Visual style ported from heist/mocks/game.html. Re-renders fully when the
+  shell switches AI (each AI plays the same job independently).
 -->
 
 <style>
-.heist-root { padding: 0; display: flex; flex-direction: column; flex: 1; overflow: hidden; }
-
-.heist-root .heist-heat-bar {
-  flex-shrink: 0; padding: 10px 24px;
-  background: var(--panel); border-bottom: 1px solid var(--border);
-  display: flex; align-items: center; gap: 12px;
+.heist-root {
+  display: flex; flex-direction: column; flex: 1; overflow: hidden;
 }
-.heist-root .heist-heat-label { font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); }
-.heist-root .heist-heat-dots  { font-family: monospace; font-size: 14px; color: var(--red); letter-spacing: 2px; }
 
-.heist-root #scene-list { flex: 1; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
-
-.heist-root .scene-card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 18px 20px; }
-.heist-root .scene-card-header  { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
-.heist-root .scene-card-num     { font-size: 11px; font-weight: 700; color: var(--muted); font-family: monospace; }
-.heist-root .scene-card-title   { font-size: 15px; font-weight: 700; color: var(--text); flex: 1; }
-.heist-root .scene-type-badge   {
-  font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
-  padding: 2px 8px; border-radius: 3px; background: #1a1a26; color: var(--muted);
+/* ── job header ───────────────────────────────────────────────────────────── */
+.heist-root .h2-job-header {
+  flex-shrink: 0; padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel2);
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
 }
-.heist-root .scene-type-badge.stype-core     { background: #0c1a2e; color: var(--blue); }
-.heist-root .scene-type-badge.stype-escape   { background: #1a0c1a; color: var(--purple); }
-.heist-root .scene-type-badge.stype-decision { background: #1a1a0c; color: var(--accent); }
-.heist-root .scene-status-pending { font-size: 11px; color: var(--accent); animation: heistPulse 1.2s ease-in-out infinite; }
-@keyframes heistPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-.heist-root .scene-result-ok   { font-size: 12px; font-weight: 700; color: var(--green); }
-.heist-root .scene-result-fail { font-size: 12px; font-weight: 700; color: var(--red); }
-.heist-root .scene-result-none { font-size: 12px; color: var(--muted); }
-.heist-root .scene-challenge-block { margin-bottom: 12px; }
-.heist-root .sc-challenge-title {
+.heist-root .h2-job-name { font-size: 15px; font-weight: 700; color: var(--text); }
+.heist-root .h2-job-profile { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.heist-root .h2-profile-chip {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.8px;
+  padding: 3px 9px; border-radius: 3px;
+  background: var(--panel); border: 1px solid var(--border); color: var(--muted);
+}
+.heist-root .h2-profile-chip.med  { color: var(--accent); border-color: rgba(232,160,48,0.4); background: rgba(232,160,48,0.08); }
+.heist-root .h2-profile-chip.hard { color: var(--red);    border-color: rgba(224,80,80,0.4);  background: rgba(224,80,80,0.08); }
+.heist-root .h2-profile-chip.low  { color: var(--green);  border-color: rgba(82,196,122,0.4); background: rgba(82,196,122,0.08); }
+.heist-root .h2-job-reward { margin-left: auto; font-family: monospace; font-size: 13px; color: var(--muted); }
+.heist-root .h2-job-reward strong { color: var(--accent); font-size: 14px; }
+.heist-root .h2-heat-chip {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.8px;
+  padding: 3px 9px; border-radius: 3px; font-family: monospace;
+  background: var(--panel); border: 1px solid var(--border); color: var(--red);
+}
+
+/* ── scenes panel ─────────────────────────────────────────────────────────── */
+.heist-root .h2-scenes {
+  flex: 1; overflow-y: auto; padding: 20px;
+  display: flex; flex-direction: column; gap: 16px;
+}
+.heist-root .h2-empty {
+  padding: 40px 20px; text-align: center;
+  font-size: 13px; color: var(--muted); font-style: italic;
+}
+
+/* ── scene card ───────────────────────────────────────────────────────────── */
+.heist-root .h2-card {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 10px; overflow: hidden;
+  animation: h2CardIn 0.4s ease;
+}
+@keyframes h2CardIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+.heist-root .h2-card.success { border-left: 4px solid var(--green); }
+.heist-root .h2-card.failure { border-left: 4px solid var(--red); }
+.heist-root .h2-card.neutral { border-left: 4px solid var(--border); }
+.heist-root .h2-card.active  { border-left: 4px solid var(--accent); }
+
+.heist-root .h2-head {
+  padding: 12px 16px;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  background: var(--panel2);
+  cursor: pointer; user-select: none;
+}
+.heist-root .h2-head:hover { background: #1e1e24; }
+.heist-root .h2-card.expanded .h2-head { border-bottom: 1px solid var(--border); }
+.heist-root .h2-chevron {
+  font-size: 11px; color: var(--muted); flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+.heist-root .h2-card.expanded .h2-chevron { transform: rotate(90deg); }
+.heist-root .h2-num {
+  font-size: 11px; font-weight: 700; font-family: monospace;
+  color: var(--muted); letter-spacing: 1px; flex-shrink: 0;
+}
+.heist-root .h2-title { font-size: 16px; font-weight: 700; flex: 1; color: var(--text); }
+
+.heist-root .h2-type-badge {
+  font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+  padding: 3px 9px; border-radius: 3px; flex-shrink: 0;
+}
+.heist-root .stb-setup      { background: rgba(114,113,122,0.2); color: var(--muted); }
+.heist-root .stb-challenge  { background: rgba(88,152,224,0.15); color: var(--blue); }
+.heist-root .stb-decision   { background: rgba(232,160,48,0.15); color: var(--accent); }
+.heist-root .stb-hidden     { background: rgba(144,112,224,0.15); color: var(--purple); }
+.heist-root .stb-transition { background: rgba(114,113,122,0.1); color: var(--muted); }
+.heist-root .stb-escape     { background: rgba(82,196,122,0.15); color: var(--green); }
+
+.heist-root .h2-outcome-chip {
+  font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  padding: 4px 12px; border-radius: 12px; flex-shrink: 0;
+}
+.heist-root .oc-success { background: rgba(82,196,122,0.15); color: var(--green); }
+.heist-root .oc-failure { background: rgba(224,80,80,0.15);  color: var(--red); }
+.heist-root .oc-none    { background: rgba(114,113,122,0.1); color: var(--muted); }
+.heist-root .oc-pending { background: rgba(232,160,48,0.1);  color: var(--accent);
+                          animation: h2Pulse 1.6s ease-in-out infinite; }
+@keyframes h2Pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+/* ── scene body ───────────────────────────────────────────────────────────── */
+.heist-root .h2-body { padding: 16px; display: none; flex-direction: column; gap: 18px; }
+.heist-root .h2-card.expanded .h2-body { display: flex; }
+
+.heist-root .h2-section-label {
   font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
-  color: var(--muted); margin-bottom: 6px;
+  color: var(--muted); margin-bottom: 10px;
 }
-.heist-root .sc-challenge-row     { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
-.heist-root .sc-challenge-row-lbl { font-size: 11px; color: var(--muted); width: 70px; font-family: monospace; }
-.heist-root .scene-hidden-depth-warn {
-  background: #2a1a04; border-left: 3px solid var(--accent);
-  border-radius: 4px; padding: 6px 12px; font-size: 12px; color: var(--accent); margin-top: 6px;
-}
-.heist-root .scene-assigned-block  { margin-bottom: 12px; }
-.heist-root .scene-assigned-label  { font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
-.heist-root .scene-assigned-names  { font-size: 13px; color: var(--text); }
-.heist-root .scene-reasoning-text  { font-size: 12px; color: var(--muted); font-style: italic; margin-top: 4px; line-height: 1.5; }
-.heist-root .scene-decision-block  { margin-bottom: 12px; background: var(--panel2); border-radius: 5px; padding: 10px 14px; }
-.heist-root .scene-decision-label  { font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
-.heist-root .scene-decision-pursue { color: var(--green); font-weight: 700; font-size: 13px; }
-.heist-root .scene-decision-pass   { color: var(--muted); font-weight: 700; font-size: 13px; }
-.heist-root .scene-decision-reason { font-size: 12px; color: var(--muted); font-style: italic; margin-top: 4px; }
-.heist-root .scene-narration  { font-size: 13px; color: #c0bcd0; line-height: 1.75; border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px; }
-.heist-root .scene-narrating  { font-size: 12px; color: var(--muted); font-style: italic; border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px; }
-.heist-root .escape-info      { font-size: 13px; color: var(--muted); margin-bottom: 10px; font-family: monospace; }
 
-.heist-root .heist-outcome-card         { background: var(--panel2); border: 2px solid var(--border); border-radius: 8px; padding: 22px 24px; margin-top: 8px; }
-.heist-root .heist-outcome-heading-ok   { font-size: 18px; font-weight: 700; color: var(--green); margin-bottom: 16px; }
-.heist-root .heist-outcome-heading-fail { font-size: 18px; font-weight: 700; color: var(--red); margin-bottom: 16px; }
-.heist-root .heist-outcome-take         { font-family: monospace; font-size: 24px; font-weight: 700; color: var(--accent); margin-bottom: 14px; }
-.heist-root .heist-outcome-row          { display: flex; gap: 12px; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
-.heist-root .heist-outcome-row-key      { min-width: 100px; font-family: monospace; }
-.heist-root .heist-outcome-row-val      { color: var(--text); }
+/* ── assigned characters ──────────────────────────────────────────────────── */
+.heist-root .h2-chars { display: flex; gap: 12px; flex-wrap: wrap; }
+.heist-root .h2-char {
+  background: var(--panel2); border: 1px solid var(--border);
+  border-radius: 8px; overflow: hidden;
+  display: flex; flex-direction: row; min-width: 220px;
+}
+.heist-root .h2-char[data-primary="hack"]  { border-color: rgba(88,152,224,0.4); }
+.heist-root .h2-char[data-primary="safe"]  { border-color: rgba(232,160,48,0.4); }
+.heist-root .h2-char[data-primary="musc"]  { border-color: rgba(224,80,80,0.4); }
+.heist-root .h2-char[data-primary="soc"]   { border-color: rgba(144,112,224,0.4); }
+.heist-root .h2-char[data-primary="drive"] { border-color: rgba(82,196,122,0.4); }
+.heist-root .h2-char-portrait {
+  width: 72px; height: 72px; flex-shrink: 0;
+  background: rgba(0,0,0,0.35); position: relative; overflow: hidden;
+}
+.heist-root .h2-char-portrait img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.heist-root .h2-char-fallback {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px; font-weight: 700; color: rgba(255,255,255,0.2); font-family: monospace;
+}
+.heist-root .h2-char-info { padding: 10px 12px; display: flex; flex-direction: column; gap: 5px; flex: 1; }
+.heist-root .h2-char-name { font-size: 14px; font-weight: 700; color: var(--text); }
+.heist-root .h2-char-role {
+  font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--muted);
+}
+.heist-root .h2-char-skills { display: flex; flex-direction: column; gap: 4px; margin-top: 2px; }
+.heist-root .h2-skill-row { display: flex; align-items: center; gap: 8px; }
+.heist-root .h2-skill-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
+  font-family: monospace; color: var(--muted); width: 34px; flex-shrink: 0;
+}
+.heist-root .h2-skill-bars { display: flex; gap: 3px; }
+.heist-root .h2-skill-bars .seg {
+  width: 14px; height: 6px; border-radius: 1px; background: rgba(255,255,255,0.07);
+}
+.heist-root .h2-skill-bars .seg.f-hack  { background: var(--sk-hack); }
+.heist-root .h2-skill-bars .seg.f-safe  { background: var(--sk-safe); }
+.heist-root .h2-skill-bars .seg.f-musc  { background: var(--sk-musc); }
+.heist-root .h2-skill-bars .seg.f-soc   { background: var(--sk-soc); }
+.heist-root .h2-skill-bars .seg.f-drive { background: var(--sk-drive); }
+
+.heist-root .h2-reasoning {
+  font-size: 12px; color: var(--muted); font-style: italic;
+  padding: 6px 10px; background: var(--panel2);
+  border-radius: 4px; margin-top: 4px;
+}
+
+/* ── challenge block ──────────────────────────────────────────────────────── */
+.heist-root .h2-challenge {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+.heist-root .h2-skill-chip {
+  font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  padding: 4px 12px; border-radius: 4px;
+}
+.heist-root .sc-hack  { background: rgba(88,152,224,0.2);  color: var(--sk-hack); }
+.heist-root .sc-safe  { background: rgba(232,160,48,0.2);  color: var(--sk-safe); }
+.heist-root .sc-musc  { background: rgba(224,80,80,0.2);   color: var(--sk-musc); }
+.heist-root .sc-soc   { background: rgba(144,112,224,0.2); color: var(--sk-soc); }
+.heist-root .sc-drive { background: rgba(82,196,122,0.2);  color: var(--sk-drive); }
+.heist-root .h2-level { font-size: 13px; font-weight: 700; color: var(--muted); }
+.heist-root .h2-level.hard { color: var(--red); }
+.heist-root .h2-level.med  { color: var(--accent); }
+.heist-root .h2-core-badge {
+  font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  background: rgba(224,80,80,0.12); color: var(--red);
+  padding: 3px 8px; border-radius: 3px;
+}
+.heist-root .h2-hidden-warn {
+  font-size: 11px; color: var(--purple);
+  padding: 6px 10px; background: rgba(144,112,224,0.08);
+  border-left: 2px solid var(--purple); border-radius: 0 4px 4px 0;
+  margin-top: 8px;
+}
+
+/* ── decision block ───────────────────────────────────────────────────────── */
+.heist-root .h2-decision-note {
+  font-size: 13px; color: var(--accent); font-style: italic;
+}
+.heist-root .h2-decision-pass {
+  font-size: 13px; color: var(--muted); font-style: italic;
+}
+
+/* ── escape info ──────────────────────────────────────────────────────────── */
+.heist-root .h2-escape-info {
+  font-size: 13px; color: var(--muted); font-family: monospace;
+}
+
+/* ── narration ────────────────────────────────────────────────────────────── */
+.heist-root .h2-narration {
+  font-size: 14px; line-height: 1.8; color: #c0bdd4;
+  font-style: italic;
+  border-top: 1px solid var(--border); padding-top: 16px;
+}
+.heist-root .h2-narration p { margin-bottom: 10px; }
+.heist-root .h2-narration p:last-child { margin-bottom: 0; }
+.heist-root .h2-narrating {
+  font-size: 12px; color: var(--muted); font-style: italic;
+  border-top: 1px solid var(--border); padding-top: 12px;
+}
+
+/* ── outcome card ─────────────────────────────────────────────────────────── */
+.heist-root .h2-outcome {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 10px; padding: 20px;
+  animation: h2CardIn 0.4s ease;
+}
+.heist-root .h2-outcome h3 {
+  font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 14px;
+}
+.heist-root .h2-outcome-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.heist-root .h2-og-cell { display: flex; flex-direction: column; gap: 4px; }
+.heist-root .h2-og-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--muted);
+}
+.heist-root .h2-og-value { font-size: 18px; font-weight: 700; color: var(--text); font-family: monospace; }
+.heist-root .h2-og-value.take { color: var(--accent); font-size: 26px; }
+.heist-root .h2-og-value.win  { color: var(--green); }
+.heist-root .h2-og-value.loss { color: var(--red); }
 </style>
 
 <template id="heist-template">
   <div class="heist-root">
-    <div class="heist-heat-bar">
-      <span class="heist-heat-label">Heat</span>
-      <span class="heist-heat-dots" data-ht="heat-dots">○○○○○</span>
+    <div class="h2-job-header" data-ht="job-header" style="display:none">
+      <span class="h2-job-name" data-ht="job-name">—</span>
+      <div class="h2-job-profile" data-ht="job-profile"></div>
+      <span class="h2-heat-chip" data-ht="heat-chip">Heat ○○○○○</span>
+      <span class="h2-job-reward" data-ht="job-reward"></span>
     </div>
-    <div id="scene-list" data-ht="scene-list"></div>
+    <div class="h2-scenes" data-ht="scenes">
+      <div class="h2-empty">Waiting for the heist to begin…</div>
+    </div>
   </div>
 </template>
 
@@ -92,37 +268,99 @@
 (function () {
   'use strict';
 
-  const SKILL_TO_TYPE = { hacker:'electronic', safecracker:'physical', muscle:'confrontation', inside_man:'social' };
+  // challenge_skill → short code (used for CSS class on chips)
+  const SKILL_API_TO_SHORT = {
+    hacker: 'hack', safecracker: 'safe', muscle: 'musc',
+    inside_man: 'soc', driver: 'drive',
+  };
+  // primary skill → role label
+  const ROLE_BY_PRIMARY = {
+    hack:  'HACKER',
+    safe:  'SAFECRACKER',
+    musc:  'MUSCLE',
+    soc:   'INSIDE MAN',
+    drive: 'DRIVER',
+  };
+  // challenge_skill → display word ("electronic", "social", etc.)
+  const SKILL_TO_TYPE_WORD = {
+    hacker:      'ELECTRONIC',
+    safecracker: 'PHYSICAL',
+    muscle:      'CONFRONTATION',
+    inside_man:  'SOCIAL',
+    driver:      'DRIVER',
+  };
+  // job.profile key → short code (for the header chips)
+  const PROFILE_KEY_TO_SHORT = {
+    social:        'soc',
+    physical:      'safe',
+    electronic:    'hack',
+    confrontation: 'musc',
+  };
+  const PROFILE_KEY_TO_LABEL = {
+    social:        'Social',
+    physical:      'Physical',
+    electronic:    'Electronic',
+    confrontation: 'Confrontation',
+  };
 
   let root = null;
   let Shell = null;
-  // per-AI: { sceneNum -> { meta, result, narration } }
-  const scenesByAI = {};
-  const narrationsByAI = {};   // ai_idx -> { sceneNum -> narration }
-  const gameStateByAI = {};
-  const heatByAI = {};
-  const crewByAI = {};
-  const jobByAI = {};
+  // per-AI state
+  const scenesByAI = {};       // ai_idx → { sceneNum → { meta, result, narration } }
+  const narrationsByAI = {};   // ai_idx → { sceneNum → narration } (when it arrives before scene_done)
+  const gameStateByAI = {};    // ai_idx → state from game_done
+  const heatByAI = {};         // ai_idx → current heat
+  const crewByAI = {};         // ai_idx → crew object (with .members)
+  const jobByAI = {};          // ai_idx → job object
 
   function $$(name) { return root && root.querySelector(`[data-ht="${name}"]`); }
   function _scenesFor(aiIdx)     { return scenesByAI[aiIdx]     ||= {}; }
   function _narrationsFor(aiIdx) { return narrationsByAI[aiIdx] ||= {}; }
 
-  function updateHeistHeat(n) {
-    const filled = Math.min(Math.max(n || 0, 0), 5);
-    const dots = $$('heat-dots');
-    if (dots) dots.textContent = '●'.repeat(filled) + '○'.repeat(5 - filled);
+  // ── job header ──────────────────────────────────────────────────────────────
+  function renderJobHeader() {
+    if (!root || !Shell) return;
+    const esc = Shell.helpers.escapeHtml;
+    const job = jobByAI[Shell.currentAI];
+    const heat = heatByAI[Shell.currentAI] || 0;
+    const header = $$('job-header');
+    if (!job) { if (header) header.style.display = 'none'; return; }
+    if (header) header.style.display = '';
+
+    $$('job-name').textContent = job.name || '—';
+
+    const profile = job.profile || {};
+    const chips = Object.entries(PROFILE_KEY_TO_LABEL).map(([key, label]) => {
+      const level = (profile[key] || 'NONE').toUpperCase();
+      const cls = level === 'HARD' ? 'hard' : level === 'MEDIUM' ? 'med' : level === 'LOW' ? 'low' : '';
+      const text = level === 'NONE' ? `${esc(label)} —` : `${esc(label)} ${esc(level.slice(0,3))}`;
+      return `<span class="h2-profile-chip ${cls}">${text}</span>`;
+    }).join('');
+    $$('job-profile').innerHTML = chips;
+
+    const rr = job.reward_range;
+    const rewardEl = $$('job-reward');
+    if (rr) rewardEl.innerHTML = `Reward <strong>$${(rr[0]/1e6).toFixed(1)}m – $${(rr[1]/1e6).toFixed(1)}m</strong>`;
+    else rewardEl.innerHTML = '';
+
+    const filled = Math.min(Math.max(heat, 0), 5);
+    $$('heat-chip').textContent = 'Heat ' + '●'.repeat(filled) + '○'.repeat(5 - filled);
   }
 
+  // ── scene list ──────────────────────────────────────────────────────────────
   function renderSceneList() {
-    if (!root) return;
-    const listEl = $$('scene-list');
+    if (!root || !Shell) return;
+    const listEl = $$('scenes');
     if (!listEl) return;
     listEl.innerHTML = '';
     const scenes = scenesByAI[Shell.currentAI] || {};
     const sceneNums = Object.keys(scenes).map(Number).sort((a, b) => a - b);
-    sceneNums.forEach(n => renderSceneCard(n));
-    if (gameStateByAI[Shell.currentAI]) renderHeistOutcome();
+    if (!sceneNums.length) {
+      listEl.innerHTML = '<div class="h2-empty">Waiting for the heist to begin…</div>';
+    } else {
+      sceneNums.forEach(n => renderSceneCard(n));
+    }
+    if (gameStateByAI[Shell.currentAI]) renderOutcome();
   }
 
   function renderSceneCard(sceneNum) {
@@ -130,119 +368,210 @@
     const esc = Shell.helpers.escapeHtml;
     const scenes = scenesByAI[Shell.currentAI] || {};
     const s = scenes[sceneNum]; if (!s) return;
-    const job  = jobByAI[Shell.currentAI];
+    const job = jobByAI[Shell.currentAI];
     const crew = crewByAI[Shell.currentAI];
-    const listEl = $$('scene-list');
-    const cardId = 'scene-card-' + Shell.currentAI + '-' + sceneNum;
+    const listEl = $$('scenes');
+    listEl.querySelector('.h2-empty')?.remove();
+
+    const cardId = 'h2-card-' + Shell.currentAI + '-' + sceneNum;
     let card = document.getElementById(cardId);
-    if (!card) {
+    const isNew = !card;
+    if (isNew) {
       card = document.createElement('div');
-      card.className = 'scene-card'; card.id = cardId;
+      card.id = cardId;
       listEl.appendChild(card);
     }
     const meta = s.meta || {}, result = s.result || null, narr = s.narration || null;
-    const typeMap = { escape:'stype-escape', decision:'stype-decision' };
-    const typeCls = typeMap[meta.scene_type] || (meta.is_core ? 'stype-core' : '');
-    const typeText = { escape:'Escape', decision:'Decision' }[meta.scene_type]
-      || (meta.is_core ? 'Core' : meta.scene_type || 'Scene');
 
-    let resultHtml = !result ? '<span class="scene-status-pending">● in progress</span>'
-      : result.aborted ? '<span class="scene-result-none">— ABORTED</span>'
-      : meta.scene_type === 'escape'
-        ? (result.escape_success ? '<span class="scene-result-ok">✓ CLEAN EXIT</span>'
-                                  : '<span class="scene-result-fail">✗ CAUGHT</span>')
-      : result.success === true  ? '<span class="scene-result-ok">✓ SUCCESS</span>'
-      : result.success === false ? '<span class="scene-result-fail">✗ FAILURE</span>'
-      : '<span class="scene-result-none">—</span>';
+    // ── type classification ───────────────────────────────────────────────────
+    let typeLabel, typeCls;
+    if (meta.scene_type === 'escape')        { typeLabel = 'ESCAPE';     typeCls = 'stb-escape'; }
+    else if (meta.scene_type === 'decision') { typeLabel = 'DECISION';   typeCls = 'stb-decision'; }
+    else if (meta.scene_type === 'setup')    { typeLabel = 'SETUP';      typeCls = 'stb-setup'; }
+    else if (meta.is_core)                   { typeLabel = 'CHALLENGE';  typeCls = 'stb-challenge'; }
+    else if (meta.challenge_skill)           { typeLabel = 'CHALLENGE';  typeCls = 'stb-challenge'; }
+    else                                     { typeLabel = 'TRANSITION'; typeCls = 'stb-transition'; }
 
-    let challengeHtml = '';
-    if (meta.scene_type === 'escape') {
-      const diff = result ? result.escape_difficulty : '?';
-      const mod  = job ? job.escape_modifier : '?';
-      const heat = result ? result.heat : '?';
-      challengeHtml = `<div class="escape-info">Escape — difficulty ${esc(String(diff))} (modifier ${esc(String(mod))} + heat ${esc(String(heat))})</div>
-        ${result ? '<div class="escape-info">Result: ' + (result.escape_success ? '<span style="color:var(--green)">✓ Clean exit</span>' : '<span style="color:var(--red)">✗ Caught</span>') + '</div>' : ''}`;
-    } else if (meta.challenge_skill && meta.scene_type !== 'setup') {
-      const skill = (meta.challenge_skill || '').toLowerCase();
-      const typeKey = SKILL_TO_TYPE[skill];
-      const expected = (job && typeKey && job.profile) ? (job.profile[typeKey] || 'NONE').toUpperCase() : null;
-      const reality  = result ? (result.challenge_level || 'NONE').toUpperCase() : null;
-      const warn = (expected && reality && expected !== reality)
-        ? `<div class="scene-hidden-depth-warn">⚠ Hidden depth modified: expected ${esc(expected)}, got ${esc(reality)}</div>`
-        : '';
-      challengeHtml = `<div class="scene-challenge-block">
-        <div class="sc-challenge-title">Challenge · ${esc(meta.challenge_skill)}</div>
-        ${expected != null ? `<div class="sc-challenge-row"><span class="sc-challenge-row-lbl">Expected</span>${Shell.helpers.buildDiffBar(expected)}<span class="ct-level-name ${Shell.helpers.diffCls(expected)}" style="font-size:11px">${esc(expected)}</span></div>` : ''}
-        ${reality  != null ? `<div class="sc-challenge-row"><span class="sc-challenge-row-lbl">Reality</span>${Shell.helpers.buildDiffBar(reality)}<span class="ct-level-name ${Shell.helpers.diffCls(reality)}" style="font-size:11px">${esc(reality)}</span></div>` : ''}
-        ${warn}</div>`;
+    // ── outcome chip + card class ────────────────────────────────────────────
+    let chipCls, chipText, cardCls;
+    if (!result) {
+      chipCls = 'oc-pending'; chipText = '…'; cardCls = 'active';
+    } else if (result.aborted) {
+      chipCls = 'oc-failure'; chipText = 'ABORTED ✗'; cardCls = 'failure';
+    } else if (meta.scene_type === 'escape') {
+      if (result.escape_success) { chipCls = 'oc-success'; chipText = 'CLEAN EXIT ✓'; cardCls = 'success'; }
+      else                       { chipCls = 'oc-failure'; chipText = 'CAUGHT ✗';     cardCls = 'failure'; }
+    } else if (result.success === true) {
+      chipCls = 'oc-success'; chipText = 'SUCCESS ✓'; cardCls = 'success';
+    } else if (result.success === false) {
+      chipCls = 'oc-failure'; chipText = 'FAILED ✗'; cardCls = 'failure';
     } else {
-      challengeHtml = '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Narrative scene</div>';
+      chipCls = 'oc-none'; chipText = '—'; cardCls = 'neutral';
     }
 
-    let assignedHtml = '';
-    if (result && result.assigned_member_ids && result.assigned_member_ids.length) {
-      const names = result.assigned_member_ids.map(id => {
-        const m = crew && crew.members ? crew.members.find(x => x.id == id) : null;
-        return m ? esc(m.name) : esc(String(id));
-      }).join(', ');
-      assignedHtml = `<div class="scene-assigned-block">
-        <div class="scene-assigned-label">Assigned</div>
-        <div class="scene-assigned-names">${names}</div>
-        ${result.reasoning ? `<div class="scene-reasoning-text">"${esc(result.reasoning)}"</div>` : ''}
+    card.className = 'h2-card ' + cardCls + (isNew || card.classList.contains('expanded') ? ' expanded' : '');
+
+    // ── assigned characters block ────────────────────────────────────────────
+    let charsHtml = '';
+    const assignedIds = (result && result.assigned_member_ids) || [];
+    if (assignedIds.length && crew && crew.members) {
+      const blocks = assignedIds.map(id => {
+        const c = crew.members.find(x => x.id == id);
+        return c ? charBlockHtml(c) : '';
+      }).filter(Boolean).join('');
+      const reasoningHtml = result && result.reasoning
+        ? `<div class="h2-reasoning">"${esc(result.reasoning)}"</div>` : '';
+      charsHtml = `<div>
+        <div class="h2-section-label">Assigned</div>
+        <div class="h2-chars">${blocks}</div>
+        ${reasoningHtml}
       </div>`;
     }
 
+    // ── challenge / escape block ─────────────────────────────────────────────
+    let challengeHtml = '';
+    if (meta.scene_type === 'escape') {
+      const diff = result ? result.escape_difficulty : null;
+      const mod  = job ? job.escape_modifier : null;
+      const heat = result ? result.heat : null;
+      const parts = [];
+      if (diff != null) parts.push(`difficulty ${esc(String(diff))}`);
+      if (mod  != null) parts.push(`modifier ${mod > 0 ? '+' : ''}${esc(String(mod))}`);
+      if (heat != null) parts.push(`heat ${esc(String(heat))}`);
+      challengeHtml = `<div>
+        <div class="h2-section-label">Escape Roll</div>
+        <div class="h2-escape-info">${parts.join(' · ') || '—'}</div>
+      </div>`;
+    } else if (meta.challenge_skill) {
+      const apiSkill = (meta.challenge_skill || '').toLowerCase();
+      const shortSk  = SKILL_API_TO_SHORT[apiSkill] || 'soc';
+      const word     = SKILL_TO_TYPE_WORD[apiSkill] || meta.challenge_skill;
+      const reality  = result ? (result.challenge_level || 'NONE').toUpperCase() : null;
+      // Expected from job.profile, looked up via reverse mapping
+      let expected = null;
+      if (job && job.profile) {
+        const profileKey = Object.entries(PROFILE_KEY_TO_SHORT).find(([, sh]) => sh === shortSk)?.[0];
+        if (profileKey) expected = (job.profile[profileKey] || 'NONE').toUpperCase();
+      }
+      const level = reality || expected || '';
+      const lvlCls = level === 'HARD' ? 'hard' : level === 'MEDIUM' ? 'med' : '';
+      const coreHtml = meta.is_core ? '<span class="h2-core-badge">Core Scene</span>' : '';
+      const warnHtml = (expected && reality && expected !== reality)
+        ? `<div class="h2-hidden-warn">⚠ Hidden depth: expected ${esc(expected)}, got ${esc(reality)}</div>`
+        : '';
+      challengeHtml = `<div>
+        <div class="h2-section-label">Challenge</div>
+        <div class="h2-challenge">
+          <span class="h2-skill-chip sc-${shortSk}">${esc(word)}</span>
+          ${level ? `<span class="h2-level ${lvlCls}">${esc(level)}</span>` : ''}
+          ${coreHtml}
+        </div>
+        ${warnHtml}
+      </div>`;
+    }
+
+    // ── decision block ───────────────────────────────────────────────────────
     let decisionHtml = '';
     if (meta.scene_type === 'decision' && result) {
       const pursue = result.decision === 'pursue' || result.pursue === true;
-      decisionHtml = `<div class="scene-decision-block">
-        <div class="scene-decision-label">Decision</div>
-        ${pursue ? '<span class="scene-decision-pursue">▶ PURSUE</span>' : '<span class="scene-decision-pass">— PASS</span>'}
-        ${result.reasoning ? `<div class="scene-decision-reason">"${esc(result.reasoning)}"</div>` : ''}
+      decisionHtml = `<div>
+        <div class="h2-section-label">Decision</div>
+        <div class="${pursue ? 'h2-decision-note' : 'h2-decision-pass'}">${pursue ? '▶ Pursued' : '— Passed'}</div>
+        ${result.reasoning ? `<div class="h2-reasoning">"${esc(result.reasoning)}"</div>` : ''}
       </div>`;
     }
 
+    // ── narration ────────────────────────────────────────────────────────────
     const narrationHtml = result
-      ? (narr ? `<div class="scene-narration prose">${Shell.helpers.renderMd(narr)}</div>`
-              : '<div class="scene-narrating">Narrating…</div>')
+      ? (narr ? `<div class="h2-narration">${Shell.helpers.renderMd(narr)}</div>`
+              : '<div class="h2-narrating">Narrating…</div>')
       : '';
 
     card.innerHTML = `
-      <div class="scene-card-header">
-        <span class="scene-card-num">Scene ${sceneNum}</span>
-        <span class="scene-card-title">${esc(meta.title || '')}</span>
-        <span class="scene-type-badge ${typeCls}">${esc(typeText)}</span>
-        ${resultHtml}
+      <div class="h2-head">
+        <span class="h2-chevron">▶</span>
+        <span class="h2-num">SCENE ${sceneNum}</span>
+        <span class="h2-title">${esc(meta.title || '')}</span>
+        <span class="h2-type-badge ${typeCls}">${typeLabel}</span>
+        <span class="h2-outcome-chip ${chipCls}">${chipText}</span>
       </div>
-      ${challengeHtml}${assignedHtml}${decisionHtml}${narrationHtml}`;
+      <div class="h2-body">
+        ${charsHtml}
+        ${challengeHtml}
+        ${decisionHtml}
+        ${narrationHtml}
+      </div>`;
+
+    // Click header to toggle expand
+    card.querySelector('.h2-head').addEventListener('click', () => card.classList.toggle('expanded'));
   }
 
-  function renderHeistOutcome() {
+  function charBlockHtml(c) {
+    const esc = Shell.helpers.escapeHtml;
+    const primary = Shell.helpers.primarySkill(c);
+    const role = ROLE_BY_PRIMARY[primary] || '';
+    const portrait = Shell.helpers.portraitUrl(c);
+    // Show only skills the character actually has (level > 0)
+    const skillsHtml = ['hack', 'safe', 'musc', 'soc', 'drive'].map(sk => {
+      const val = Shell.helpers.skillVal(c, sk);
+      if (val <= 0) return '';
+      const segs = [0,1,2].map(i =>
+        `<span class="seg ${i < val ? 'f-' + sk : ''}"></span>`).join('');
+      return `<div class="h2-skill-row">
+        <span class="h2-skill-label">${sk.toUpperCase()}</span>
+        <div class="h2-skill-bars">${segs}</div>
+      </div>`;
+    }).filter(Boolean).join('');
+
+    const initials = (c.name || '?').slice(0,1).toUpperCase();
+
+    return `<div class="h2-char" data-primary="${primary}">
+      <div class="h2-char-portrait">
+        <div class="h2-char-fallback">${esc(initials)}</div>
+        <img src="${portrait}" alt="${esc(c.name)}" loading="lazy" onerror="this.style.display='none'">
+      </div>
+      <div class="h2-char-info">
+        <div class="h2-char-name">${esc(c.name)}</div>
+        <div class="h2-char-role">${esc(role)}</div>
+        <div class="h2-char-skills">${skillsHtml}</div>
+      </div>
+    </div>`;
+  }
+
+  // ── outcome ─────────────────────────────────────────────────────────────────
+  function renderOutcome() {
     if (!root || !Shell) return;
     const esc = Shell.helpers.escapeHtml;
-    const listEl = $$('scene-list');
-    const existing = document.getElementById('heist-outcome-' + Shell.currentAI);
+    const listEl = $$('scenes');
+    const existing = document.getElementById('h2-outcome-' + Shell.currentAI);
     if (existing) existing.remove();
     const gs = gameStateByAI[Shell.currentAI];
     if (!gs) return;
-    const ok = !gs.aborted && gs.escape_success !== false;
     const take = gs.final_take != null ? '$' + Number(gs.final_take).toLocaleString() : '—';
-    const bonusStr = gs.bonus_pursued
-      ? (gs.bonus_success ? `Pursued — succeeded ($${Number(gs.bonus_amount).toLocaleString()})` : 'Pursued — failed')
-      : 'Not pursued';
     const card = document.createElement('div');
-    card.id = 'heist-outcome-' + Shell.currentAI;
-    card.className = 'heist-outcome-card';
+    card.id = 'h2-outcome-' + Shell.currentAI;
+    card.className = 'h2-outcome';
+    const aiName = (Shell.aiList[Shell.currentAI] || {}).label || ('AI ' + Shell.currentAI);
     card.innerHTML = `
-      <div class="${ok ? 'heist-outcome-heading-ok' : 'heist-outcome-heading-fail'}">${ok ? '✓ HEIST COMPLETE' : '✗ HEIST FAILED'}</div>
-      <div class="heist-outcome-take">${esc(take)}</div>
-      <div class="heist-outcome-row"><span class="heist-outcome-row-key">Escape</span><span class="heist-outcome-row-val">${gs.escape_success ? 'Succeeded' : 'Failed'}</span></div>
-      <div class="heist-outcome-row"><span class="heist-outcome-row-key">Bonus</span><span class="heist-outcome-row-val">${esc(bonusStr)}</span></div>
-      <div class="heist-outcome-row"><span class="heist-outcome-row-key">Final heat</span><span class="heist-outcome-row-val">${gs.heat || 0}</span></div>`;
+      <h3>Final Result — ${esc(aiName)}</h3>
+      <div class="h2-outcome-grid">
+        <div class="h2-og-cell">
+          <span class="h2-og-label">Take</span>
+          <span class="h2-og-value take">${esc(take)}</span>
+        </div>
+        <div class="h2-og-cell">
+          <span class="h2-og-label">Escape</span>
+          <span class="h2-og-value ${gs.escape_success ? 'win' : 'loss'}">${gs.escape_success ? 'Clean' : 'Blown'}</span>
+        </div>
+        <div class="h2-og-cell">
+          <span class="h2-og-label">Aborted</span>
+          <span class="h2-og-value ${gs.aborted ? 'loss' : 'win'}">${gs.aborted ? 'Yes' : 'No'}</span>
+        </div>
+      </div>`;
     listEl.appendChild(card);
   }
 
-  // ── lifecycle ───────────────────────────────────────────────────────────
+  // ── lifecycle ──────────────────────────────────────────────────────────────
   function mount(container, opts) {
     Shell = (opts && opts.shell) || window.Shell;
     const tpl = document.getElementById('heist-template');
@@ -250,10 +579,10 @@
     container.innerHTML = '';
     container.appendChild(tpl.content.cloneNode(true));
     root = container.querySelector('.heist-root');
+    renderJobHeader();
     renderSceneList();
-    updateHeistHeat(heatByAI[Shell.currentAI] || 0);
     if (Shell.onAISelected) Shell.onAISelected(() => {
-      updateHeistHeat(heatByAI[Shell.currentAI] || 0);
+      renderJobHeader();
       renderSceneList();
     });
   }
@@ -269,9 +598,9 @@
 
     } else if (e.type === 'job_known') {
       jobByAI[aiIdx] = e.job;
+      if (aiIdx === Shell.currentAI) renderJobHeader();
 
     } else if (e.type === 'turn_end') {
-      // capture narration when it lands so a re-render shows it
       const m = e.label && e.label.match(/^scene_(\d+)_(?:escape_)?narrate$/);
       if (m && e.parsed && e.parsed.narration) {
         const sNum = parseInt(m[1], 10);
@@ -291,7 +620,7 @@
 
     } else if (e.type === 'scene_done') {
       heatByAI[aiIdx] = e.heat;
-      if (aiIdx === Shell.currentAI) updateHeistHeat(e.heat);
+      if (aiIdx === Shell.currentAI) renderJobHeader();
       const sNum = e.scene_num;
       if (!scenes[sNum]) scenes[sNum] = {};
       scenes[sNum].result = e;
@@ -300,12 +629,12 @@
 
     } else if (e.type === 'game_done') {
       gameStateByAI[aiIdx] = e.state;
-      crewByAI[aiIdx] = e.state.crew;
-      jobByAI[aiIdx]  = e.state.job;
+      if (e.state.crew) crewByAI[aiIdx] = e.state.crew;
+      if (e.state.job)  jobByAI[aiIdx]  = e.state.job;
       heatByAI[aiIdx] = e.state.heat;
       if (aiIdx === Shell.currentAI) {
-        updateHeistHeat(e.state.heat);
-        renderHeistOutcome();
+        renderJobHeader();
+        renderOutcome();
       }
     }
   }
@@ -317,8 +646,8 @@
     for (const k of Object.keys(heatByAI))      delete heatByAI[k];
     for (const k of Object.keys(crewByAI))      delete crewByAI[k];
     for (const k of Object.keys(jobByAI))       delete jobByAI[k];
+    renderJobHeader();
     renderSceneList();
-    updateHeistHeat(0);
   }
 
   function unmount() { root = null; }
