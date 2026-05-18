@@ -110,58 +110,33 @@
                           animation: h2Pulse 1.6s ease-in-out infinite; }
 @keyframes h2Pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 
-/* ── scene body ───────────────────────────────────────────────────────────── */
-.heist-root .h2-body { padding: 16px; display: none; flex-direction: column; gap: 18px; }
-.heist-root .h2-card.expanded .h2-body { display: flex; }
+/* ── scene body (3-column layout: chars | challenge | narration) ──────────── */
+.heist-root .h2-body { padding: 0 16px; display: none; }
+.heist-root .h2-card.expanded .h2-body { display: block; padding: 16px; }
+
+.heist-root .h2-body-grid {
+  display: flex; flex-direction: row; gap: 0;
+}
+.heist-root .h2-body-left   { flex: 2 1 0; min-width: 0; display: flex; flex-direction: column; gap: 18px; }
+.heist-root .h2-body-middle { flex-shrink: 0;
+  border-left: 1px solid var(--border);
+  margin-left: 20px; padding-left: 20px;
+  display: flex; flex-direction: column;
+}
+.heist-root .h2-body-right  { flex: 3 1 0; min-width: 0;
+  border-left: 1px solid var(--border);
+  margin-left: 20px; padding-left: 20px;
+  display: flex; flex-direction: column; justify-content: center;
+}
 
 .heist-root .h2-section-label {
   font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
   color: var(--muted); margin-bottom: 10px;
 }
 
-/* ── assigned characters ──────────────────────────────────────────────────── */
-.heist-root .h2-chars { display: flex; gap: 12px; flex-wrap: wrap; }
-.heist-root .h2-char {
-  background: var(--panel2); border: 1px solid var(--border);
-  border-radius: 8px; overflow: hidden;
-  display: flex; flex-direction: row; min-width: 220px;
-}
-.heist-root .h2-char[data-primary="hack"]  { border-color: rgba(88,152,224,0.4); }
-.heist-root .h2-char[data-primary="safe"]  { border-color: rgba(232,160,48,0.4); }
-.heist-root .h2-char[data-primary="musc"]  { border-color: rgba(224,80,80,0.4); }
-.heist-root .h2-char[data-primary="soc"]   { border-color: rgba(144,112,224,0.4); }
-.heist-root .h2-char[data-primary="drive"] { border-color: rgba(82,196,122,0.4); }
-.heist-root .h2-char-portrait {
-  width: 72px; height: 72px; flex-shrink: 0;
-  background: rgba(0,0,0,0.35); position: relative; overflow: hidden;
-}
-.heist-root .h2-char-portrait img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.heist-root .h2-char-fallback {
-  position: absolute; inset: 0;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 24px; font-weight: 700; color: rgba(255,255,255,0.2); font-family: monospace;
-}
-.heist-root .h2-char-info { padding: 10px 12px; display: flex; flex-direction: column; gap: 5px; flex: 1; }
-.heist-root .h2-char-name { font-size: 14px; font-weight: 700; color: var(--text); }
-.heist-root .h2-char-role {
-  font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
-  color: var(--muted);
-}
-.heist-root .h2-char-skills { display: flex; flex-direction: column; gap: 4px; margin-top: 2px; }
-.heist-root .h2-skill-row { display: flex; align-items: center; gap: 8px; }
-.heist-root .h2-skill-label {
-  font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
-  font-family: monospace; color: var(--muted); width: 34px; flex-shrink: 0;
-}
-.heist-root .h2-skill-bars { display: flex; gap: 3px; }
-.heist-root .h2-skill-bars .seg {
-  width: 14px; height: 6px; border-radius: 1px; background: rgba(255,255,255,0.07);
-}
-.heist-root .h2-skill-bars .seg.f-hack  { background: var(--sk-hack); }
-.heist-root .h2-skill-bars .seg.f-safe  { background: var(--sk-safe); }
-.heist-root .h2-skill-bars .seg.f-musc  { background: var(--sk-musc); }
-.heist-root .h2-skill-bars .seg.f-soc   { background: var(--sk-soc); }
-.heist-root .h2-skill-bars .seg.f-drive { background: var(--sk-drive); }
+/* ── assigned characters (uses Shell's .char-card from hiring.html) ───────── */
+.heist-root .h2-chars { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-start; }
+.heist-root .h2-chars .char-card { width: 130px; }
 
 .heist-root .h2-reasoning {
   font-size: 12px; color: var(--muted); font-style: italic;
@@ -169,27 +144,60 @@
   border-radius: 4px; margin-top: 4px;
 }
 
-/* ── challenge block ──────────────────────────────────────────────────────── */
-.heist-root .h2-challenge {
-  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+/* ── challenge card (mockup-style, mirrors char-card layout) ──────────────── */
+.heist-root .h2-challenge-card {
+  width: 135px; flex-shrink: 0;
+  border-radius: 7px; border: 1px solid var(--border);
+  overflow: hidden; display: flex; flex-direction: column;
+  background: var(--panel2);
 }
-.heist-root .h2-skill-chip {
-  font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
-  padding: 4px 12px; border-radius: 4px;
+.heist-root .h2-challenge-card[data-skill="hack"]  { background: linear-gradient(180deg, rgba(88,152,224,0.32) 0%, rgba(88,152,224,0.08) 100%); border-color: rgba(88,152,224,0.65); }
+.heist-root .h2-challenge-card[data-skill="safe"]  { background: linear-gradient(180deg, rgba(232,160,48,0.32) 0%, rgba(232,160,48,0.08) 100%); border-color: rgba(232,160,48,0.65); }
+.heist-root .h2-challenge-card[data-skill="musc"]  { background: linear-gradient(180deg, rgba(224,80,80,0.32) 0%, rgba(224,80,80,0.08) 100%);  border-color: rgba(224,80,80,0.65); }
+.heist-root .h2-challenge-card[data-skill="soc"]   { background: linear-gradient(180deg, rgba(144,112,224,0.32) 0%, rgba(144,112,224,0.08) 100%); border-color: rgba(144,112,224,0.65); }
+.heist-root .h2-challenge-card[data-skill="drive"] { background: linear-gradient(180deg, rgba(82,196,122,0.32) 0%, rgba(82,196,122,0.08) 100%); border-color: rgba(82,196,122,0.65); }
+
+.heist-root .h2-challenge-icon {
+  width: 100%; aspect-ratio: 1;
+  background: rgba(0,0,0,0.4);
+  display: flex; align-items: center; justify-content: center;
 }
-.heist-root .sc-hack  { background: rgba(88,152,224,0.2);  color: var(--sk-hack); }
-.heist-root .sc-safe  { background: rgba(232,160,48,0.2);  color: var(--sk-safe); }
-.heist-root .sc-musc  { background: rgba(224,80,80,0.2);   color: var(--sk-musc); }
-.heist-root .sc-soc   { background: rgba(144,112,224,0.2); color: var(--sk-soc); }
-.heist-root .sc-drive { background: rgba(82,196,122,0.2);  color: var(--sk-drive); }
-.heist-root .h2-level { font-size: 13px; font-weight: 700; color: var(--muted); }
-.heist-root .h2-level.hard { color: var(--red); }
-.heist-root .h2-level.med  { color: var(--accent); }
-.heist-root .h2-core-badge {
-  font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
-  background: rgba(224,80,80,0.12); color: var(--red);
-  padding: 3px 8px; border-radius: 3px;
+.heist-root .h2-challenge-icon-text {
+  font-size: 26px; font-weight: 900; letter-spacing: 2px;
+  font-family: monospace; opacity: 0.6;
 }
+.heist-root .h2-challenge-card[data-skill="hack"]  .h2-challenge-icon-text { color: var(--sk-hack); }
+.heist-root .h2-challenge-card[data-skill="safe"]  .h2-challenge-icon-text { color: var(--sk-safe); }
+.heist-root .h2-challenge-card[data-skill="musc"]  .h2-challenge-icon-text { color: var(--sk-musc); }
+.heist-root .h2-challenge-card[data-skill="soc"]   .h2-challenge-icon-text { color: var(--sk-soc); }
+.heist-root .h2-challenge-card[data-skill="drive"] .h2-challenge-icon-text { color: var(--sk-drive); }
+
+.heist-root .h2-challenge-card-header {
+  padding: 6px 10px; font-weight: 800; font-size: 12px; letter-spacing: 0.3px;
+}
+.heist-root .h2-challenge-card[data-skill="hack"]  .h2-challenge-card-header { background: var(--sk-hack);  color: #0a1428; }
+.heist-root .h2-challenge-card[data-skill="safe"]  .h2-challenge-card-header { background: var(--sk-safe);  color: #2a1c08; }
+.heist-root .h2-challenge-card[data-skill="musc"]  .h2-challenge-card-header { background: var(--sk-musc);  color: #2a0808; }
+.heist-root .h2-challenge-card[data-skill="soc"]   .h2-challenge-card-header { background: var(--sk-soc);   color: #1c1030; }
+.heist-root .h2-challenge-card[data-skill="drive"] .h2-challenge-card-header { background: var(--sk-drive); color: #0a2018; }
+.heist-root .h2-cc-sub { font-size: 9px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; opacity: 0.7; }
+
+.heist-root .h2-challenge-card-info { padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }
+.heist-root .h2-cc-row { display: flex; align-items: center; gap: 8px; }
+.heist-root .h2-cc-row-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
+  font-family: monospace; color: var(--muted); width: 34px; flex-shrink: 0;
+}
+.heist-root .h2-cc-bars { display: flex; gap: 3px; }
+.heist-root .h2-cc-bars .seg {
+  width: 14px; height: 6px; border-radius: 1px; background: rgba(255,255,255,0.07);
+}
+.heist-root .h2-cc-bars .seg.f-hack  { background: var(--sk-hack); }
+.heist-root .h2-cc-bars .seg.f-safe  { background: var(--sk-safe); }
+.heist-root .h2-cc-bars .seg.f-musc  { background: var(--sk-musc); }
+.heist-root .h2-cc-bars .seg.f-soc   { background: var(--sk-soc); }
+.heist-root .h2-cc-bars .seg.f-drive { background: var(--sk-drive); }
+
 .heist-root .h2-hidden-warn {
   font-size: 11px; color: var(--purple);
   padding: 6px 10px; background: rgba(144,112,224,0.08);
@@ -210,17 +218,15 @@
   font-size: 13px; color: var(--muted); font-family: monospace;
 }
 
-/* ── narration ────────────────────────────────────────────────────────────── */
+/* ── narration (lives in the right column) ───────────────────────────────── */
 .heist-root .h2-narration {
   font-size: 14px; line-height: 1.8; color: #c0bdd4;
   font-style: italic;
-  border-top: 1px solid var(--border); padding-top: 16px;
 }
 .heist-root .h2-narration p { margin-bottom: 10px; }
 .heist-root .h2-narration p:last-child { margin-bottom: 0; }
 .heist-root .h2-narrating {
   font-size: 12px; color: var(--muted); font-style: italic;
-  border-top: 1px solid var(--border); padding-top: 12px;
 }
 
 /* ── outcome card ─────────────────────────────────────────────────────────── */
@@ -405,13 +411,14 @@
 
     card.className = 'h2-card ' + cardCls + (isNew || card.classList.contains('expanded') ? ' expanded' : '');
 
-    // ── assigned characters block ────────────────────────────────────────────
+    // ── assigned characters block (uses the same card as the Hiring tab) ────
     let charsHtml = '';
     const assignedIds = (result && result.assigned_member_ids) || [];
     if (assignedIds.length && crew && crew.members) {
       const blocks = assignedIds.map(id => {
         const c = crew.members.find(x => x.id == id);
-        return c ? charBlockHtml(c) : '';
+        // Same vertical card as hiring board, just without the cost row and id
+        return c ? Shell.helpers.charCardHtml(c, { hideCost: true, noId: true }) : '';
       }).filter(Boolean).join('');
       const reasoningHtml = result && result.reasoning
         ? `<div class="h2-reasoning">"${esc(result.reasoning)}"</div>` : '';
@@ -421,37 +428,31 @@
         ${reasoningHtml}
       </div>`;
     } else if (!result) {
-      // Scene is in progress — the AI hasn't picked who's on it yet
       charsHtml = `<div>
         <div class="h2-section-label">Assigned</div>
         <div class="h2-escape-info" style="font-style:italic">Waiting for crew assignment…</div>
       </div>`;
     }
 
-    // ── challenge / escape block ─────────────────────────────────────────────
-    let challengeHtml = '';
+    // ── challenge card (vertical card, mirrors the hiring char-card shape) ──
+    // Returns { html, warnHtml } so the warn can sit below the card.
+    let challengeCardHtml = '';
+    let warnHtml = '';
     if (meta.scene_type === 'escape') {
-      const diff = result ? result.escape_difficulty : null;
-      const mod  = job ? job.escape_modifier : null;
-      const heat = result ? result.heat : null;
-      const parts = [];
-      if (diff != null) parts.push(`difficulty ${esc(String(diff))}`);
-      if (mod  != null) parts.push(`modifier ${mod > 0 ? '+' : ''}${esc(String(mod))}`);
-      if (heat != null) parts.push(`heat ${esc(String(heat))}`);
-      challengeHtml = `<div>
-        <div class="h2-section-label">Escape Roll</div>
-        <div class="h2-escape-info">${parts.join(' · ') || '—'}</div>
-      </div>`;
+      // Escape: render as a driver-themed card; level reads "VARIES" since
+      // escape difficulty is computed from heat + escape_modifier, not a level.
+      challengeCardHtml = buildChallengeCard({
+        shortSk: 'drive',
+        word:    'DRIVING',
+        level:   null,   // sublabel will read "VARIES"
+        diff:    null,   // no diff bars for escape
+      });
     } else if (meta.challenge_skill) {
       const apiSkill = (meta.challenge_skill || '').toLowerCase();
       const shortSk  = SKILL_API_TO_SHORT[apiSkill] || 'soc';
       const word     = SKILL_TO_TYPE_WORD[apiSkill] || meta.challenge_skill;
-      // Declared by the scene (from scene_start), or reality from scene_done.
-      // Both come from scene.challenge_level so they should match — but if a
-      // future hidden-depth mechanic mutates the resolved level, surface it.
       const declared = meta.challenge_level ? String(meta.challenge_level).toUpperCase() : null;
       const reality  = result && result.challenge_level ? String(result.challenge_level).toUpperCase() : null;
-      // Expected from job.profile, looked up via reverse mapping
       let expected = null;
       if (job && job.profile) {
         const profileKey = Object.entries(PROFILE_KEY_TO_SHORT).find(([, sh]) => sh === shortSk)?.[0];
@@ -461,29 +462,22 @@
         }
       }
       const level = reality || declared || expected || '';
-      const lvlCls = level === 'HARD' ? 'hard' : level === 'MEDIUM' ? 'med' : '';
-      const coreHtml = meta.is_core ? '<span class="h2-core-badge">Core Scene</span>' : '';
-      const warnHtml = (expected && reality && expected !== reality)
-        ? `<div class="h2-hidden-warn">⚠ Hidden depth: expected ${esc(expected)}, got ${esc(reality)}</div>`
-        : '';
-      challengeHtml = `<div>
-        <div class="h2-section-label">Challenge</div>
-        <div class="h2-challenge">
-          <span class="h2-skill-chip sc-${shortSk}">${esc(word)}</span>
-          ${level ? `<span class="h2-level ${lvlCls}">${esc(level)}</span>` : ''}
-          ${coreHtml}
-        </div>
-        ${warnHtml}
-      </div>`;
-    } else if (meta.scene_type === 'setup' || meta.scene_type === 'transition') {
-      // Narrative scenes with no mechanical challenge — keep the body informative
-      challengeHtml = `<div>
-        <div class="h2-section-label">Type</div>
-        <div class="h2-escape-info">Narrative scene — no challenge roll.</div>
-      </div>`;
+      challengeCardHtml = buildChallengeCard({
+        shortSk, word, level, diff: level,
+      });
+      if (expected && reality && expected !== reality) {
+        warnHtml = `<div class="h2-hidden-warn">⚠ Hidden depth: expected ${esc(expected)}, got ${esc(reality)}</div>`;
+      }
     }
+    const challengeBlock = challengeCardHtml
+      ? `<div class="h2-body-middle">
+          <div class="h2-section-label">Challenge</div>
+          ${challengeCardHtml}
+          ${warnHtml}
+        </div>`
+      : '';
 
-    // ── decision block ───────────────────────────────────────────────────────
+    // ── decision block (stays in the left column under chars) ────────────────
     let decisionHtml = '';
     if (meta.scene_type === 'decision' && result) {
       const pursue = result.decision === 'pursue' || result.pursue === true;
@@ -494,11 +488,11 @@
       </div>`;
     }
 
-    // ── narration ────────────────────────────────────────────────────────────
+    // ── narration (right column) ─────────────────────────────────────────────
     const narrationHtml = result
       ? (narr ? `<div class="h2-narration">${Shell.helpers.renderMd(narr)}</div>`
               : '<div class="h2-narrating">Narrating…</div>')
-      : '';
+      : '<div class="h2-narrating">—</div>';
 
     card.innerHTML = `
       <div class="h2-head">
@@ -509,44 +503,51 @@
         <span class="h2-outcome-chip ${chipCls}">${chipText}</span>
       </div>
       <div class="h2-body">
-        ${charsHtml}
-        ${challengeHtml}
-        ${decisionHtml}
-        ${narrationHtml}
+        <div class="h2-body-grid">
+          <div class="h2-body-left">
+            ${charsHtml}
+            ${decisionHtml}
+          </div>
+          ${challengeBlock}
+          <div class="h2-body-right">
+            ${narrationHtml}
+          </div>
+        </div>
       </div>`;
 
     // Click header to toggle expand
     card.querySelector('.h2-head').addEventListener('click', () => card.classList.toggle('expanded'));
   }
 
-  function charBlockHtml(c) {
+  // ── challenge card markup (mockup-style, mirrors char-card layout) ────────
+  // shortSk:  hack | safe | musc | soc | drive
+  // word:     "ELECTRONIC" / "PHYSICAL" / etc.
+  // level:    "LOW" | "MEDIUM" | "HARD" | null (null → sublabel reads "VARIES")
+  // diff:     same as level, used to fill diff bars. null → no diff row.
+  const SKILL_ABBR = { hack:'HCK', safe:'SFR', musc:'MSC', soc:'SOC', drive:'DRV' };
+  const DIFF_SEGS  = { LOW:1, MEDIUM:2, HARD:3 };
+  function buildChallengeCard({ shortSk, word, level, diff }) {
     const esc = Shell.helpers.escapeHtml;
-    const primary = Shell.helpers.primarySkill(c);
-    const role = ROLE_BY_PRIMARY[primary] || '';
-    const portrait = Shell.helpers.portraitUrl(c);
-    // Show only skills the character actually has (level > 0)
-    const skillsHtml = ['hack', 'safe', 'musc', 'soc', 'drive'].map(sk => {
-      const val = Shell.helpers.skillVal(c, sk);
-      if (val <= 0) return '';
-      const segs = [0,1,2].map(i =>
-        `<span class="seg ${i < val ? 'f-' + sk : ''}"></span>`).join('');
-      return `<div class="h2-skill-row">
-        <span class="h2-skill-label">${sk.toUpperCase()}</span>
-        <div class="h2-skill-bars">${segs}</div>
-      </div>`;
-    }).filter(Boolean).join('');
-
-    const initials = (c.name || '?').slice(0,1).toUpperCase();
-
-    return `<div class="h2-char" data-primary="${primary}">
-      <div class="h2-char-portrait">
-        <div class="h2-char-fallback">${esc(initials)}</div>
-        <img src="${portrait}" alt="${esc(c.name)}" loading="lazy" onerror="this.style.display='none'">
+    const abbr   = SKILL_ABBR[shortSk] || shortSk.toUpperCase();
+    const filled = DIFF_SEGS[diff] || 0;
+    const diffBars = [0,1,2].map(i =>
+      `<span class="seg ${i < filled ? 'f-' + shortSk : ''}"></span>`).join('');
+    // Only render the diff row if there's a level; escape (no level) skips it.
+    const diffRow = level
+      ? `<div class="h2-cc-row">
+           <span class="h2-cc-row-label">DIFF</span>
+           <div class="h2-cc-bars">${diffBars}</div>
+         </div>` : '';
+    return `<div class="h2-challenge-card" data-skill="${shortSk}">
+      <div class="h2-challenge-icon">
+        <span class="h2-challenge-icon-text">${esc(abbr)}</span>
       </div>
-      <div class="h2-char-info">
-        <div class="h2-char-name">${esc(c.name)}</div>
-        <div class="h2-char-role">${esc(role)}</div>
-        <div class="h2-char-skills">${skillsHtml}</div>
+      <div class="h2-challenge-card-header">
+        <div>${esc(word)}</div>
+        <div class="h2-cc-sub">${esc(level || 'VARIES')}</div>
+      </div>
+      <div class="h2-challenge-card-info">
+        ${diffRow}
       </div>
     </div>`;
   }
