@@ -51,6 +51,17 @@ header {
 }
 .start-btn:hover { background: #f0b840; }
 
+.start-row { display: flex; gap: 10px; align-items: center; margin-top: 8px; }
+.quick-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: transparent; color: var(--text);
+  font-weight: 600; font-size: 12px; letter-spacing: 1px;
+  padding: 11px 18px; border: 1px solid var(--border); border-radius: 6px;
+  cursor: pointer; text-decoration: none;
+  transition: border-color 0.15s, color 0.15s;
+}
+.quick-btn:hover { border-color: var(--accent); color: var(--accent); }
+
 /* ── games section ── */
 .section {
   width: 100%; max-width: 720px;
@@ -142,7 +153,10 @@ header {
 <header>
   <div class="logo">Heist</div>
   <div class="tagline">Write the strategy. Watch the crew work.</div>
-  <button class="start-btn" onclick="newGame()">+ Start New Game</button>
+  <div class="start-row">
+    <button class="start-btn" onclick="newGame()">+ Start New Game</button>
+    <button class="quick-btn" onclick="quickTest()" title="Stage and launch 2× Codex (mini) with the default prompt">▶ Quick Test</button>
+  </div>
 </header>
 
 <div class="section">
@@ -200,11 +214,20 @@ function renderGames(games) {
           <a class="action-link" href="/setup?game=${g.id}">+ Add AI</a>
           ${aiCount > 0 ? `<button class="action-btn" onclick="launchGame(${g.id})">▶ Launch</button>` : ''}
         </div>`;
+    } else if (isDone) {
+      actionHtml = `
+        <div class="game-actions">
+          <a class="action-link" href="/viewer?replay=${g.id}">↻ Replay</a>
+        </div>`;
     }
 
-    const href = isStaging ? '#' : '/viewer';
-    const rowTag = isStaging ? `<div class="game-row"` : `<a class="game-row" href="${href}"`;
-    const rowClose = isStaging ? `</div>` : `</a>`;
+    // Done games show a Replay action inline → use a <div> so the nested
+    // <a> doesn't get eaten by a row-wide anchor. Running games stay as a
+    // clickable row that goes to the live viewer.
+    const wrapAsRow = isStaging || isDone;
+    const href = isRunning ? '/viewer' : '#';
+    const rowTag = wrapAsRow ? `<div class="game-row"` : `<a class="game-row" href="${href}"`;
+    const rowClose = wrapAsRow ? `</div>` : `</a>`;
 
     return `${rowTag}>
       <div class="game-status">
@@ -235,6 +258,16 @@ async function newGame() {
     window.location = `/setup?game=${data.game_id}`;
   } catch (e) {
     alert('Could not create game: ' + e.message);
+  }
+}
+
+async function quickTest() {
+  try {
+    const resp = await fetch('/api/quick-game', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    if (!resp.ok) { const d = await resp.json(); throw new Error(d.error || resp.status); }
+    window.location = '/viewer';
+  } catch (e) {
+    alert('Quick test failed: ' + e.message);
   }
 }
 

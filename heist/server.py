@@ -7,7 +7,9 @@ GET  /viewer        → viewer.html
 POST /api/new-game  → create a staged game, returns {game_id}
 POST /api/add-ai    → {game_id, prompt, agent} → stage an AI onto a game
 POST /api/launch    → {game_id} → start the game, returns {ok}
+POST /api/quick-game → preset: stage + launch 2× codex-mini AIs with the default prompt
 GET  /api/games     → all games (staged + running + done)
+GET  /api/games/<id>/events → full event history for a game (for replay)
 GET  /api/status    → {has_history, game_running}
 GET  /api/meta      → roster + jobs
 GET  /stream        → SSE event stream
@@ -47,6 +49,16 @@ _MOCKS_DIR   = Path(__file__).parent / "mocks"
 def _broadcast(event: dict) -> None:
     with _lock:
         _event_history.append(event)
+        # Mirror into the relevant game's persistent event log so we can replay
+        # it later via /api/games/{id}/events. We don't always know the game_id
+        # on the event itself; fall back to the most-recently-running game.
+        target_gid = None
+        for gid in reversed(list(_games.keys())):
+            if _games[gid].get("status") in ("running", "done"):
+                target_gid = gid
+                break
+        if target_gid is not None:
+            _games[target_gid].setdefault("events", []).append(event)
         subs = list(_subscribers)
     log.info("broadcast", payload=event)
     for q in subs:
@@ -114,6 +126,8 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             self._serve_status()
         elif p == "/api/games":
             self._serve_games()
+        elif p.startswith("/api/games/") and p.endswith("/events"):
+            self._serve_game_events(p[len("/api/games/"):-len("/events")])
         else:
             self.send_response(404)
             self.end_headers()
@@ -128,6 +142,8 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                 self._handle_add_ai()
             elif p == "/api/launch":
                 self._handle_launch()
+            elif p == "/api/quick-game":
+                self._handle_quick_game()
             else:
                 self.send_response(404)
                 self.end_headers()
@@ -225,8 +241,24 @@ class _Handler(http.server.BaseHTTPRequestHandler):
 
     def _serve_games(self):
         with _lock:
-            games = list(_games.values())
+            # Strip the heavy events list from the index; clients fetch them
+            # explicitly via /api/games/<id>/events when they need to replay.
+            games = [{k: v for k, v in g.items() if k != "events"} for g in _games.values()]
         self._json_ok(sorted(games, key=lambda g: g["created_at"]))
+
+    def _serve_game_events(self, gid_str: str) -> None:
+        try:
+            gid = int(gid_str)
+        except ValueError:
+            self._json_error(400, "bad game id")
+            return
+        with _lock:
+            game = _games.get(gid)
+            if not game:
+                self._json_error(404, "game not found")
+                return
+            events = list(game.get("events", []))
+        self._json_ok({"game_id": gid, "events": events})
 
     def _handle_new_game(self):
         global _next_id
@@ -281,16 +313,57 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             _game_running = True
             _event_history.clear()
             _games[game_id]["status"] = "running"
+            _games[game_id]["ai_results"] = [None] * len(game["ais"])
+            _games[game_id]["ais_remaining"] = len(game["ais"])
 
         self._json_ok({"ok": True})
 
-        ai_cfg = game["ais"][0]  # Phase 1: single AI
-        t = threading.Thread(
-            target=_run_game,
-            args=(ai_cfg["prompt"], ai_cfg["agent"], None, game_id),
-            daemon=True,
-        )
-        t.start()
+        for ai_idx, ai_cfg in enumerate(game["ais"]):
+            t = threading.Thread(
+                target=_run_game,
+                args=(ai_cfg["prompt"], ai_cfg["agent"], None, game_id, ai_idx),
+                daemon=True,
+            )
+            t.start()
+
+    def _handle_quick_game(self):
+        """One-click "test production" preset: stage + launch 2 codex-mini AIs
+        with the default prompt."""
+        global _next_id, _game_running
+        from heist.content import DEFAULT_PROMPT
+        with _lock:
+            if _game_running:
+                self._json_error(409, "another game is already running")
+                return
+            gid = _next_id
+            _next_id += 1
+            ais = [
+                {"prompt": DEFAULT_PROMPT, "agent": "codex-mini"},
+                {"prompt": DEFAULT_PROMPT, "agent": "codex-mini"},
+            ]
+            _games[gid] = {
+                "id": gid,
+                "created_at": time.time(),
+                "status": "running",
+                "ais": ais,
+                "ai_results": [None] * len(ais),
+                "ais_remaining": len(ais),
+                "job": None,
+                "take": None,
+                "aborted": None,
+                "escape_success": None,
+                "quick_test": True,
+            }
+            _game_running = True
+            _event_history.clear()
+        self._json_ok({"game_id": gid, "ok": True})
+        for ai_idx, ai_cfg in enumerate(ais):
+            t = threading.Thread(
+                target=_run_game,
+                args=(ai_cfg["prompt"], ai_cfg["agent"], None, gid, ai_idx),
+                daemon=True,
+            )
+            t.start()
 
     # ── SSE ──
 
@@ -369,16 +442,45 @@ class _Handler(http.server.BaseHTTPRequestHandler):
 
 # ── game runner thread ────────────────────────────────────────────────────────
 
-def _run_game(strategy: str, agent: str, seed: int | None, game_id: int) -> None:
+def _run_game(strategy: str, agent: str, seed: int | None, game_id: int, ai_idx: int = 0) -> None:
     global _game_running
     started_at = time.monotonic()
     log.info(
         "game_started",
         game_id=game_id,
+        ai_idx=ai_idx,
         agent=agent,
         prompt_len=len(strategy),
         seed=seed,
     )
+
+    def emit_tagged(evt: dict) -> None:
+        _broadcast({**evt, "ai_idx": ai_idx})
+
+    def _record_result(result: dict) -> None:
+        """Stash this AI's outcome in game["ai_results"][ai_idx]; flip game-level
+        status to "done" once every AI has finished."""
+        global _game_running
+        with _lock:
+            game = _games.get(game_id)
+            if not game:
+                return
+            results = game.setdefault("ai_results", [None] * len(game.get("ais", [])))
+            if ai_idx < len(results):
+                results[ai_idx] = result
+            # Keep top-level summary fields backed by AI 0 (for lobby display).
+            if ai_idx == 0 and "error" not in result:
+                game.update({
+                    "job": result.get("job"),
+                    "take": result.get("take"),
+                    "aborted": result.get("aborted"),
+                    "escape_success": result.get("escape_success"),
+                })
+            game["ais_remaining"] = max(0, game.get("ais_remaining", 1) - 1)
+            if game["ais_remaining"] == 0:
+                game["status"] = "done"
+                _game_running = False
+
     try:
         from heist.ai import HeistAI
         from heist.backends import CodexHeistAI, GeminiHeistAI
@@ -396,23 +498,18 @@ def _run_game(strategy: str, agent: str, seed: int | None, game_id: int) -> None
         elif agent == "gemini":
             ai = GeminiHeistAI()
         else:
-            _broadcast({"type": "error", "message": f"Unknown agent: {agent}"})
-            _update_game(game_id, status="error")
-            log.error("game_crashed", game_id=game_id, error=f"Unknown agent: {agent}")
+            err = f"Unknown agent: {agent}"
+            emit_tagged({"type": "error", "message": err})
+            log.error("game_crashed", game_id=game_id, ai_idx=ai_idx, error=err)
+            _record_result({"error": err})
             return
 
-        rng = random.Random(seed)
-        state, extras = run_heist(strategy, ai, rng=rng, emit=_broadcast)
+        # Different seed per AI so parallel runs diverge meaningfully.
+        rng_seed = seed if seed is not None else random.randint(0, 1 << 30) + ai_idx
+        rng = random.Random(rng_seed)
+        state, extras = run_heist(strategy, ai, rng=rng, emit=emit_tagged)
 
-        _update_game(
-            game_id,
-            status="done",
-            job=state.job.name,
-            take=state.final_take,
-            aborted=state.aborted,
-            escape_success=state.escape_success,
-        )
-        _broadcast({
+        emit_tagged({
             "type": "game_done",
             "state": state_to_dict(state),
             "extras": {
@@ -424,23 +521,29 @@ def _run_game(strategy: str, agent: str, seed: int | None, game_id: int) -> None
         log.info(
             "game_ended",
             game_id=game_id,
+            ai_idx=ai_idx,
             take=state.final_take,
             aborted=state.aborted,
             escape_success=state.escape_success,
             duration_ms=int((time.monotonic() - started_at) * 1000),
         )
+        _record_result({
+            "job": state.job.name,
+            "take": state.final_take,
+            "aborted": state.aborted,
+            "escape_success": state.escape_success,
+        })
     except Exception as exc:
-        _update_game(game_id, status="error")
-        _broadcast({"type": "error", "message": str(exc)})
+        emit_tagged({"type": "error", "message": str(exc)})
         log.error(
             "game_crashed",
             game_id=game_id,
+            ai_idx=ai_idx,
             error=str(exc),
             traceback=traceback.format_exc(),
             duration_ms=int((time.monotonic() - started_at) * 1000),
         )
-    finally:
-        _game_running = False
+        _record_result({"error": str(exc)})
 
 
 # ── server entry point ────────────────────────────────────────────────────────
