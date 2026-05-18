@@ -1,0 +1,216 @@
+# Heist Game — Architecture
+
+## Overview
+
+A local web app for watching multiple AI agents independently plan and run the same heist. The player builds a strategy prompt in a wizard, stages 1–3 AIs onto a "game", launches it, then watches each AI bid for a crew, pick a job, and execute scenes in parallel.
+
+```
+Browser
+   /              → lobby           (list / start games)
+   /setup         → setup wizard    (build prompt + add AI)
+   /hiring        → hiring phase    (bidding board)
+   /job           → job phase       (job slate + AI's pick)
+   /heist         → heist phase     (scene cards as they resolve)
+   /epilogue      → outcome         (take, escape, epilogue text)
+       │
+       │  fetch /api/* + EventSource /stream
+       ▼
+heist/server.py  (stdlib http.server, threaded)
+       │
+       │  one threading.Thread per AI per game
+       ▼
+heist/runner.py  → run_heist()
+       │
+       │  15–20 sequential CLI calls
+       ▼
+heist/backends.py → CodexHeistAI / GeminiHeistAI
+       │
+       ▼
+   codex exec | gemini  (subprocess)
+```
+
+---
+
+## Frontend — Phase Pages
+
+The viewer is split into four standalone URLs. Each page mounts one **tab fragment** into its `#main`, shares the same right rail, and auto-navigates to the next phase when its trigger event fires.
+
+| Page | URL | Tab fragment | Trigger to next page |
+|---|---|---|---|
+| Hiring | `/hiring?game=N` | `web/tabs/hiring.html` | `job_known` → `/job` |
+| Job | `/job?game=N` | `web/tabs/job.html` | first `scene_start` → `/heist` |
+| Heist | `/heist?game=N` | `web/tabs/heist.html` | `game_done` → `/epilogue` |
+| Epilogue | `/epilogue?game=N` | (none — renders inline) | terminal |
+
+### `heist/web/shell.js` — shared module
+
+Loaded by every phase page via `<script src="/shell.js">`. Exposes:
+
+- `window.Shell` — shared state + helpers (`roster`, `aiList`, `currentAI`, `helpers.{escapeHtml, renderMd, skillVal, primarySkill, portraitUrl, charCardHtml, buildDiffBar, diffCls}`)
+- `window.initShell({ gameId, onEvent })` — boot entry point. Fetches `/api/meta` + `/api/games`, populates roster/AI list, renders top bar + AI picker, loads the replay buffer, fans every event to the page's `onEvent` callback
+- `window.loadTabFragment(name)` — fetch + execute a `/tabs/<name>` fragment so its `<style>`, `<template>`, and `<script>` activate
+- `window.replayStep / replayToggle / replayReset` — bound to topbar replay buttons
+
+**Replay mode is always on.** `initShell` fetches `/api/games/<id>/events` for every game and exposes Step / Play / Reset controls. Live SSE is not wired in the UI; pressing Step advances through the buffer event-by-event. (Hit browser refresh mid-run to pick up newer events.)
+
+### Tab fragments
+
+Each fragment registers a global `window.{Hiring|Job|Heist}Tab` object exposing `{ mount, handleEvent, reset, unmount }`. The page calls `mount(panel, { shell: Shell })` after loading the fragment, then forwards every event via `handleEvent(e)`.
+
+| Fragment | Renders | Events it cares about |
+|---|---|---|
+| `web/tabs/hiring.html` | Available roster + crew columns + skill coverage bars | `turn_end(bid)`, `crew_known`, `game_done` |
+| `web/tabs/job.html` | Comparison grid (team skills card vs location card) + AI reasoning sidebar + hidden depth callout | `turn_end(job_pick)`, `job_known`, `crew_known`, `hidden_depth_rolled`, `game_done` |
+| `web/tabs/heist.html` | Job header (chips + reward) + expandable scene cards (chevron, type badge, outcome chip, char blocks, challenge block, narration) + outcome card | `crew_known`, `job_known`, `scene_start`, `scene_done`, `turn_end(scene_N_narrate)`, `game_done` |
+
+### Other pages
+
+- `heist/lobby.html` → `/` — list of staged/running/done games, "Start New Game", "Quick Test", per-row replay link
+- `heist/web/setup.html` → `/setup?game=N` — 4-step wizard (Risk → Crew → Decisions → Run It) that POSTs `/api/add-ai`
+- `heist/epilogue.html` → `/epilogue?game=N` — renders take + escape + aborted + epilogue text from the game's `game_done` event
+
+### Mockups
+
+`heist/mocks/*.html` are static design references served at `/mocks/<name>`. The heist tab's visual style is ported from `mocks/game.html`.
+
+---
+
+## Backend — `heist/server.py`
+
+Plain `http.server.ThreadingHTTPServer` from the stdlib. No framework. One handler class (`_Handler`) with `do_GET` / `do_POST` dispatching to small methods.
+
+### Routes
+
+| Route | Method | Purpose |
+|---|---|---|
+| `/` | GET | lobby.html |
+| `/setup` | GET | setup.html |
+| `/hiring`, `/job`, `/heist`, `/epilogue` | GET | Phase pages |
+| `/shell.js` | GET | Shared JS module (served with `application/javascript`) |
+| `/tabs/<name>` | GET | Tab fragment HTML |
+| `/mocks/`, `/mocks/<name>` | GET | Static mockups + index |
+| `/stream` | GET | Server-Sent Events stream of every game event |
+| `/api/meta` | GET | `{ roster, jobs }` |
+| `/api/status` | GET | `{ has_history, game_running }` |
+| `/api/games` | GET | All games (staged + running + done), heavy `events` field stripped |
+| `/api/games/<id>/events` | GET | Full event log for one game (replay buffer) |
+| `/api/new-game` | POST | Create a staged game → `{ game_id }` |
+| `/api/add-ai` | POST | `{ game_id, prompt, agent }` — attach an AI |
+| `/api/launch` | POST | `{ game_id }` — start the game, spawn one thread per AI |
+| `/api/quick-game` | POST | Preset: stage + launch 2× codex-mini with the default prompt |
+
+### Game lifecycle
+
+A "game" is a single job attempt that 1–3 AIs play independently against the same roster + job slate.
+
+1. **Stage** — `POST /api/new-game` returns a `game_id`; `POST /api/add-ai` attaches AIs (1–3)
+2. **Launch** — `POST /api/launch` spawns one `threading.Thread` per AI, each running `_run_game()`
+3. **Run** — each thread calls `run_heist()`. Events emit via `_broadcast()` which:
+   - appends to `_event_history` (legacy)
+   - appends to the game's `events` list (used for replay)
+   - persists the game record to disk via `save_game_record()`
+   - fans out to every connected SSE subscriber queue
+4. **Done** — when all AIs in a game finish, `_game_running` flips to `False` and the lobby shows the result
+
+Every event includes `ai_idx` so the viewer can split per-AI state. The shell's `Shell.currentAI` switch lets the user watch one AI's perspective at a time.
+
+### Persistence + recovery (`heist/persist.py`)
+
+- `state/games/<id>.json` — full game record (status, AIs, results, full events list)
+- `state/runners/<game_id>_<ai_idx>.json` — per-AI runner snapshot (stage, scene_idx, codex session_id) so a crashed game can resume mid-scene
+
+On startup, `_recover_games()` reloads every game record. For any game whose status is `running`, it checks `state/runners/*.json` for in-flight AI snapshots and spawns resume threads via `resume_heist()`. AIs without snapshots are marked errored.
+
+### `--web-dir` flag
+
+`python -m heist serve --web-dir /path/to/some/worktree/heist` makes the server read HTML / JS files from that directory instead of the one where `heist/server.py` lives. Lets a single server preview any worktree's UI changes without restarting.
+
+---
+
+## Game Engine
+
+### `heist/runner.py` — `run_heist()`
+
+15–20 sequential CLI calls per AI, in order:
+
+1. **Bid** — AI drafts crew from 15-character roster within $2,000 bankroll  
+   *emits* `turn_end(bid)`
+2. **Fill** (if under 4) — top-up bids until crew has 4  
+   *emits* `turn_end(fill_*)`, `crew_known`
+3. **Casting summary** — AI explains its crew choices  
+   *emits* `turn_end(casting_summary)`
+4. **Job pick** — AI selects one of 4 jobs (with why-this + why-not)  
+   *emits* `turn_end(job_pick)`, `job_known`, `hidden_depth_rolled`
+5. **Scene loop** — for each scene: assign → (decision?) → resolve → narrate  
+   *emits* `scene_start`, `turn_end(scene_N_assign)`, `turn_end(scene_N_decision)`, `scene_done`, `turn_end(scene_N_narrate)`
+6. **Escape** — resolved mechanically from heat + driver skill  
+   *emits* `scene_start(escape)`, `scene_done`, `turn_end(scene_N_escape_narrate)`
+7. **Epilogue** — closing prose  
+   *emits* `game_done` (state + extras)
+
+`snapshot_fn` is called at each stage boundary so `resume_heist()` can pick up after a crash.
+
+### `heist/mechanics.py`
+
+Pure functions, no AI calls.
+
+- `effective_skill()` — two crew members in the same skill area act one level higher than the better one (capped at High)
+- `resolves_challenge()` — skill level vs. challenge level
+- `escape_resolves()` — driver skill vs. `(escape_modifier + heat)`
+
+### `heist/state.py`, `heist/content.py`, `heist/scenes.py`
+
+- `state.py` — frozen dataclasses (`Character`, `Job`, `Scene`, `SceneResult`, `HeistState`)
+- `content.py` — 15-character roster, 4 jobs, default prompt
+- `scenes.py` — builds the scene list for a job, splicing in the hidden-depth element
+
+### `heist/serialize.py`
+
+`character_to_dict`, `job_to_dict`, `state_to_dict` — convert dataclasses to plain dicts so they can ride on SSE events and persistence JSON.
+
+---
+
+## AI Layer
+
+### `heist/ai.py`
+
+`HeistAI` protocol: one method — `ask(prompt: str) -> AgentTurn`. Defines `parse_json_block()` (strips markdown fences, extracts JSON) used everywhere downstream.
+
+### `heist/stub_responses.py`
+
+`build_stub_ai()` — a `HeistAI` that returns scripted JSON. Used by `--agent stub` for end-to-end tests without burning API calls.
+
+### `heist/backends.py`
+
+`CodexHeistAI(model="gpt-5.4-mini")` and `GeminiHeistAI()`. Each wraps the CLI invokers in `agents.py` and threads `session_id` across calls so one heist runs in one CLI session (maintains conversation context).
+
+### `agents.py`
+
+Thin subprocess wrappers.
+
+- `ask_codex()` — runs `codex exec [-m model] --json --sandbox read-only ...`
+- `ask_gemini()` — runs `gemini -o json [-p prompt] [--resume session_id]`
+
+Both return `Turn(text, session_id)`.
+
+---
+
+## Running Locally
+
+```bash
+python -m heist serve
+```
+
+Open **http://localhost:8000/** in your browser. Use **Quick Test** in the lobby to stage + launch 2× codex-mini with the default prompt; you'll land on `/hiring?game=N` and the browser will auto-navigate through `/job` → `/heist` → `/epilogue` as the run progresses.
+
+For a no-API test from the CLI:
+
+```bash
+python -m heist run --agent stub --out report.md
+```
+
+To preview a worktree's UI changes against the running server:
+
+```bash
+python -m heist serve --web-dir /path/to/worktree/heist
+```
