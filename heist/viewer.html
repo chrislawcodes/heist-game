@@ -40,7 +40,11 @@ body {
   height: 44px; padding: 0 16px; border-bottom: 1px solid var(--border);
   display: flex; align-items: center; gap: 14px; flex-shrink: 0;
 }
-#topbar-title { font-size: 12px; font-weight: 700; letter-spacing: 3px; color: var(--accent); }
+#topbar-title {
+  font-size: 12px; font-weight: 700; letter-spacing: 3px; color: var(--accent);
+  text-decoration: none; cursor: pointer; transition: opacity 0.15s;
+}
+#topbar-title:hover { opacity: 0.7; }
 #job-display  { font-size: 13px; color: var(--text); }
 #heat-display { font-size: 12px; font-family: monospace; color: var(--red); letter-spacing: 1px; }
 #topbar-spacer { flex: 1; }
@@ -566,7 +570,7 @@ body {
 <body>
 
 <div id="topbar">
-  <span id="topbar-title">HEIST</span>
+  <a id="topbar-title" href="/" title="Back to lobby">HEIST</a>
   <span id="job-display">—</span>
   <span id="heat-display"></span>
   <span id="topbar-spacer"></span>
