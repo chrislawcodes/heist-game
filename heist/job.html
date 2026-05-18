@@ -182,13 +182,13 @@ body {
   <span id="job-display">—</span>
   <span id="heat-display"></span>
   <span id="topbar-spacer"></span>
-  <span id="replay-controls" style="display:none">
+  <span id="replay-controls">
     <button class="replay-btn" id="replay-play"  onclick="replayToggle()">▶ Play</button>
-    <button class="replay-btn" onclick="replayStep()">⏭ Step</button>
+    <button class="replay-btn" onclick="replayBack()">← Back</button>
+    <button class="replay-btn" onclick="replayStep()">Step →</button>
     <button class="replay-btn" onclick="replayReset()">⟲ Reset</button>
     <span id="replay-counter" style="font-family:monospace;font-size:11px;color:var(--muted);margin-left:6px">0 / 0</span>
   </span>
-  <button id="new-game-btn" onclick="window.location='/'">← New Game</button>
   <span id="status-badge" class="s-running">RUNNING</span>
 </div>
 
@@ -256,7 +256,7 @@ body {
       }
       if (window.JobTab) JobTab.handleEvent(e);
       if (e.type === 'scene_start') {
-        window.location = `/heist?game=${gameId}`;
+        Shell.atPhaseEnd(`/heist?game=${gameId}`);
       }
     }
   });
