@@ -116,6 +116,36 @@ jq -s 'map(select(.event=="ai_call")) | group_by(.label)
 tail -f logs/heist.jsonl | jq -c 'select(.event=="broadcast") | .payload.type'
 ```
 
+## State persistence
+
+The server persists every game and the live runner state of every AI to
+`./state/` (created on first write, override via `HEIST_STATE_DIR`). Games
+and in-flight AIs survive a server restart — the next `python -m heist
+serve` reads `./state/games/`, rehydrates `_games`, and spawns a resume
+thread for every AI that has an on-disk snapshot.
+
+Layout:
+
+```
+state/
+  games/
+    1.json              # full game record (incl. events list)
+    1/
+      ai-0.json         # per-AI runner snapshot, only while the AI is mid-run
+      ai-1.json
+    2.json
+```
+
+A runner snapshot captures everything needed to continue: the codex
+`session_id`, the heist stage (`drafting`, `job_picked`, `casting_summary_done`,
+`in_scene`, `done`), the scene index, the full `HeistState`, the `extras` dict
+(casting summary, epilogue, etc.), and a base64-pickled `random.Random` state
+so the hidden-depth roll is reproduced exactly on resume. Snapshots are
+deleted when the AI finishes; the game record is kept for replay.
+
+Writes are atomic (`tmp file → os.replace`), so a crash mid-write never
+corrupts the on-disk state. Delete `./state/` to wipe all game history.
+
 ## Test policy
 
 Every new feature ships with CI tests in the same commit. See

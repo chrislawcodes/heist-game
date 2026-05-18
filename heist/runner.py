@@ -46,6 +46,16 @@ from heist.state import (
 
 EmitFn = Callable[[dict], None] | None
 SceneCallback = Callable[[SceneResult], None]
+SnapshotFn = Callable[[dict], None] | None
+
+# Stage labels for snapshotting. Resume jumps to the stage *after* the one
+# whose snapshot was last persisted.
+STAGE_DRAFTING            = "drafting"
+STAGE_JOB_PICKED          = "job_picked"
+STAGE_CASTING_SUMMARY_DONE = "casting_summary_done"
+STAGE_IN_SCENE            = "in_scene"
+STAGE_EPILOGUE            = "epilogue"
+STAGE_DONE                = "done"
 
 # Min seconds between back-to-back AI turns when streaming to a viewer, so the
 # player can absorb each beat. Only applies when `emit` is set (i.e. server
@@ -335,28 +345,80 @@ def _apply_failure_cascade(state: HeistState, scene: Scene) -> None:
         state.heat += 1
 
 
-def run_heist(
+def _snapshot(
+    snapshot_fn: SnapshotFn,
+    *,
+    stage: str,
     strategy: str,
     ai: HeistAI,
-    rng: random.Random | None = None,
-    on_scene: SceneCallback | None = None,
-    emit: EmitFn = None,
-) -> tuple[HeistState, dict[str, Any]]:
-    """Run one full heist end-to-end. Returns (final_state, extras)
-    where extras carries the casting summary, scene narrations, and epilogue."""
-    rng = rng or random.Random()
-    logs: list[TurnLog] = []
-    extras: dict[str, Any] = {
-        "strategy": strategy,
-        "bid_logic": None,
-        "casting_summary": "",
-        "scene_narrations": [],  # filled per scene
-        "epilogue": "",
-        "turn_logs": logs,
-    }
-    heist_start = time.monotonic()
+    rng: random.Random,
+    state: HeistState | None,
+    extras: dict[str, Any],
+    scene_idx: int,
+) -> None:
+    """Persist a runner-state snapshot. No-op when ``snapshot_fn`` is None.
 
-    # 1. Draft
+    Defensive: if the snapshot raises (disk full, permission, etc.) we log
+    and continue — losing snapshot fidelity is preferable to crashing a
+    long-running heist."""
+    if snapshot_fn is None:
+        return
+    from heist.persist import _serialize_rng
+    from heist.serialize import state_to_dict
+    payload: dict[str, Any] = {
+        "stage": stage,
+        "scene_idx": scene_idx,
+        "strategy": strategy,
+        "session_id": getattr(ai, "session_id", None),
+        "rng_state": _serialize_rng(rng),
+        "extras": {
+            "strategy": extras.get("strategy", ""),
+            "bid_logic": extras.get("bid_logic"),
+            "casting_summary": extras.get("casting_summary", ""),
+            "epilogue": extras.get("epilogue", ""),
+            "job_viability_warning": extras.get("job_viability_warning"),
+        },
+        "state": state_to_dict(state) if state is not None else None,
+    }
+    try:
+        snapshot_fn(payload)
+    except Exception as exc:
+        log.warn("snapshot_failed", stage=stage, error=str(exc))
+
+
+def _broadcast_scene_done(
+    emit: EmitFn, scene: Scene, state: HeistState, result: SceneResult
+) -> None:
+    if emit is None:
+        return
+    emit({
+        "type": "scene_done",
+        "scene_num": scene.number,
+        "title": scene.title,
+        "scene_type": scene.type,
+        "challenge_skill": scene.challenge_skill,
+        "challenge_level": scene.challenge_level.name if scene.challenge_level else None,
+        "is_core": scene.is_core,
+        "context": scene.context,
+        "assigned_member_ids": result.assigned_member_ids,
+        "reasoning": result.reasoning,
+        "decision": result.decision,
+        "success": result.success,
+        "heat": state.heat,
+        "aborted": state.aborted,
+        "escape_success": state.escape_success,
+        "escape_difficulty": state.escape_difficulty,
+    })
+
+
+def _draft_and_pick_job(
+    strategy: str,
+    ai: HeistAI,
+    logs: list[TurnLog],
+    extras: dict[str, Any],
+    emit: EmitFn,
+) -> tuple[Crew, Any]:
+    """Stages 1+2: bidding + job selection. Returns (crew, job)."""
     bid_turn = _call(ai, _bid_prompt(strategy), "bid", logs, emit)
     bid_parsed = parse_json_block(bid_turn.text)
     extras["bid_logic"] = bid_parsed
@@ -368,7 +430,6 @@ def run_heist(
         from heist.serialize import crew_to_dict
         emit({"type": "crew_known", "crew": crew_to_dict(crew)})
 
-    # 2. Job selection
     job_turn = _call(ai, _job_prompt(crew), "job_pick", logs, emit)
     job_parsed = parse_json_block(job_turn.text)
     name = job_parsed["job_name"]
@@ -376,21 +437,18 @@ def run_heist(
         raise ValueError(f"AI picked unknown job {name!r}")
     job = JOBS_BY_NAME[name]
     if not job_is_viable(crew, job.profile):
-        # Don't fail outright — the design wants this to be visible.
-        # We still attempt the job; core failures will surface in the loop.
         extras["job_viability_warning"] = (
             f"Crew lacks required Hard coverage for {job.name}; proceeding anyway."
         )
     if emit:
         from heist.serialize import job_to_dict
         emit({"type": "job_known", "job": job_to_dict(job)})
+    return crew, job
 
-    # 3. Casting summary
-    summary_turn = _call(ai, _summary_prompt(), "casting_summary", logs, emit)
-    extras["casting_summary"] = parse_json_block(summary_turn.text).get("summary", "")
 
-    # 4. Hidden depth roll
-    from heist.scenes import generate_scenes
+def _roll_hidden_depth(
+    job: Any, rng: random.Random, emit: EmitFn
+) -> HiddenDepthRoll:
     element = rng.choice(job.hidden_depth)
     reward_label, reward_amount = rng.choice(job.reward_amounts)
     hidden = HiddenDepthRoll(
@@ -405,46 +463,109 @@ def run_heist(
             "reward_label": reward_label,
             "reward_amount": reward_amount,
         })
+    return hidden
 
-    state = HeistState(crew=crew, job=job, hidden_depth=hidden)
-    scenes = generate_scenes(job, hidden)
 
-    # 5. Scene loop
-    for scene in scenes:
+def _run_scene_loop(
+    scenes: list[Scene],
+    state: HeistState,
+    ai: HeistAI,
+    logs: list[TurnLog],
+    extras: dict[str, Any],
+    emit: EmitFn,
+    on_scene: SceneCallback | None,
+    snapshot_fn: SnapshotFn,
+    strategy: str,
+    rng: random.Random,
+    start_idx: int = 0,
+) -> None:
+    """Execute scenes ``start_idx..end``, snapshotting after each."""
+    for idx in range(start_idx, len(scenes)):
+        scene = scenes[idx]
         if state.aborted and scene.type != "escape":
-            # Skip remaining body scenes once aborted; still narrate the escape (failed).
             continue
         result = _execute_scene(scene, state, ai, logs, emit)
         state.scene_results.append(result)
         extras["scene_narrations"].append(result)
-        if emit:
-            emit({
-                "type": "scene_done",
-                "scene_num": scene.number,
-                "title": scene.title,
-                "scene_type": scene.type,
-                "challenge_skill": scene.challenge_skill,
-                "challenge_level": scene.challenge_level.name if scene.challenge_level else None,
-                "is_core": scene.is_core,
-                "context": scene.context,
-                "assigned_member_ids": result.assigned_member_ids,
-                "reasoning": result.reasoning,
-                "decision": result.decision,
-                "success": result.success,
-                "heat": state.heat,
-                "aborted": state.aborted,
-                "escape_success": state.escape_success,
-                "escape_difficulty": state.escape_difficulty,
-            })
+        _broadcast_scene_done(emit, scene, state, result)
         if on_scene is not None:
             on_scene(result)
+        _snapshot(
+            snapshot_fn, stage=STAGE_IN_SCENE, strategy=strategy, ai=ai, rng=rng,
+            state=state, extras=extras, scene_idx=idx + 1,
+        )
 
-    # 6. Escape resolution (already handled inside loop) → compute reward
+
+def run_heist(
+    strategy: str,
+    ai: HeistAI,
+    rng: random.Random | None = None,
+    on_scene: SceneCallback | None = None,
+    emit: EmitFn = None,
+    snapshot_fn: SnapshotFn = None,
+) -> tuple[HeistState, dict[str, Any]]:
+    """Run one full heist end-to-end. Returns (final_state, extras)
+    where extras carries the casting summary, scene narrations, and epilogue.
+
+    If ``snapshot_fn`` is supplied, it's called after every major state
+    mutation with a snapshot dict suitable for ``resume_heist``."""
+    rng = rng or random.Random()
+    logs: list[TurnLog] = []
+    extras: dict[str, Any] = {
+        "strategy": strategy,
+        "bid_logic": None,
+        "casting_summary": "",
+        "scene_narrations": [],  # filled per scene
+        "epilogue": "",
+        "turn_logs": logs,
+    }
+    heist_start = time.monotonic()
+
+    # 1+2. Draft + job selection
+    crew, job = _draft_and_pick_job(strategy, ai, logs, extras, emit)
+    # Snapshot at job_picked: enough to skip both _call("bid") and _call("job_pick").
+    # state is None at this point — we synthesise a minimal state below.
+    pre_state = HeistState(
+        crew=crew, job=job,
+        hidden_depth=HiddenDepthRoll(
+            element=job.hidden_depth[0], reward_label="", reward_amount=0,
+        ),
+    )
+    _snapshot(
+        snapshot_fn, stage=STAGE_JOB_PICKED, strategy=strategy, ai=ai, rng=rng,
+        state=pre_state, extras=extras, scene_idx=0,
+    )
+
+    # 3. Casting summary
+    summary_turn = _call(ai, _summary_prompt(), "casting_summary", logs, emit)
+    extras["casting_summary"] = parse_json_block(summary_turn.text).get("summary", "")
+
+    # 4. Hidden depth roll
+    from heist.scenes import generate_scenes
+    hidden = _roll_hidden_depth(job, rng, emit)
+    state = HeistState(crew=crew, job=job, hidden_depth=hidden)
+    scenes = generate_scenes(job, hidden)
+    _snapshot(
+        snapshot_fn, stage=STAGE_CASTING_SUMMARY_DONE, strategy=strategy, ai=ai,
+        rng=rng, state=state, extras=extras, scene_idx=0,
+    )
+
+    # 5. Scene loop
+    _run_scene_loop(
+        scenes, state, ai, logs, extras, emit, on_scene,
+        snapshot_fn, strategy, rng, start_idx=0,
+    )
+
+    # 6. Escape already handled inside loop → compute reward
     _finalize_reward(state)
 
     # 7. Epilogue
     ep_turn = _call(ai, _epilogue_prompt(state), "epilogue", logs, emit)
     extras["epilogue"] = parse_json_block(ep_turn.text).get("epilogue", "")
+    _snapshot(
+        snapshot_fn, stage=STAGE_DONE, strategy=strategy, ai=ai, rng=rng,
+        state=state, extras=extras, scene_idx=len(scenes),
+    )
 
     total = time.monotonic() - heist_start
     extras["total_seconds"] = total
@@ -455,6 +576,141 @@ def run_heist(
         file=sys.stderr,
     )
 
+    return state, extras
+
+
+def resume_heist(
+    snapshot: dict,
+    ai: HeistAI,
+    *,
+    emit: EmitFn = None,
+    snapshot_fn: SnapshotFn = None,
+    on_scene: SceneCallback | None = None,
+) -> tuple[HeistState, dict[str, Any]]:
+    """Continue a heist from a runner snapshot.
+
+    The caller must have already configured ``ai.session_id`` to the value
+    from the snapshot (the server does this before spawning the resume
+    thread, since AI construction is the server's responsibility).
+    """
+    from heist.persist import _deserialize_rng_into
+    from heist.scenes import generate_scenes
+    from heist.serialize import scene_result_from_dict, state_from_dict
+
+    stage = snapshot.get("stage", STAGE_DRAFTING)
+    strategy = snapshot.get("strategy", "")
+    scene_idx = int(snapshot.get("scene_idx", 0))
+
+    rng = random.Random()
+    rng_state = snapshot.get("rng_state")
+    if rng_state:
+        _deserialize_rng_into(rng, rng_state)
+
+    logs: list[TurnLog] = []
+    extras_snap = snapshot.get("extras") or {}
+    extras: dict[str, Any] = {
+        "strategy": extras_snap.get("strategy", strategy),
+        "bid_logic": extras_snap.get("bid_logic"),
+        "casting_summary": extras_snap.get("casting_summary", ""),
+        "scene_narrations": [],
+        "epilogue": extras_snap.get("epilogue", ""),
+        "turn_logs": logs,
+    }
+    if extras_snap.get("job_viability_warning"):
+        extras["job_viability_warning"] = extras_snap["job_viability_warning"]
+
+    heist_start = time.monotonic()
+
+    # If we crashed before even picking a job, restart from scratch — no state
+    # to inherit. Treat as a fresh run with the same strategy + RNG seed.
+    if stage in (STAGE_DRAFTING, "") or snapshot.get("state") is None:
+        return run_heist(strategy, ai, rng=rng, emit=emit, snapshot_fn=snapshot_fn,
+                         on_scene=on_scene)
+
+    state = state_from_dict(snapshot["state"])
+    # Rehydrate scene_narrations from the persisted scene_results so the
+    # caller-visible extras matches what a clean run would produce.
+    extras["scene_narrations"] = [
+        scene_result_from_dict(r)
+        for r in snapshot["state"].get("scene_results", [])
+    ]
+
+    if stage == STAGE_JOB_PICKED:
+        # Need to redo casting_summary, hidden_depth roll, scenes, scene loop, epilogue.
+        if emit:
+            from heist.serialize import crew_to_dict, job_to_dict
+            emit({"type": "crew_known", "crew": crew_to_dict(state.crew)})
+            emit({"type": "job_known", "job": job_to_dict(state.job)})
+
+        summary_turn = _call(ai, _summary_prompt(), "casting_summary", logs, emit)
+        extras["casting_summary"] = parse_json_block(summary_turn.text).get("summary", "")
+
+        hidden = _roll_hidden_depth(state.job, rng, emit)
+        state = HeistState(crew=state.crew, job=state.job, hidden_depth=hidden)
+        scenes = generate_scenes(state.job, hidden)
+        _snapshot(
+            snapshot_fn, stage=STAGE_CASTING_SUMMARY_DONE, strategy=strategy, ai=ai,
+            rng=rng, state=state, extras=extras, scene_idx=0,
+        )
+        _run_scene_loop(scenes, state, ai, logs, extras, emit, on_scene,
+                        snapshot_fn, strategy, rng, start_idx=0)
+
+    elif stage == STAGE_CASTING_SUMMARY_DONE:
+        # Hidden depth already rolled into state.hidden_depth. Generate scenes
+        # and run from scene 0.
+        if emit:
+            from heist.serialize import crew_to_dict, job_to_dict
+            emit({"type": "crew_known", "crew": crew_to_dict(state.crew)})
+            emit({"type": "job_known", "job": job_to_dict(state.job)})
+            emit({
+                "type": "hidden_depth_rolled",
+                "element_id": state.hidden_depth.element.id,
+                "description": state.hidden_depth.element.description,
+                "element_type": state.hidden_depth.element.type,
+                "reward_label": state.hidden_depth.reward_label,
+                "reward_amount": state.hidden_depth.reward_amount,
+            })
+        scenes = generate_scenes(state.job, state.hidden_depth)
+        _run_scene_loop(scenes, state, ai, logs, extras, emit, on_scene,
+                        snapshot_fn, strategy, rng, start_idx=0)
+
+    elif stage == STAGE_IN_SCENE:
+        if emit:
+            from heist.serialize import crew_to_dict, job_to_dict
+            emit({"type": "crew_known", "crew": crew_to_dict(state.crew)})
+            emit({"type": "job_known", "job": job_to_dict(state.job)})
+        scenes = generate_scenes(state.job, state.hidden_depth)
+        # state.scene_results was loaded from the snapshot. _run_scene_loop
+        # will append from there; truncate to scene_idx in case the snapshot
+        # captured trailing partials.
+        state.scene_results = state.scene_results[:scene_idx]
+        _run_scene_loop(scenes, state, ai, logs, extras, emit, on_scene,
+                        snapshot_fn, strategy, rng, start_idx=scene_idx)
+
+    elif stage in (STAGE_EPILOGUE, STAGE_DONE):
+        # State and scene_results already loaded. Just (re-)run epilogue if missing.
+        pass
+    else:
+        raise ValueError(f"unknown resume stage: {stage!r}")
+
+    _finalize_reward(state)
+
+    if not extras.get("epilogue"):
+        ep_turn = _call(ai, _epilogue_prompt(state), "epilogue", logs, emit)
+        extras["epilogue"] = parse_json_block(ep_turn.text).get("epilogue", "")
+        _snapshot(
+            snapshot_fn, stage=STAGE_DONE, strategy=strategy, ai=ai, rng=rng,
+            state=state, extras=extras, scene_idx=scene_idx,
+        )
+
+    total = time.monotonic() - heist_start
+    extras["total_seconds"] = total
+    print(
+        f"\n[heist resumed + complete: {len(logs)} new rounds, "
+        f"{sum(t.seconds for t in logs):.1f}s in AI calls, "
+        f"{total:.1f}s wall clock]",
+        file=sys.stderr,
+    )
     return state, extras
 
 
