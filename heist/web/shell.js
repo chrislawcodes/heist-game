@@ -260,31 +260,21 @@ window.initShell = async function({ gameId, onEvent } = {}) {
   _renderAIPicker();
   _selectAI(0);
 
-  // 3. Connect to events
-  const isReplay = targetGame && targetGame.status === 'done';
-  if (isReplay) {
-    _setStatus('s-idle', 'REPLAY');
-    const rcEl = document.getElementById('replay-controls');
-    if (rcEl) rcEl.style.display = '';
+  // 3. Always use replay mode (for testing). Load the recorded event buffer
+  //    and expose step/play/reset controls. Live SSE is disabled so the user
+  //    fully controls progression.
+  _setStatus('s-idle', 'REPLAY');
+  const rcEl = document.getElementById('replay-controls');
+  if (rcEl) rcEl.style.display = '';
+  if (targetGame && targetGame.id != null) {
     try {
-      const effectiveGid = targetGame.id;
-      const data = await fetch(`/api/games/${effectiveGid}/events`).then(r => r.json());
+      const data = await fetch(`/api/games/${targetGame.id}/events`).then(r => r.json());
       _REPLAY_EVENTS = data.events || [];
       Shell.replayEvents = _REPLAY_EVENTS;
       _replayUpdateCounter();
     } catch (e) {
       _addThought(0, 'scene', 'Replay load error', Shell.helpers.escapeHtml(String(e)));
     }
-  } else {
-    _evtSource = new EventSource('/stream');
-    _evtSource.onmessage = (raw) => {
-      let e;
-      try { e = JSON.parse(raw.data); } catch { return; }
-      _processEvent(e, _currentOnEvent);
-    };
-    _evtSource.onerror = () => {
-      if (_evtSource && _evtSource.readyState === EventSource.CLOSED) _setStatus('s-idle', 'IDLE');
-    };
   }
 };
 
