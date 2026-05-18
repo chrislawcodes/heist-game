@@ -37,6 +37,13 @@ def main(argv: list[str] | None = None) -> int:
     # serve subcommand
     serve_p = subparsers.add_parser("serve", help="Start the live viewer server.")
     serve_p.add_argument("--port", type=int, default=8000)
+    serve_p.add_argument(
+        "--web-dir", type=Path, default=None, dest="web_dir",
+        metavar="DIR",
+        help="Serve HTML/JS assets from DIR instead of the installed package. "
+             "Pass a worktree's heist/ subdirectory to preview its frontend "
+             "changes against the canonical server and game state.",
+    )
 
     # run subcommand (default behaviour)
     run_p = subparsers.add_parser("run", help="Run a heist and write a markdown report.")
@@ -55,7 +62,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "serve":
         from heist.server import serve
-        serve(port=args.port)
+        serve(port=args.port, web_dir=args.web_dir)
         return 0
 
     # run (subcommand or bare)

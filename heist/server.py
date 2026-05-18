@@ -748,7 +748,26 @@ def _recover_games() -> tuple[int, int]:
     return (games_recovered, ai_resuming)
 
 
-def serve(port: int = 8000) -> None:
+def serve(port: int = 8000, web_dir: Path | None = None) -> None:
+    # Allow callers to point the server at a different asset directory — e.g.
+    # a git worktree — without restarting the whole process or touching state.
+    # Reassign the module-level path globals before the server starts; they are
+    # read fresh on every request so this takes effect immediately.
+    if web_dir is not None:
+        global _LOBBY_HTML, _SETUP_HTML, _HIRING_HTML, _JOB_HTML
+        global _HEIST_HTML, _EPILOGUE_HTML, _SHELL_JS, _MOCKS_DIR, _TABS_DIR
+        d = web_dir.resolve()
+        _LOBBY_HTML    = d / "lobby.html"
+        _SETUP_HTML    = d / "web" / "setup.html"
+        _HIRING_HTML   = d / "hiring.html"
+        _JOB_HTML      = d / "job.html"
+        _HEIST_HTML    = d / "heist.html"
+        _EPILOGUE_HTML = d / "epilogue.html"
+        _SHELL_JS      = d / "web" / "shell.js"
+        _MOCKS_DIR     = d / "mocks"
+        _TABS_DIR      = d / "web" / "tabs"
+        print(f"Assets → {d}")
+
     games_recovered, ai_resuming = _recover_games()
     server = _ThreadingServer(("", port), _Handler)
     print(f"Heist → http://localhost:{port}")
