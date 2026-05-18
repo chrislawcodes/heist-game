@@ -121,11 +121,13 @@ const _aiSubscribers = [];         // callbacks registered via Shell.onAISelecte
 let _REPLAY_EVENTS = [];
 let _REPLAY_INDEX  = 0;
 let _REPLAY_TIMER  = null;
+let _reviewMode    = false;  // true → fast-forward all events instantly, no animation
+let _visibleByAI   = {};     // ai_idx → [buffer indices of visible events for that AI]
 
 const _THOUGHT_CARD_DELAY_MS = (() => {
   const p = new URLSearchParams(window.location.search);
   const n = parseInt(p.get('cardDelay') || '', 10);
-  return Number.isFinite(n) ? n : 5000;
+  return Number.isFinite(n) ? n : 1000;
 })();
 const _thoughtQueue = [];
 let   _thoughtTimer  = null;
@@ -146,16 +148,61 @@ function _isVisibleEvent(e) {
   return true;
 }
 
+// ── stage helpers ─────────────────────────────────────────────────────────────
+// A "stage" is the Nth visible event in each AI's stream. Stages are common
+// across AIs: pressing Step advances every AI by one event. An AI that's
+// shorter than the global total stays frozen at its final state.
+function _computeVisibleByAI() {
+  _visibleByAI = {};
+  _REPLAY_EVENTS.forEach((evt, i) => {
+    if (!_isVisibleEvent(evt)) return;
+    const ai = evt.ai_idx ?? 0;
+    if (!_visibleByAI[ai]) _visibleByAI[ai] = [];
+    _visibleByAI[ai].push(i);
+  });
+}
+function _totalStages() {
+  let max = 0;
+  for (const arr of Object.values(_visibleByAI)) {
+    if (arr.length > max) max = arr.length;
+  }
+  return max;
+}
+function _currentStage() {
+  // How many visible events of the slowest-progressing AI are already processed
+  let max = 0;
+  for (const arr of Object.values(_visibleByAI)) {
+    let n = 0;
+    for (const idx of arr) { if (idx >= _REPLAY_INDEX) break; n++; }
+    if (n > max) max = n;
+  }
+  return max;
+}
+function _bufferIndexAfterStage(stage) {
+  // Buffer index right after stage `stage`'s events for every AI
+  let max = 0;
+  for (const arr of Object.values(_visibleByAI)) {
+    if (arr.length === 0) continue;
+    const i = arr[Math.min(stage - 1, arr.length - 1)];
+    if (i + 1 > max) max = i + 1;
+  }
+  return max;
+}
+
 // ── replay controls ───────────────────────────────────────────────────────────
 function replayStep() {
-  if (_REPLAY_INDEX >= _REPLAY_EVENTS.length) return;
-  while (_REPLAY_INDEX < _REPLAY_EVENTS.length) {
-    const evt = _REPLAY_EVENTS[_REPLAY_INDEX++];
-    _processEvent(evt, _currentOnEvent);
-    if (_isVisibleEvent(evt)) break;
+  const cur   = _currentStage();
+  const total = _totalStages();
+  if (cur >= total) {
+    if (_REPLAY_TIMER) replayToggle();
+    return;
+  }
+  const targetIdx = _bufferIndexAfterStage(cur + 1);
+  while (_REPLAY_INDEX < targetIdx && _REPLAY_INDEX < _REPLAY_EVENTS.length) {
+    _processEvent(_REPLAY_EVENTS[_REPLAY_INDEX++], _currentOnEvent);
   }
   _replayUpdateCounter();
-  if (_REPLAY_INDEX >= _REPLAY_EVENTS.length && _REPLAY_TIMER) replayToggle();
+  if (_currentStage() >= total && _REPLAY_TIMER) replayToggle();
 }
 
 function replayToggle() {
@@ -184,18 +231,144 @@ function replayReset() {
   }
 }
 
+// ── phasenav ──────────────────────────────────────────────────────────────────
+// Rewrites #phasenav after events load so completed phases become clickable
+// links back to that phase in review mode.
+function _updatePhasenav(gameId, events) {
+  const nav = document.getElementById('phasenav');
+  if (!nav || !gameId) return;
+
+  // Inject link styles once
+  if (!document.getElementById('_phase-link-styles')) {
+    const s = document.createElement('style');
+    s.id = '_phase-link-styles';
+    s.textContent = 'a.phase-item{text-decoration:none;cursor:pointer}' +
+                    'a.phase-item:hover{color:var(--text)!important}';
+    document.head.appendChild(s);
+  }
+
+  const hasJob      = events.some(e => e.type === 'job_known');
+  const hasHeist    = events.some(e => e.type === 'scene_start');
+  const hasEpilogue = events.some(e => e.type === 'game_done');
+
+  const current = window.location.pathname.replace(/^\//, '').split('?')[0] || 'hiring';
+
+  const phases = [
+    { label: 'Hiring',   path: 'hiring',   reachable: true        },
+    { label: 'Job',      path: 'job',       reachable: hasJob      },
+    { label: 'Heist',    path: 'heist',     reachable: hasHeist    },
+    { label: 'Epilogue', path: 'epilogue',  reachable: hasEpilogue },
+  ];
+
+  nav.innerHTML = phases.map((p, i) => {
+    const sep = i < phases.length - 1 ? '<span class="phase-sep">→</span>' : '';
+    if (p.path === current) {
+      return `<span class="phase-item phase-active">${p.label}</span>${sep}`;
+    }
+    if (p.reachable) {
+      return `<a class="phase-item phase-done" href="/${p.path}?game=${gameId}&review=1">${p.label}</a>${sep}`;
+    }
+    return `<span class="phase-item">${p.label}</span>${sep}`;
+  }).join('');
+}
+
+// ── phase navigation ──────────────────────────────────────────────────────────
+// Called by each page when it reaches its phase boundary (e.g. job_known,
+// scene_start, game_done). In play mode we navigate immediately and carry the
+// autoplay flag so the next page resumes playing. In step mode we stop and
+// show a Continue button so the user can read the current page at their own pace.
+function _atPhaseEnd(url) {
+  if (_reviewMode) return;  // fast-forward pass — don't navigate
+  // Always navigate. In play mode, carry the autoplay flag so the next page
+  // resumes automatically; otherwise just navigate.
+  if (_REPLAY_TIMER) {
+    const sep = url.includes('?') ? '&' : '?';
+    window.location = url + sep + 'autoplay=1';
+  } else {
+    window.location = url;
+  }
+}
+
 function _replayUpdateCounter() {
   const el = document.getElementById('replay-counter');
   if (!el) return;
-  const seen  = _REPLAY_EVENTS.slice(0, _REPLAY_INDEX).filter(_isVisibleEvent).length;
-  const total = _REPLAY_EVENTS.filter(_isVisibleEvent).length;
-  el.textContent = `${seen} / ${total}`;
+  el.textContent = `${_currentStage()} / ${_totalStages()}`;
 }
 
-// Expose for HTML onclick attributes
+function _prevPhaseUrl() {
+  const gameId = new URLSearchParams(window.location.search).get('game');
+  if (!gameId) return null;
+  const current = window.location.pathname.replace(/^\//, '');
+  const phases   = ['hiring', 'job', 'heist', 'epilogue'];
+  const idx      = phases.indexOf(current);
+  if (idx <= 0) return null;
+  return `/${phases[idx - 1]}?game=${gameId}&review=1`;
+}
+
+// Jump replay state to exactly `stage` stages processed across all AIs.
+// Used by Back, AI-switch rewind, page-load auto-fast-forward.
+function _jumpToStage(stage) {
+  if (_REPLAY_TIMER) replayToggle();
+  _REPLAY_INDEX = 0;
+  _thoughtQueue.length = 0;
+  if (_thoughtTimer) { clearTimeout(_thoughtTimer); _thoughtTimer = null; }
+  for (const k of Object.keys(_hiredMarks)) delete _hiredMarks[k];
+  _aiStreams.forEach((_, i) => _aiStreams[i] = []);
+  _renderThinking();
+  if (_currentOnEvent) { try { _currentOnEvent({ type: '_reset' }); } catch {} }
+
+  if (stage > 0) {
+    const targetIdx = _bufferIndexAfterStage(stage);
+    _reviewMode = true;
+    while (_REPLAY_INDEX < targetIdx && _REPLAY_INDEX < _REPLAY_EVENTS.length) {
+      _processEvent(_REPLAY_EVENTS[_REPLAY_INDEX++], _currentOnEvent);
+    }
+    _reviewMode = false;
+  }
+  _replayUpdateCounter();
+}
+
+function replayBack() {
+  if (_REPLAY_TIMER) replayToggle();
+  const cur = _currentStage();
+  const phaseStart = _phaseStartStage(_currentPhasePath()) || 1;
+  if (cur <= phaseStart) {
+    // At the start of this phase — go back to the previous phase page in review mode
+    const prev = _prevPhaseUrl();
+    if (prev) window.location = prev;
+    return;
+  }
+  _jumpToStage(cur - 1);
+}
+
+// What page (= phase) are we on?
+function _currentPhasePath() {
+  const p = window.location.pathname.replace(/^\//, '').split('?')[0];
+  return p || 'hiring';
+}
+
+// Stage where the current page's content begins. Each page auto-fast-forwards
+// to this stage on load so the user starts at their phase, not at the bid.
+function _phaseStartStage(phase) {
+  if (phase === 'hiring') return 1;
+  const arr0 = _visibleByAI[0] || [];
+  let pred;
+  if      (phase === 'job')      pred = e => e.type === 'job_known';
+  else if (phase === 'heist')    pred = e => e.type === 'scene_start';
+  else if (phase === 'epilogue') pred = e => e.type === 'game_done';
+  else return 1;
+  for (let i = 0; i < arr0.length; i++) {
+    if (pred(_REPLAY_EVENTS[arr0[i]])) return i + 1;
+  }
+  return null;
+}
+
+// Expose for HTML onclick attributes and cross-page calls
 window.replayStep   = replayStep;
+window.replayBack   = replayBack;
 window.replayToggle = replayToggle;
 window.replayReset  = replayReset;
+window.Shell.atPhaseEnd = _atPhaseEnd;
 
 // ── fragment loader ───────────────────────────────────────────────────────────
 async function loadTabFragment(name) {
@@ -260,22 +433,38 @@ window.initShell = async function({ gameId, onEvent } = {}) {
   _renderAIPicker();
   _selectAI(0);
 
-  // 3. Always use replay mode (for testing). Load the recorded event buffer
-  //    and expose step/play/reset controls. Live SSE is disabled so the user
-  //    fully controls progression.
+  // 3. Always use replay mode. Load the recorded event buffer and expose
+  //    step/play/reset controls. Live SSE is disabled — the user controls pace.
   _setStatus('s-idle', 'REPLAY');
-  const rcEl = document.getElementById('replay-controls');
-  if (rcEl) rcEl.style.display = '';
   if (targetGame && targetGame.id != null) {
     try {
       const data = await fetch(`/api/games/${targetGame.id}/events`).then(r => r.json());
       _REPLAY_EVENTS = data.events || [];
       Shell.replayEvents = _REPLAY_EVENTS;
+      _computeVisibleByAI();
       _replayUpdateCounter();
+      _updatePhasenav(targetGame.id, _REPLAY_EVENTS);
     } catch (e) {
       _addThought(0, 'scene', 'Replay load error', Shell.helpers.escapeHtml(String(e)));
     }
   }
+
+  const _params = new URLSearchParams(window.location.search);
+
+  if (_params.get('review') === '1') {
+    // Review mode: fast-forward all events instantly so the page shows its
+    // full state without the user having to step through it again.
+    _jumpToStage(_totalStages());
+    return;
+  }
+
+  // Auto-fast-forward to the start of THIS page's phase so the user begins
+  // at the content that's relevant here, not at the very first bid.
+  const startStage = _phaseStartStage(_currentPhasePath());
+  if (startStage && startStage > 1) _jumpToStage(startStage);
+
+  // If the previous page handed off in play mode, resume playing automatically.
+  if (_params.get('autoplay') === '1') replayToggle();
 };
 
 // ── event processor ───────────────────────────────────────────────────────────
@@ -377,7 +566,16 @@ function _renderAIPicker() {
     </button>`
   ).join('');
 }
-window._selectAIFromUI = (idx) => _selectAI(idx);
+window._selectAIFromUI = (idx) => {
+  const prev = Shell.currentAI;
+  _selectAI(idx);
+  // User-initiated switch: rewind to the start of the current phase so
+  // they see this AI's full context for the phase they're looking at.
+  if (idx !== prev) {
+    const start = _phaseStartStage(_currentPhasePath()) || 1;
+    _jumpToStage(start);
+  }
+};
 
 function _selectAI(idx) {
   Shell.currentAI = idx;
@@ -396,7 +594,7 @@ function _addThought(aiIdx, kind, title, bodyHtml, opts) {
   const t = { aiIdx, kind, title, body: bodyHtml, ...(opts || {}) };
   while (_aiStreams.length <= aiIdx) _aiStreams.push([]);
   _aiStreams[aiIdx].unshift(t);
-  if (_THOUGHT_CARD_DELAY_MS <= 0) {
+  if (_THOUGHT_CARD_DELAY_MS <= 0 || _reviewMode) {
     if (aiIdx === Shell.currentAI) _prependThought(t);
     return;
   }
