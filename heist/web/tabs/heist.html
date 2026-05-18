@@ -323,10 +323,12 @@
     $$('job-name').textContent = job.name || '—';
 
     const profile = job.profile || {};
+    const LEVEL_SHORT = { HARD: 'HARD', MEDIUM: 'MED', LOW: 'LOW' };
     const chips = Object.entries(PROFILE_KEY_TO_LABEL).map(([key, label]) => {
       const level = (profile[key] || 'NONE').toUpperCase();
       const cls = level === 'HARD' ? 'hard' : level === 'MEDIUM' ? 'med' : level === 'LOW' ? 'low' : '';
-      const text = level === 'NONE' ? `${esc(label)} —` : `${esc(label)} ${esc(level.slice(0,3))}`;
+      const short = LEVEL_SHORT[level] || '';
+      const text = level === 'NONE' ? `${esc(label)} —` : `${esc(label)} ${esc(short)}`;
       return `<span class="h2-profile-chip ${cls}">${text}</span>`;
     }).join('');
     $$('job-profile').innerHTML = chips;
@@ -418,6 +420,12 @@
         <div class="h2-chars">${blocks}</div>
         ${reasoningHtml}
       </div>`;
+    } else if (!result) {
+      // Scene is in progress — the AI hasn't picked who's on it yet
+      charsHtml = `<div>
+        <div class="h2-section-label">Assigned</div>
+        <div class="h2-escape-info" style="font-style:italic">Waiting for crew assignment…</div>
+      </div>`;
     }
 
     // ── challenge / escape block ─────────────────────────────────────────────
@@ -438,14 +446,21 @@
       const apiSkill = (meta.challenge_skill || '').toLowerCase();
       const shortSk  = SKILL_API_TO_SHORT[apiSkill] || 'soc';
       const word     = SKILL_TO_TYPE_WORD[apiSkill] || meta.challenge_skill;
-      const reality  = result ? (result.challenge_level || 'NONE').toUpperCase() : null;
+      // Declared by the scene (from scene_start), or reality from scene_done.
+      // Both come from scene.challenge_level so they should match — but if a
+      // future hidden-depth mechanic mutates the resolved level, surface it.
+      const declared = meta.challenge_level ? String(meta.challenge_level).toUpperCase() : null;
+      const reality  = result && result.challenge_level ? String(result.challenge_level).toUpperCase() : null;
       // Expected from job.profile, looked up via reverse mapping
       let expected = null;
       if (job && job.profile) {
         const profileKey = Object.entries(PROFILE_KEY_TO_SHORT).find(([, sh]) => sh === shortSk)?.[0];
-        if (profileKey) expected = (job.profile[profileKey] || 'NONE').toUpperCase();
+        if (profileKey) {
+          const p = (job.profile[profileKey] || '').toUpperCase();
+          if (p && p !== 'NONE') expected = p;
+        }
       }
-      const level = reality || expected || '';
+      const level = reality || declared || expected || '';
       const lvlCls = level === 'HARD' ? 'hard' : level === 'MEDIUM' ? 'med' : '';
       const coreHtml = meta.is_core ? '<span class="h2-core-badge">Core Scene</span>' : '';
       const warnHtml = (expected && reality && expected !== reality)
@@ -459,6 +474,12 @@
           ${coreHtml}
         </div>
         ${warnHtml}
+      </div>`;
+    } else if (meta.scene_type === 'setup' || meta.scene_type === 'transition') {
+      // Narrative scenes with no mechanical challenge — keep the body informative
+      challengeHtml = `<div>
+        <div class="h2-section-label">Type</div>
+        <div class="h2-escape-info">Narrative scene — no challenge roll.</div>
       </div>`;
     }
 
