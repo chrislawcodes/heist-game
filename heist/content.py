@@ -1,9 +1,11 @@
-"""Jobs and game constants.
+"""Jobs, hidden depth, and other Phase 1 content.
 
-Character roster lives in heist.characters — import from there.
+The character roster lives in the `heist.characters` package — one Python
+module per character. ROSTER and ROSTER_BY_ID are re-exported below so
+existing `from heist.content import ROSTER` imports keep working.
 """
 
-from heist.characters import ROSTER, ROSTER_BY_ID  # noqa: F401 — re-exported for callers
+from heist.characters import ROSTER, ROSTER_BY_ID  # noqa: F401  (re-exported)
 from heist.state import (
     ChallengeLevel,
     HiddenDepthElement,
