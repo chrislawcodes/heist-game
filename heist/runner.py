@@ -49,13 +49,15 @@ SceneCallback = Callable[[SceneResult], None]
 SnapshotFn = Callable[[dict], None] | None
 
 # Stage labels for snapshotting. Resume jumps to the stage *after* the one
-# whose snapshot was last persisted.
-STAGE_DRAFTING            = "drafting"
-STAGE_JOB_PICKED          = "job_picked"
-STAGE_CASTING_SUMMARY_DONE = "casting_summary_done"
-STAGE_IN_SCENE            = "in_scene"
-STAGE_EPILOGUE            = "epilogue"
-STAGE_DONE                = "done"
+# whose snapshot was last persisted. Order matches the new run_heist flow:
+# bid → casting_summary → job_pick → hidden_depth → scenes → epilogue → done.
+STAGE_DRAFTING       = "drafting"          # initial / never snapshotted
+STAGE_CREW_DRAFTED   = "crew_drafted"      # after bid: crew is known, no summary yet
+STAGE_SUMMARY_DONE   = "summary_done"      # after casting_summary, no job yet
+STAGE_JOB_PICKED     = "job_picked"        # after job_pick + hidden_depth rolled
+STAGE_IN_SCENE       = "in_scene"          # snapshot after every scene
+STAGE_EPILOGUE       = "epilogue"
+STAGE_DONE           = "done"
 
 # Min seconds between back-to-back AI turns when streaming to a viewer, so the
 # player can absorb each beat. Only applies when `emit` is set (i.e. server
@@ -201,15 +203,23 @@ def _job_prompt(crew: Crew) -> str:
         "challenge in the job's profile, confirm the crew has either a High specialist "
         "in that area OR two Mediums who can pair on it. If neither, that job is a "
         "trap — pick a different one. Reply with ONLY JSON:\n"
-        '{"job_name": "<exact name>", "reasoning": "<why this job, given the crew and prompt>"}'
+        '{\n'
+        '  "job_name": "<exact name>",\n'
+        '  "why_this": "<why this job fits — crew skills, budget, risk>",\n'
+        '  "why_not":  "<for each of the other jobs on the slate, one sentence on '
+        'why it was a worse pick>"\n'
+        "}"
     )
 
 
 def _summary_prompt() -> str:
+    # Runs BEFORE job_pick — talk only about the crew composition. The job
+    # hasn't been chosen yet.
     return (
-        "Now write the casting summary (a transparent paragraph or two for the player) "
-        "explaining the bid logic, who you hired, and which job you picked. Be honest "
-        "about the trade-offs you made. Reply with ONLY JSON:\n"
+        "Now write a casting summary (a transparent paragraph or two for the player) "
+        "explaining the bid logic and who you hired. Be honest about the trade-offs "
+        "you made. (You have not picked a job yet — focus on the crew composition.) "
+        "Reply with ONLY JSON:\n"
         '{"summary": "<2-4 paragraphs in markdown, no leading heading>"}'
     )
 
@@ -410,14 +420,15 @@ def _broadcast_scene_done(
     })
 
 
-def _draft_and_pick_job(
+def _draft_crew(
     strategy: str,
     ai: HeistAI,
     logs: list[TurnLog],
     extras: dict[str, Any],
     emit: EmitFn,
-) -> tuple[Crew, Any]:
-    """Stages 1+2: bidding + job selection. Returns (crew, job)."""
+) -> Crew:
+    """Draft only — returns the assembled Crew. Job pick happens later, after
+    the casting summary."""
     bid_turn = _call(ai, _bid_prompt(strategy), "bid", logs, emit)
     bid_parsed = parse_json_block(bid_turn.text)
     extras["bid_logic"] = bid_parsed
@@ -428,7 +439,11 @@ def _draft_and_pick_job(
     if emit:
         from heist.serialize import crew_to_dict
         emit({"type": "crew_known", "crew": crew_to_dict(crew)})
+    return crew
 
+
+def _pick_job(crew: Crew, ai: HeistAI, logs: list[TurnLog], extras: dict, emit: EmitFn) -> Any:
+    """Stage: pick a job given the assembled crew. Emits job_known."""
     job_turn = _call(ai, _job_prompt(crew), "job_pick", logs, emit)
     job_parsed = parse_json_block(job_turn.text)
     name = job_parsed["job_name"]
@@ -442,7 +457,7 @@ def _draft_and_pick_job(
     if emit:
         from heist.serialize import job_to_dict
         emit({"type": "job_known", "job": job_to_dict(job)})
-    return crew, job
+    return job
 
 
 def _roll_hidden_depth(
@@ -520,24 +535,33 @@ def run_heist(
     }
     heist_start = time.monotonic()
 
-    # 1+2. Draft + job selection
-    crew, job = _draft_and_pick_job(strategy, ai, logs, extras, emit)
-    # Snapshot at job_picked: enough to skip both _call("bid") and _call("job_pick").
-    # state is None at this point — we synthesise a minimal state below.
+    # 1. Draft crew
+    crew = _draft_crew(strategy, ai, logs, extras, emit)
+    # Snapshot crew_drafted: stash the crew so resume can skip _call("bid").
+    # No job yet, so we synthesise a placeholder HeistState that just carries
+    # the crew. resume_heist treats job/hidden_depth as TBD at this stage.
+    placeholder_job = JOBS[0]   # never observed; replaced by real pick later
     pre_state = HeistState(
-        crew=crew, job=job,
+        crew=crew, job=placeholder_job,
         hidden_depth=HiddenDepthRoll(
-            element=job.hidden_depth[0], reward_label="", reward_amount=0,
+            element=placeholder_job.hidden_depth[0], reward_label="", reward_amount=0,
         ),
     )
     _snapshot(
-        snapshot_fn, stage=STAGE_JOB_PICKED, strategy=strategy, ai=ai, rng=rng,
+        snapshot_fn, stage=STAGE_CREW_DRAFTED, strategy=strategy, ai=ai, rng=rng,
         state=pre_state, extras=extras, scene_idx=0,
     )
 
-    # 3. Casting summary
+    # 2. Casting summary (BEFORE job pick — talks only about the crew)
     summary_turn = _call(ai, _summary_prompt(), "casting_summary", logs, emit)
     extras["casting_summary"] = parse_json_block(summary_turn.text).get("summary", "")
+    _snapshot(
+        snapshot_fn, stage=STAGE_SUMMARY_DONE, strategy=strategy, ai=ai, rng=rng,
+        state=pre_state, extras=extras, scene_idx=0,
+    )
+
+    # 3. Job pick
+    job = _pick_job(crew, ai, logs, extras, emit)
 
     # 4. Hidden depth roll
     from heist.scenes import generate_scenes
@@ -545,7 +569,7 @@ def run_heist(
     state = HeistState(crew=crew, job=job, hidden_depth=hidden)
     scenes = generate_scenes(job, hidden)
     _snapshot(
-        snapshot_fn, stage=STAGE_CASTING_SUMMARY_DONE, strategy=strategy, ai=ai,
+        snapshot_fn, stage=STAGE_JOB_PICKED, strategy=strategy, ai=ai,
         rng=rng, state=state, extras=extras, scene_idx=0,
     )
 
@@ -634,29 +658,50 @@ def resume_heist(
         for r in snapshot["state"].get("scene_results", [])
     ]
 
-    if stage == STAGE_JOB_PICKED:
-        # Need to redo casting_summary, hidden_depth roll, scenes, scene loop, epilogue.
+    if stage == STAGE_CREW_DRAFTED:
+        # Crew drafted, no summary or job yet. Re-emit crew_known so a viewer
+        # connecting post-restart can draw the board; then run summary, pick
+        # job, roll hidden depth, run scenes, epilogue.
         if emit:
-            from heist.serialize import crew_to_dict, job_to_dict
+            from heist.serialize import crew_to_dict
             emit({"type": "crew_known", "crew": crew_to_dict(state.crew)})
-            emit({"type": "job_known", "job": job_to_dict(state.job)})
-
         summary_turn = _call(ai, _summary_prompt(), "casting_summary", logs, emit)
         extras["casting_summary"] = parse_json_block(summary_turn.text).get("summary", "")
-
-        hidden = _roll_hidden_depth(state.job, rng, emit)
-        state = HeistState(crew=state.crew, job=state.job, hidden_depth=hidden)
-        scenes = generate_scenes(state.job, hidden)
         _snapshot(
-            snapshot_fn, stage=STAGE_CASTING_SUMMARY_DONE, strategy=strategy, ai=ai,
+            snapshot_fn, stage=STAGE_SUMMARY_DONE, strategy=strategy, ai=ai,
+            rng=rng, state=state, extras=extras, scene_idx=0,
+        )
+        job = _pick_job(state.crew, ai, logs, extras, emit)
+        hidden = _roll_hidden_depth(job, rng, emit)
+        state = HeistState(crew=state.crew, job=job, hidden_depth=hidden)
+        scenes = generate_scenes(job, hidden)
+        _snapshot(
+            snapshot_fn, stage=STAGE_JOB_PICKED, strategy=strategy, ai=ai,
             rng=rng, state=state, extras=extras, scene_idx=0,
         )
         _run_scene_loop(scenes, state, ai, logs, extras, emit, on_scene,
                         snapshot_fn, strategy, rng, start_idx=0)
 
-    elif stage == STAGE_CASTING_SUMMARY_DONE:
-        # Hidden depth already rolled into state.hidden_depth. Generate scenes
-        # and run from scene 0.
+    elif stage == STAGE_SUMMARY_DONE:
+        # Summary done, no job yet. Re-emit crew_known; pick job, roll hidden,
+        # run scenes.
+        if emit:
+            from heist.serialize import crew_to_dict
+            emit({"type": "crew_known", "crew": crew_to_dict(state.crew)})
+        job = _pick_job(state.crew, ai, logs, extras, emit)
+        hidden = _roll_hidden_depth(job, rng, emit)
+        state = HeistState(crew=state.crew, job=job, hidden_depth=hidden)
+        scenes = generate_scenes(job, hidden)
+        _snapshot(
+            snapshot_fn, stage=STAGE_JOB_PICKED, strategy=strategy, ai=ai,
+            rng=rng, state=state, extras=extras, scene_idx=0,
+        )
+        _run_scene_loop(scenes, state, ai, logs, extras, emit, on_scene,
+                        snapshot_fn, strategy, rng, start_idx=0)
+
+    elif stage == STAGE_JOB_PICKED:
+        # Crew + summary + job all done, hidden depth already rolled.
+        # Generate scenes and run from scene 0.
         if emit:
             from heist.serialize import crew_to_dict, job_to_dict
             emit({"type": "crew_known", "crew": crew_to_dict(state.crew)})

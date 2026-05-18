@@ -60,11 +60,12 @@ def test_snapshots_dont_change_final_outcome():
     assert state_off.aborted == state_on.aborted
     assert state_off.escape_success == state_on.escape_success
     assert len(state_off.scene_results) == len(state_on.scene_results)
-    # At minimum: job_picked, casting_summary_done, len(scenes) in-scene, done.
-    assert len(captured) >= 4
+    # At minimum: crew_drafted, summary_done, job_picked, len(scenes) in-scene, done.
+    assert len(captured) >= 5
     stages = [s["stage"] for s in captured]
+    assert "crew_drafted" in stages
+    assert "summary_done" in stages
     assert "job_picked" in stages
-    assert "casting_summary_done" in stages
     assert "in_scene" in stages
     assert stages[-1] == "done"
 
@@ -91,13 +92,28 @@ def test_resume_from_job_picked_completes():
     assert extras["epilogue"]  # epilogue was produced
 
 
-def test_resume_from_casting_summary_done_completes():
+def test_resume_from_summary_done_completes():
+    """Resuming from `summary_done` (after casting summary, before job pick)
+    runs the rest of the heist."""
     snaps, baseline = _capture_snapshots(seed=7)
-    cs = next(s for s in snaps if s["stage"] == "casting_summary_done")
+    cs = next(s for s in snaps if s["stage"] == "summary_done")
 
     state, extras = resume_heist(cs, build_stub_ai())
     assert state.final_take == baseline.final_take
     assert state.escape_success == baseline.escape_success
+    assert extras["epilogue"]
+
+
+def test_resume_from_crew_drafted_completes():
+    """Resuming from `crew_drafted` (after bid, before summary) runs
+    casting_summary + job_pick + scenes + epilogue."""
+    snaps, baseline = _capture_snapshots(seed=7)
+    cd = next(s for s in snaps if s["stage"] == "crew_drafted")
+
+    state, extras = resume_heist(cd, build_stub_ai())
+    assert state.final_take == baseline.final_take
+    assert state.escape_success == baseline.escape_success
+    assert extras["casting_summary"]
     assert extras["epilogue"]
 
 
@@ -167,10 +183,12 @@ def test_resume_emits_crew_and_job_events():
     """Resuming mid-run should re-emit ``crew_known`` and ``job_known`` so a
     viewer that connects late can still draw the board."""
     snaps, _ = _capture_snapshots(seed=7)
-    cs = next(s for s in snaps if s["stage"] == "casting_summary_done")
+    # Resume from job_picked: state is fully populated, so crew_known AND
+    # job_known are both re-emitted.
+    jp = next(s for s in snaps if s["stage"] == "job_picked")
 
     emitted: list[dict] = []
-    resume_heist(cs, build_stub_ai(), emit=emitted.append)
+    resume_heist(jp, build_stub_ai(), emit=emitted.append)
 
     types = [e["type"] for e in emitted]
     assert "crew_known" in types
