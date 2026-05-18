@@ -16,6 +16,7 @@ The AI talks in JSON for structured steps; the runner parses defensively.
 from __future__ import annotations
 
 import contextlib
+import os
 import random
 import sys
 import time
@@ -44,11 +45,22 @@ from heist.state import (
 EmitFn = Callable[[dict], None] | None
 SceneCallback = Callable[[SceneResult], None]
 
+# Min seconds between back-to-back AI turns when streaming to a viewer, so the
+# player can absorb each beat. Only applies when `emit` is set (i.e. server
+# mode); CLI mode is unaffected. Override with HEIST_TURN_DELAY=<seconds>.
+TURN_DELAY_SECONDS = float(os.environ.get("HEIST_TURN_DELAY", "10"))
+_last_turn_end_at: float | None = None
+
 
 def _call(
     ai: HeistAI, prompt: str, label: str, logs: list[TurnLog], emit: EmitFn = None
 ) -> AgentTurn:
     """Time one AI call, log it, echo to stderr, and optionally emit turn events."""
+    global _last_turn_end_at
+    if emit and TURN_DELAY_SECONDS > 0 and _last_turn_end_at is not None:
+        remaining = TURN_DELAY_SECONDS - (time.monotonic() - _last_turn_end_at)
+        if remaining > 0:
+            time.sleep(remaining)
     if emit:
         emit({"type": "turn_start", "label": label, "prompt": prompt})
     t0 = time.monotonic()
@@ -62,6 +74,7 @@ def _call(
             parsed = parse_json_block(turn.text)
         emit({"type": "turn_end", "label": label, "seconds": elapsed,
               "response": turn.text, "parsed": parsed})
+        _last_turn_end_at = time.monotonic()
     return turn
 
 
