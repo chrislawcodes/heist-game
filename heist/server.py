@@ -52,6 +52,7 @@ _LOBBY_HTML  = Path(__file__).parent / "lobby.html"
 _SETUP_HTML  = Path(__file__).parent / "web" / "setup.html"
 _VIEWER_HTML = Path(__file__).parent / "viewer.html"
 _MOCKS_DIR   = Path(__file__).parent / "mocks"
+_TABS_DIR    = Path(__file__).parent / "web" / "tabs"
 
 
 def _broadcast(event: dict) -> None:
@@ -142,6 +143,8 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             self._serve_mocks_index()
         elif p.startswith("/mocks/"):
             self._serve_mock(p[len("/mocks/"):])
+        elif p.startswith("/tabs/"):
+            self._serve_tab(p[len("/tabs/"):])
         elif p == "/stream":
             self._serve_sse()
         elif p == "/api/meta":
@@ -204,6 +207,30 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             mocks_root = _MOCKS_DIR.resolve()
             ok = (
                 str(resolved).startswith(str(mocks_root) + "/")
+                and resolved.is_file()
+            )
+        except OSError:
+            ok = False
+        if not ok:
+            self.send_response(404)
+            self.end_headers()
+            return
+        self._serve_file(resolved)
+
+    def _serve_tab(self, name: str) -> None:
+        """Serve a tab fragment from web/tabs/<name>.html. The viewer shell
+        fetches these at boot to compose the multi-tab UI."""
+        # path-traversal guard: resolved path must stay inside _TABS_DIR
+        candidate = (
+            (_TABS_DIR / name)
+            if name.endswith(".html")
+            else (_TABS_DIR / name).with_suffix(".html")
+        )
+        try:
+            resolved = candidate.resolve()
+            tabs_root = _TABS_DIR.resolve()
+            ok = (
+                str(resolved).startswith(str(tabs_root) + "/")
                 and resolved.is_file()
             )
         except OSError:

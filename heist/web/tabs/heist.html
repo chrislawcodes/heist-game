@@ -1,0 +1,328 @@
+<!--
+  The Heist tab. Loaded into the viewer shell at boot via /tabs/heist.
+
+  Shell contract:
+    1. Shell loads this fragment (style + template + script all activate).
+    2. Shell calls HeistTab.mount(container, { shell })
+    3. Shell forwards every SSE event via HeistTab.handleEvent(ev)
+    4. Shell calls HeistTab.reset() on replay reset
+
+  Events the tab acts on:
+    scene_start             → create/update scene card (in-progress state)
+    scene_done              → update scene card (success/failure, heat)
+    turn_end (narration)    → fill in scene narration once it lands
+    game_done               → render the heist outcome card at the bottom
+
+  Re-renders the full scene list when shell switches AI.
+-->
+
+<style>
+.heist-root { padding: 0; display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+
+.heist-root .heist-heat-bar {
+  flex-shrink: 0; padding: 10px 24px;
+  background: var(--panel); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 12px;
+}
+.heist-root .heist-heat-label { font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); }
+.heist-root .heist-heat-dots  { font-family: monospace; font-size: 14px; color: var(--red); letter-spacing: 2px; }
+
+.heist-root #scene-list { flex: 1; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
+
+.heist-root .scene-card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 18px 20px; }
+.heist-root .scene-card-header  { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.heist-root .scene-card-num     { font-size: 11px; font-weight: 700; color: var(--muted); font-family: monospace; }
+.heist-root .scene-card-title   { font-size: 15px; font-weight: 700; color: var(--text); flex: 1; }
+.heist-root .scene-type-badge   {
+  font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  padding: 2px 8px; border-radius: 3px; background: #1a1a26; color: var(--muted);
+}
+.heist-root .scene-type-badge.stype-core     { background: #0c1a2e; color: var(--blue); }
+.heist-root .scene-type-badge.stype-escape   { background: #1a0c1a; color: var(--purple); }
+.heist-root .scene-type-badge.stype-decision { background: #1a1a0c; color: var(--accent); }
+.heist-root .scene-status-pending { font-size: 11px; color: var(--accent); animation: heistPulse 1.2s ease-in-out infinite; }
+@keyframes heistPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+.heist-root .scene-result-ok   { font-size: 12px; font-weight: 700; color: var(--green); }
+.heist-root .scene-result-fail { font-size: 12px; font-weight: 700; color: var(--red); }
+.heist-root .scene-result-none { font-size: 12px; color: var(--muted); }
+.heist-root .scene-challenge-block { margin-bottom: 12px; }
+.heist-root .sc-challenge-title {
+  font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 6px;
+}
+.heist-root .sc-challenge-row     { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+.heist-root .sc-challenge-row-lbl { font-size: 11px; color: var(--muted); width: 70px; font-family: monospace; }
+.heist-root .scene-hidden-depth-warn {
+  background: #2a1a04; border-left: 3px solid var(--accent);
+  border-radius: 4px; padding: 6px 12px; font-size: 12px; color: var(--accent); margin-top: 6px;
+}
+.heist-root .scene-assigned-block  { margin-bottom: 12px; }
+.heist-root .scene-assigned-label  { font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+.heist-root .scene-assigned-names  { font-size: 13px; color: var(--text); }
+.heist-root .scene-reasoning-text  { font-size: 12px; color: var(--muted); font-style: italic; margin-top: 4px; line-height: 1.5; }
+.heist-root .scene-decision-block  { margin-bottom: 12px; background: var(--panel2); border-radius: 5px; padding: 10px 14px; }
+.heist-root .scene-decision-label  { font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+.heist-root .scene-decision-pursue { color: var(--green); font-weight: 700; font-size: 13px; }
+.heist-root .scene-decision-pass   { color: var(--muted); font-weight: 700; font-size: 13px; }
+.heist-root .scene-decision-reason { font-size: 12px; color: var(--muted); font-style: italic; margin-top: 4px; }
+.heist-root .scene-narration  { font-size: 13px; color: #c0bcd0; line-height: 1.75; border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px; }
+.heist-root .scene-narrating  { font-size: 12px; color: var(--muted); font-style: italic; border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px; }
+.heist-root .escape-info      { font-size: 13px; color: var(--muted); margin-bottom: 10px; font-family: monospace; }
+
+.heist-root .heist-outcome-card         { background: var(--panel2); border: 2px solid var(--border); border-radius: 8px; padding: 22px 24px; margin-top: 8px; }
+.heist-root .heist-outcome-heading-ok   { font-size: 18px; font-weight: 700; color: var(--green); margin-bottom: 16px; }
+.heist-root .heist-outcome-heading-fail { font-size: 18px; font-weight: 700; color: var(--red); margin-bottom: 16px; }
+.heist-root .heist-outcome-take         { font-family: monospace; font-size: 24px; font-weight: 700; color: var(--accent); margin-bottom: 14px; }
+.heist-root .heist-outcome-row          { display: flex; gap: 12px; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+.heist-root .heist-outcome-row-key      { min-width: 100px; font-family: monospace; }
+.heist-root .heist-outcome-row-val      { color: var(--text); }
+</style>
+
+<template id="heist-template">
+  <div class="heist-root">
+    <div class="heist-heat-bar">
+      <span class="heist-heat-label">Heat</span>
+      <span class="heist-heat-dots" data-ht="heat-dots">○○○○○</span>
+    </div>
+    <div id="scene-list" data-ht="scene-list"></div>
+  </div>
+</template>
+
+<script>
+(function () {
+  'use strict';
+
+  const SKILL_TO_TYPE = { hacker:'electronic', safecracker:'physical', muscle:'confrontation', inside_man:'social' };
+
+  let root = null;
+  let Shell = null;
+  // per-AI: { sceneNum -> { meta, result, narration } }
+  const scenesByAI = {};
+  const narrationsByAI = {};   // ai_idx -> { sceneNum -> narration }
+  const gameStateByAI = {};
+  const heatByAI = {};
+  const crewByAI = {};
+  const jobByAI = {};
+
+  function $$(name) { return root && root.querySelector(`[data-ht="${name}"]`); }
+  function _scenesFor(aiIdx)     { return scenesByAI[aiIdx]     ||= {}; }
+  function _narrationsFor(aiIdx) { return narrationsByAI[aiIdx] ||= {}; }
+
+  function updateHeistHeat(n) {
+    const filled = Math.min(Math.max(n || 0, 0), 5);
+    const dots = $$('heat-dots');
+    if (dots) dots.textContent = '●'.repeat(filled) + '○'.repeat(5 - filled);
+  }
+
+  function renderSceneList() {
+    if (!root) return;
+    const listEl = $$('scene-list');
+    if (!listEl) return;
+    listEl.innerHTML = '';
+    const scenes = scenesByAI[Shell.currentAI] || {};
+    const sceneNums = Object.keys(scenes).map(Number).sort((a, b) => a - b);
+    sceneNums.forEach(n => renderSceneCard(n));
+    if (gameStateByAI[Shell.currentAI]) renderHeistOutcome();
+  }
+
+  function renderSceneCard(sceneNum) {
+    if (!root || !Shell) return;
+    const esc = Shell.helpers.escapeHtml;
+    const scenes = scenesByAI[Shell.currentAI] || {};
+    const s = scenes[sceneNum]; if (!s) return;
+    const job  = jobByAI[Shell.currentAI];
+    const crew = crewByAI[Shell.currentAI];
+    const listEl = $$('scene-list');
+    const cardId = 'scene-card-' + Shell.currentAI + '-' + sceneNum;
+    let card = document.getElementById(cardId);
+    if (!card) {
+      card = document.createElement('div');
+      card.className = 'scene-card'; card.id = cardId;
+      listEl.appendChild(card);
+    }
+    const meta = s.meta || {}, result = s.result || null, narr = s.narration || null;
+    const typeMap = { escape:'stype-escape', decision:'stype-decision' };
+    const typeCls = typeMap[meta.scene_type] || (meta.is_core ? 'stype-core' : '');
+    const typeText = { escape:'Escape', decision:'Decision' }[meta.scene_type]
+      || (meta.is_core ? 'Core' : meta.scene_type || 'Scene');
+
+    let resultHtml = !result ? '<span class="scene-status-pending">● in progress</span>'
+      : result.aborted ? '<span class="scene-result-none">— ABORTED</span>'
+      : meta.scene_type === 'escape'
+        ? (result.escape_success ? '<span class="scene-result-ok">✓ CLEAN EXIT</span>'
+                                  : '<span class="scene-result-fail">✗ CAUGHT</span>')
+      : result.success === true  ? '<span class="scene-result-ok">✓ SUCCESS</span>'
+      : result.success === false ? '<span class="scene-result-fail">✗ FAILURE</span>'
+      : '<span class="scene-result-none">—</span>';
+
+    let challengeHtml = '';
+    if (meta.scene_type === 'escape') {
+      const diff = result ? result.escape_difficulty : '?';
+      const mod  = job ? job.escape_modifier : '?';
+      const heat = result ? result.heat : '?';
+      challengeHtml = `<div class="escape-info">Escape — difficulty ${esc(String(diff))} (modifier ${esc(String(mod))} + heat ${esc(String(heat))})</div>
+        ${result ? '<div class="escape-info">Result: ' + (result.escape_success ? '<span style="color:var(--green)">✓ Clean exit</span>' : '<span style="color:var(--red)">✗ Caught</span>') + '</div>' : ''}`;
+    } else if (meta.challenge_skill && meta.scene_type !== 'setup') {
+      const skill = (meta.challenge_skill || '').toLowerCase();
+      const typeKey = SKILL_TO_TYPE[skill];
+      const expected = (job && typeKey && job.profile) ? (job.profile[typeKey] || 'NONE').toUpperCase() : null;
+      const reality  = result ? (result.challenge_level || 'NONE').toUpperCase() : null;
+      const warn = (expected && reality && expected !== reality)
+        ? `<div class="scene-hidden-depth-warn">⚠ Hidden depth modified: expected ${esc(expected)}, got ${esc(reality)}</div>`
+        : '';
+      challengeHtml = `<div class="scene-challenge-block">
+        <div class="sc-challenge-title">Challenge · ${esc(meta.challenge_skill)}</div>
+        ${expected != null ? `<div class="sc-challenge-row"><span class="sc-challenge-row-lbl">Expected</span>${Shell.helpers.buildDiffBar(expected)}<span class="ct-level-name ${Shell.helpers.diffCls(expected)}" style="font-size:11px">${esc(expected)}</span></div>` : ''}
+        ${reality  != null ? `<div class="sc-challenge-row"><span class="sc-challenge-row-lbl">Reality</span>${Shell.helpers.buildDiffBar(reality)}<span class="ct-level-name ${Shell.helpers.diffCls(reality)}" style="font-size:11px">${esc(reality)}</span></div>` : ''}
+        ${warn}</div>`;
+    } else {
+      challengeHtml = '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Narrative scene</div>';
+    }
+
+    let assignedHtml = '';
+    if (result && result.assigned_member_ids && result.assigned_member_ids.length) {
+      const names = result.assigned_member_ids.map(id => {
+        const m = crew && crew.members ? crew.members.find(x => x.id == id) : null;
+        return m ? esc(m.name) : esc(String(id));
+      }).join(', ');
+      assignedHtml = `<div class="scene-assigned-block">
+        <div class="scene-assigned-label">Assigned</div>
+        <div class="scene-assigned-names">${names}</div>
+        ${result.reasoning ? `<div class="scene-reasoning-text">"${esc(result.reasoning)}"</div>` : ''}
+      </div>`;
+    }
+
+    let decisionHtml = '';
+    if (meta.scene_type === 'decision' && result) {
+      const pursue = result.decision === 'pursue' || result.pursue === true;
+      decisionHtml = `<div class="scene-decision-block">
+        <div class="scene-decision-label">Decision</div>
+        ${pursue ? '<span class="scene-decision-pursue">▶ PURSUE</span>' : '<span class="scene-decision-pass">— PASS</span>'}
+        ${result.reasoning ? `<div class="scene-decision-reason">"${esc(result.reasoning)}"</div>` : ''}
+      </div>`;
+    }
+
+    const narrationHtml = result
+      ? (narr ? `<div class="scene-narration prose">${Shell.helpers.renderMd(narr)}</div>`
+              : '<div class="scene-narrating">Narrating…</div>')
+      : '';
+
+    card.innerHTML = `
+      <div class="scene-card-header">
+        <span class="scene-card-num">Scene ${sceneNum}</span>
+        <span class="scene-card-title">${esc(meta.title || '')}</span>
+        <span class="scene-type-badge ${typeCls}">${esc(typeText)}</span>
+        ${resultHtml}
+      </div>
+      ${challengeHtml}${assignedHtml}${decisionHtml}${narrationHtml}`;
+  }
+
+  function renderHeistOutcome() {
+    if (!root || !Shell) return;
+    const esc = Shell.helpers.escapeHtml;
+    const listEl = $$('scene-list');
+    const existing = document.getElementById('heist-outcome-' + Shell.currentAI);
+    if (existing) existing.remove();
+    const gs = gameStateByAI[Shell.currentAI];
+    if (!gs) return;
+    const ok = !gs.aborted && gs.escape_success !== false;
+    const take = gs.final_take != null ? '$' + Number(gs.final_take).toLocaleString() : '—';
+    const bonusStr = gs.bonus_pursued
+      ? (gs.bonus_success ? `Pursued — succeeded ($${Number(gs.bonus_amount).toLocaleString()})` : 'Pursued — failed')
+      : 'Not pursued';
+    const card = document.createElement('div');
+    card.id = 'heist-outcome-' + Shell.currentAI;
+    card.className = 'heist-outcome-card';
+    card.innerHTML = `
+      <div class="${ok ? 'heist-outcome-heading-ok' : 'heist-outcome-heading-fail'}">${ok ? '✓ HEIST COMPLETE' : '✗ HEIST FAILED'}</div>
+      <div class="heist-outcome-take">${esc(take)}</div>
+      <div class="heist-outcome-row"><span class="heist-outcome-row-key">Escape</span><span class="heist-outcome-row-val">${gs.escape_success ? 'Succeeded' : 'Failed'}</span></div>
+      <div class="heist-outcome-row"><span class="heist-outcome-row-key">Bonus</span><span class="heist-outcome-row-val">${esc(bonusStr)}</span></div>
+      <div class="heist-outcome-row"><span class="heist-outcome-row-key">Final heat</span><span class="heist-outcome-row-val">${gs.heat || 0}</span></div>`;
+    listEl.appendChild(card);
+  }
+
+  // ── lifecycle ───────────────────────────────────────────────────────────
+  function mount(container, opts) {
+    Shell = (opts && opts.shell) || window.Shell;
+    const tpl = document.getElementById('heist-template');
+    if (!tpl) { console.error('HeistTab: #heist-template not in DOM'); return; }
+    container.innerHTML = '';
+    container.appendChild(tpl.content.cloneNode(true));
+    root = container.querySelector('.heist-root');
+    renderSceneList();
+    updateHeistHeat(heatByAI[Shell.currentAI] || 0);
+    if (Shell.onAISelected) Shell.onAISelected(() => {
+      updateHeistHeat(heatByAI[Shell.currentAI] || 0);
+      renderSceneList();
+    });
+  }
+
+  function handleEvent(e) {
+    if (!root || !Shell) return;
+    const aiIdx = e.ai_idx ?? 0;
+    const scenes = _scenesFor(aiIdx);
+    const narrations = _narrationsFor(aiIdx);
+
+    if (e.type === 'crew_known') {
+      crewByAI[aiIdx] = e.crew;
+
+    } else if (e.type === 'job_known') {
+      jobByAI[aiIdx] = e.job;
+
+    } else if (e.type === 'turn_end') {
+      // capture narration when it lands so a re-render shows it
+      const m = e.label && e.label.match(/^scene_(\d+)_(?:escape_)?narrate$/);
+      if (m && e.parsed && e.parsed.narration) {
+        const sNum = parseInt(m[1], 10);
+        narrations[sNum] = e.parsed.narration;
+        if (scenes[sNum]) {
+          scenes[sNum].narration = e.parsed.narration;
+          if (aiIdx === Shell.currentAI) renderSceneCard(sNum);
+        }
+      }
+
+    } else if (e.type === 'scene_start') {
+      const sNum = e.scene_num;
+      if (!scenes[sNum]) scenes[sNum] = {};
+      scenes[sNum].meta = e;
+      if (narrations[sNum]) scenes[sNum].narration = narrations[sNum];
+      if (aiIdx === Shell.currentAI) renderSceneCard(sNum);
+
+    } else if (e.type === 'scene_done') {
+      heatByAI[aiIdx] = e.heat;
+      if (aiIdx === Shell.currentAI) updateHeistHeat(e.heat);
+      const sNum = e.scene_num;
+      if (!scenes[sNum]) scenes[sNum] = {};
+      scenes[sNum].result = e;
+      if (narrations[sNum]) scenes[sNum].narration = narrations[sNum];
+      if (aiIdx === Shell.currentAI) renderSceneCard(sNum);
+
+    } else if (e.type === 'game_done') {
+      gameStateByAI[aiIdx] = e.state;
+      crewByAI[aiIdx] = e.state.crew;
+      jobByAI[aiIdx]  = e.state.job;
+      heatByAI[aiIdx] = e.state.heat;
+      if (aiIdx === Shell.currentAI) {
+        updateHeistHeat(e.state.heat);
+        renderHeistOutcome();
+      }
+    }
+  }
+
+  function reset() {
+    for (const k of Object.keys(scenesByAI))    delete scenesByAI[k];
+    for (const k of Object.keys(narrationsByAI))delete narrationsByAI[k];
+    for (const k of Object.keys(gameStateByAI)) delete gameStateByAI[k];
+    for (const k of Object.keys(heatByAI))      delete heatByAI[k];
+    for (const k of Object.keys(crewByAI))      delete crewByAI[k];
+    for (const k of Object.keys(jobByAI))       delete jobByAI[k];
+    renderSceneList();
+    updateHeistHeat(0);
+  }
+
+  function unmount() { root = null; }
+
+  window.HeistTab = { mount, handleEvent, reset, unmount };
+})();
+</script>
