@@ -302,7 +302,9 @@ function _prevPhaseUrl() {
   const phases   = ['hiring', 'job', 'heist', 'epilogue'];
   const idx      = phases.indexOf(current);
   if (idx <= 0) return null;
-  return `/${phases[idx - 1]}?game=${gameId}&review=1`;
+  // No ?review=1 — let the previous page auto-fast-forward to ITS phase start
+  // instead of the end of everything. "Back" = one step back, even across pages.
+  return `/${phases[idx - 1]}?game=${gameId}`;
 }
 
 // Jump replay state to exactly `stage` stages processed across all AIs.
