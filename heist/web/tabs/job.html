@@ -10,6 +10,7 @@
   Events the tab acts on:
     turn_end (label='job_pick') → record AI's why-this/why-not reasoning
     job_known                   → fix job, render job card + profile
+    crew_known                  → fix crew skills for team card
     hidden_depth_rolled         → render the hidden-depth callout
     game_done                   → finalise job state from game state
 
@@ -17,88 +18,297 @@
 -->
 
 <style>
-.job-root { padding: 24px; gap: 24px; display: flex; flex-direction: column; overflow-y: auto; flex: 1; }
+/* ── root container ── */
+.job-root {
+  padding: 20px 24px 40px;
+  overflow-y: auto;
+  flex: 1;
+  font-family: 'Georgia', serif;
+}
 
-.job-root .job-card {
+/* ── two-column page split (main | reasoning sidebar) ── */
+.job-root .jt-split {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 24px;
+  align-items: start;
+}
+
+/* ── section heading with trailing rule ── */
+.job-root .jt-heading {
+  font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--muted); margin: 0 0 14px;
+  display: flex; align-items: center; gap: 12px;
+}
+.job-root .jt-heading::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+/* ══════════════════════════════════════════
+   SEGMENT BARS  (matches game.html exactly)
+══════════════════════════════════════════ */
+.job-root .cs-bars { display: flex; gap: 3px; align-items: center; }
+.job-root .seg {
+  width: 14px; height: 6px; border-radius: 1px;
+  background: rgba(255,255,255,0.07); flex-shrink: 0;
+}
+.job-root .seg.f-hack  { background: var(--sk-hack); }
+.job-root .seg.f-safe  { background: var(--sk-safe); }
+.job-root .seg.f-musc  { background: var(--sk-musc); }
+.job-root .seg.f-soc   { background: var(--sk-soc); }
+.job-root .seg.f-drive { background: var(--sk-drive); }
+
+/* ══════════════════════════════════════════
+   PHOTO PLACEHOLDER STRIP
+══════════════════════════════════════════ */
+.job-root .jt-photo {
+  position: relative; overflow: hidden;
+  display: flex; align-items: flex-end;
+  padding: 10px 14px; height: 130px;
+}
+.job-root .jt-photo::after {
+  content: '';
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+.job-root .jt-photo-icon {
+  position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+  font-size: 3.2rem; opacity: 0.18; z-index: 1;
+}
+.job-root .jt-photo-label {
+  font-size: 9px; letter-spacing: 2px; text-transform: uppercase;
+  color: rgba(255,255,255,0.2); position: relative; z-index: 1;
+}
+
+/* Photo colour themes */
+.job-root .photo-crew     { background: linear-gradient(160deg, #0e1e10 0%, #132818 60%, #091208 100%); }
+.job-root .photo-default  { background: linear-gradient(160deg, #1a1430 0%, #251a42 60%, #121026 100%); }
+.job-root .photo-armored  { background: linear-gradient(160deg, #181818 0%, #222222 60%, #111111 100%); }
+.job-root .photo-server   { background: linear-gradient(160deg, #0d2020 0%, #122c2c 60%, #091818 100%); }
+.job-root .photo-penthouse{ background: linear-gradient(160deg, #1e1230 0%, #2a1845 60%, #14102a 100%); }
+.job-root .photo-cargo    { background: linear-gradient(160deg, #201408 0%, #2e1c0a 60%, #160e04 100%); }
+.job-root .photo-diplomat { background: linear-gradient(160deg, #0a1428 0%, #0e1c38 60%, #080f1e 100%); }
+.job-root .photo-casino   { background: linear-gradient(160deg, #200a0a 0%, #300f0f 60%, #180606 100%); }
+
+/* ══════════════════════════════════════════
+   COMPARISON GRID (team | location)
+══════════════════════════════════════════ */
+.job-root .jt-comparison {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.job-root .jt-card {
   background: var(--panel); border: 1px solid var(--border);
-  border-left: 3px solid var(--accent); border-radius: 8px; padding: 20px 24px;
+  border-radius: 8px; overflow: hidden;
 }
-.job-root .job-card-name   { font-size: 22px; font-weight: 700; color: var(--accent); margin-bottom: 8px; }
-.job-root .job-card-flavor { font-size: 14px; font-style: italic; color: #c0bcd0; line-height: 1.7; margin-bottom: 14px; }
-.job-root .job-reward      { font-family: monospace; font-size: 13px; color: var(--green); }
-.job-root .job-section-label {
-  font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
-  color: var(--muted); margin-bottom: 10px;
+.job-root .jt-card-selected {
+  border-color: var(--accent);
+  background: #181400;
 }
-.job-root .challenge-table { width: 100%; border-collapse: collapse; }
-.job-root .challenge-table td { padding: 5px 0; vertical-align: middle; }
-.job-root .ct-label { font-size: 12px; color: var(--muted); width: 130px; font-family: monospace; }
-.job-root .ct-bar   { width: 80px; }
-.job-root .ct-bar-segs { display: flex; gap: 3px; }
-.job-root .ct-seg  { width: 14px; height: 10px; border-radius: 2px; background: #26262c; }
-.job-root .ct-seg.lvl-hard   { background: var(--red); }
-.job-root .ct-seg.lvl-medium { background: var(--blue); }
-.job-root .ct-seg.lvl-low    { background: var(--muted); }
-.job-root .ct-level-name   { font-size: 12px; font-family: monospace; min-width: 70px; }
-.job-root .ct-level-hard   { color: var(--red); }
-.job-root .ct-level-medium { color: var(--blue); }
-.job-root .ct-level-low    { color: var(--muted); }
-.job-root .ct-level-none   { color: #3a3a44; }
-.job-root .job-reasoning {
-  background: var(--panel2); border: 1px solid var(--border);
-  border-radius: 6px; padding: 14px 18px;
+
+.job-root .jt-card-body { padding: 18px 20px; }
+
+/* Large title inside each card */
+.job-root .jt-card-title {
+  font-size: 18px; color: var(--accent); font-weight: normal;
+  line-height: 1.2; margin-bottom: 0;
 }
-.job-root .job-reasoning-label {
-  font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+
+/* Reward text next to title */
+.job-root .jt-card-reward {
+  font-size: 11px; color: var(--muted); white-space: nowrap; flex-shrink: 0;
+}
+
+/* Divider label inside card (e.g. "Known Difficulty") */
+.job-root .jt-card-divider {
+  font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--muted); margin: 14px 0 10px;
+  display: flex; align-items: center; gap: 10px;
+}
+.job-root .jt-card-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+/* Rows inside card */
+.job-root .jt-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.job-root .jt-row:last-child { border-bottom: none; }
+.job-root .jt-row-label {
+  font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
+  color: var(--muted); flex: 1;
+}
+.job-root .jt-warn { font-size: 11px; color: #d4943a; flex-shrink: 0; }
+
+/* Escape modifier display (text, not bars) */
+.job-root .jt-escape-mod {
+  font-family: monospace; font-size: 12px; color: var(--muted);
+}
+
+/* ══════════════════════════════════════════
+   REASONING SIDEBAR
+══════════════════════════════════════════ */
+.job-root .jt-reasoning {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 8px; padding: 22px 20px;
+  position: sticky; top: 20px;
+}
+.job-root .jt-reasoning-eyebrow {
+  font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--accent); margin-bottom: 6px;
+}
+.job-root .jt-reasoning-title {
+  font-size: 18px; font-weight: normal; color: var(--text); margin-bottom: 18px;
+}
+.job-root .jt-reasoning-group { margin-bottom: 18px; }
+.job-root .jt-reasoning-group:last-child { margin-bottom: 0; }
+.job-root .jt-reasoning-label {
+  font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
   color: var(--muted); margin-bottom: 8px;
 }
-.job-root .job-reasoning-text { font-size: 13px; color: #c0bcd0; line-height: 1.65; }
-.job-root .job-reasoning-subhead {
+.job-root .jt-reasoning-quote {
+  font-size: 13px; line-height: 1.65; color: var(--muted); font-style: italic;
+  padding: 10px 14px; border-left: 2px solid var(--accent);
+  background: var(--panel2); border-radius: 0 4px 4px 0;
+}
+.job-root .jt-reasoning-body {
+  font-size: 13px; line-height: 1.6; color: var(--muted);
+}
+.job-root .jt-reasoning-subhead {
   font-size: 10px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase;
-  color: var(--accent);
-  margin-top: 10px; margin-bottom: 4px;
+  color: var(--accent); margin: 10px 0 4px;
 }
-.job-root .job-reasoning-subhead:first-child { margin-top: 0; }
-.job-root .job-reasoning-body { font-size: 13px; color: #c0bcd0; line-height: 1.65; margin-bottom: 4px; }
+.job-root .jt-reasoning-subhead:first-child { margin-top: 0; }
 
-.job-root .hidden-depth-section {
+/* ══════════════════════════════════════════
+   HIDDEN DEPTH SECTION
+══════════════════════════════════════════ */
+.job-root .jt-hd {
   background: var(--panel); border: 1px solid var(--border);
-  border-radius: 8px; padding: 16px 20px;
+  border-radius: 8px; padding: 16px 20px; margin-top: 16px;
 }
-.job-root .hd-callout { border-radius: 5px; padding: 12px 16px; margin: 10px 0; font-size: 13px; line-height: 1.6; }
-.job-root .hd-callout-complication { background: #2a0c0c; border-left: 3px solid var(--red); }
-.job-root .hd-callout-opportunity  { background: #2a1e04; border-left: 3px solid var(--accent); }
-.job-root .hd-callout-bonus        { background: #0a2018; border-left: 3px solid var(--green); }
-.job-root .hd-badge {
+.job-root .jt-hd-callout {
+  border-radius: 5px; padding: 12px 16px; margin: 10px 0;
+  font-size: 13px; line-height: 1.6;
+}
+.job-root .jt-hd-callout.hd-complication { background: #2a0c0c; border-left: 3px solid var(--red); }
+.job-root .jt-hd-callout.hd-opportunity  { background: #2a1e04; border-left: 3px solid var(--accent); }
+.job-root .jt-hd-callout.hd-bonus        { background: #0a2018; border-left: 3px solid var(--green); }
+.job-root .jt-hd-badge {
   display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 1px;
   text-transform: uppercase; padding: 2px 8px; border-radius: 3px; margin-bottom: 8px;
 }
-.job-root .hd-badge-complication { background: #3a1010; color: var(--red); }
-.job-root .hd-badge-opportunity  { background: #3a2a08; color: var(--accent); }
-.job-root .hd-badge-bonus        { background: #0c2a18; color: var(--green); }
-.job-root .hd-reward { font-family: monospace; font-size: 12px; color: var(--muted); margin-top: 8px; }
+.job-root .jt-hd-badge.hd-complication { background: #3a1010; color: var(--red); }
+.job-root .jt-hd-badge.hd-opportunity  { background: #3a2a08; color: var(--accent); }
+.job-root .jt-hd-badge.hd-bonus        { background: #0c2a18; color: var(--green); }
+.job-root .jt-hd-reward {
+  font-family: monospace; font-size: 12px; color: var(--muted); margin-top: 8px;
+}
 </style>
 
 <template id="job-template">
   <div class="job-root">
-    <div class="job-card" data-jt="job-card" style="display:none">
-      <div class="job-card-name"   data-jt="job-name"></div>
-      <div class="job-card-flavor" data-jt="job-flavor"></div>
-      <div class="job-reward"      data-jt="job-reward"></div>
-    </div>
-    <div data-jt="profile-section" style="display:none">
-      <div class="job-section-label">Challenge Profile</div>
-      <table class="challenge-table" data-jt="challenge-table"></table>
-    </div>
-    <div class="job-reasoning" data-jt="reasoning-block" style="display:none">
-      <div class="job-reasoning-label">AI rationale</div>
-      <div class="job-reasoning-text" data-jt="reasoning-text"></div>
-    </div>
-    <div class="hidden-depth-section" data-jt="hd-section" style="display:none">
-      <div class="job-section-label">Hidden Depth Revealed</div>
-      <div data-jt="hd-callout-wrap"></div>
-      <div class="hd-reward" data-jt="hd-reward"></div>
-    </div>
+    <!-- shown once job is known -->
+    <div data-jt="main" style="display:none">
+      <div class="jt-split">
+
+        <!-- ── Left column ── -->
+        <div>
+          <div class="jt-heading">Job Slate</div>
+          <div class="jt-comparison">
+
+            <!-- Team card -->
+            <div class="jt-card">
+              <div class="jt-photo photo-crew">
+                <div class="jt-photo-icon">👥</div>
+                <div class="jt-photo-label">Crew</div>
+              </div>
+              <div class="jt-card-body">
+                <div style="margin-bottom: 14px;">
+                  <div class="jt-card-title" data-jt="crew-name">The Crew</div>
+                </div>
+                <div class="jt-card-divider">Team Skills</div>
+                <div class="jt-row">
+                  <span class="jt-row-label">Inside Man</span>
+                  <div class="cs-bars" data-jt="team-soc"></div>
+                </div>
+                <div class="jt-row">
+                  <span class="jt-row-label">Safecracker</span>
+                  <div class="cs-bars" data-jt="team-safe"></div>
+                </div>
+                <div class="jt-row">
+                  <span class="jt-row-label">Hacker</span>
+                  <div class="cs-bars" data-jt="team-hack"></div>
+                </div>
+                <div class="jt-row">
+                  <span class="jt-row-label">Muscle</span>
+                  <div class="cs-bars" data-jt="team-musc"></div>
+                </div>
+                <div class="jt-row">
+                  <span class="jt-row-label">Driver</span>
+                  <div class="cs-bars" data-jt="team-drive"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Location card -->
+            <div class="jt-card jt-card-selected">
+              <div class="jt-photo" data-jt="location-photo">
+                <div class="jt-photo-icon" data-jt="location-icon">🏢</div>
+                <div class="jt-photo-label">Location</div>
+              </div>
+              <div class="jt-card-body">
+                <div style="display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin-bottom:14px;">
+                  <div class="jt-card-title" data-jt="job-name"></div>
+                  <div class="jt-card-reward" data-jt="job-reward"></div>
+                </div>
+                <div class="jt-card-divider">Known Difficulty</div>
+                <div class="jt-row">
+                  <span class="jt-row-label">Social</span>
+                  <div class="cs-bars" data-jt="bars-social"></div>
+                </div>
+                <div class="jt-row">
+                  <span class="jt-row-label">Physical</span>
+                  <div class="cs-bars" data-jt="bars-physical"></div>
+                </div>
+                <div class="jt-row">
+                  <span class="jt-row-label">Electronic</span>
+                  <div class="cs-bars" data-jt="bars-electronic"></div>
+                </div>
+                <div class="jt-row">
+                  <span class="jt-row-label">Confrontation</span>
+                  <div class="cs-bars" data-jt="bars-confrontation"></div>
+                </div>
+                <div class="jt-row">
+                  <span class="jt-row-label">Escape</span>
+                  <span class="jt-warn" data-jt="escape-warn" style="display:none">⚠</span>
+                  <span class="jt-escape-mod" data-jt="escape-mod"></span>
+                </div>
+              </div>
+            </div>
+
+          </div><!-- /.jt-comparison -->
+
+          <!-- Hidden depth (shown after hidden_depth_rolled) -->
+          <div class="jt-hd" data-jt="hd-section" style="display:none">
+            <div class="jt-heading">Hidden Depth Revealed</div>
+            <div data-jt="hd-callout"></div>
+            <div class="jt-hd-reward" data-jt="hd-reward"></div>
+          </div>
+
+        </div><!-- /left column -->
+
+        <!-- ── Reasoning sidebar ── -->
+        <div class="jt-reasoning" data-jt="reasoning-panel" style="display:none">
+          <div class="jt-reasoning-eyebrow">AI Reasoning</div>
+          <div class="jt-reasoning-title">Why this job</div>
+          <div data-jt="reasoning-body"></div>
+        </div>
+
+      </div><!-- /.jt-split -->
+    </div><!-- /main -->
   </div>
 </template>
 
@@ -108,97 +318,177 @@
 
   let root = null;
   let Shell = null;
-  const jobByAI = {};
-  const jobReasoningByAI = {};   // ai_idx -> { why_this, why_not, legacy }
-  const hdByAI = {};
+
+  const jobByAI       = {};   // ai_idx → job object
+  const reasoningByAI = {};   // ai_idx → { why_this, why_not, legacy }
+  const hdByAI        = {};   // ai_idx → hidden_depth_rolled event
+  const crewByAI      = {};   // ai_idx → array of crew members
 
   function $$(name) { return root && root.querySelector(`[data-jt="${name}"]`); }
 
+  // ── helpers ─────────────────────────────────────────────────────────────────
+
+  function segs(n, cls) {
+    // 3 segments, first n lit with skill colour class
+    return [0, 1, 2].map(i =>
+      `<span class="seg${i < n ? ' f-' + cls : ''}"></span>`
+    ).join('');
+  }
+
+  function levelToCount(str) {
+    const s = (str || '').toUpperCase();
+    if (s === 'HARD')   return 3;
+    if (s === 'MEDIUM' || s === 'MED') return 2;
+    if (s === 'LOW')    return 1;
+    return 0;
+  }
+
+  function photoClassForJob(name) {
+    const n = (name || '').toLowerCase();
+    if (n.includes('armored') || n.includes('armoured') || n.includes('truck') || n.includes('car'))
+      return 'photo-armored';
+    if (n.includes('server') || n.includes('data') || n.includes('tech') || n.includes('corporate'))
+      return 'photo-server';
+    if (n.includes('penthouse') || n.includes('caper') || n.includes('roof'))
+      return 'photo-penthouse';
+    if (n.includes('cargo') || n.includes('yard') || n.includes('dock') || n.includes('port'))
+      return 'photo-cargo';
+    if (n.includes('diplomat') || n.includes('embassy') || n.includes('reception'))
+      return 'photo-diplomat';
+    if (n.includes('casino') || n.includes('vault') || n.includes('hotel'))
+      return 'photo-casino';
+    return 'photo-default';   // museum, gala, gallery, anything else
+  }
+
+  function iconForJob(name) {
+    const n = (name || '').toLowerCase();
+    if (n.includes('museum') || n.includes('gallery') || n.includes('gala')) return '🏛️';
+    if (n.includes('armored') || n.includes('armoured') || n.includes('truck')) return '🚐';
+    if (n.includes('server') || n.includes('data') || n.includes('tech'))  return '🖥️';
+    if (n.includes('penthouse') || n.includes('roof')) return '🌆';
+    if (n.includes('cargo') || n.includes('dock') || n.includes('port'))   return '🏗️';
+    if (n.includes('diplomat') || n.includes('embassy'))  return '🎩';
+    if (n.includes('casino') || n.includes('vault'))  return '🎰';
+    return '🏢';
+  }
+
+  // ── render ───────────────────────────────────────────────────────────────────
+
   function render() {
     if (!root || !Shell) return;
-    const esc = Shell.helpers.escapeHtml;
-    const job  = jobByAI[Shell.currentAI];
-    const jobCard       = $$('job-card');
-    const profileBlock  = $$('profile-section');
-    const reasoningBlk  = $$('reasoning-block');
-    const hdBlock       = $$('hd-section');
+    const esc  = Shell.helpers.escapeHtml;
+    const aiIdx = Shell.currentAI;
 
-    if (!job) {
-      jobCard.style.display = 'none';
-      profileBlock.style.display = 'none';
-      reasoningBlk.style.display = 'none';
-      hdBlock.style.display = 'none';
-      return;
-    }
+    const job       = jobByAI[aiIdx];
+    const reasoning = reasoningByAI[aiIdx];
+    const hd        = hdByAI[aiIdx];
+    const crew      = crewByAI[aiIdx] || [];
 
-    $$('job-name').textContent   = job.name;
-    $$('job-flavor').textContent = job.flavor || '';
+    const main = $$('main');
+    if (!job) { main.style.display = 'none'; return; }
+    main.style.display = '';
+
+    // ── location photo ────────────────────────────────────────────────────────
+    const photoEl = $$('location-photo');
+    photoEl.className = 'jt-photo ' + photoClassForJob(job.name);
+    $$('location-icon').textContent = iconForJob(job.name);
+
+    // ── job name + reward ─────────────────────────────────────────────────────
+    $$('job-name').textContent = job.name || '';
     const rr = job.reward_range;
     $$('job-reward').textContent = rr
-      ? '$' + (rr[0]/1e6).toFixed(1) + 'm – $' + (rr[1]/1e6).toFixed(1) + 'm'
+      ? '$' + (rr[0] / 1e6).toFixed(1) + 'm – $' + (rr[1] / 1e6).toFixed(1) + 'm'
       : '';
-    jobCard.style.display = '';
 
+    // ── difficulty bars ───────────────────────────────────────────────────────
     const p = job.profile || {};
-    $$('challenge-table').innerHTML = [
-      {label:'Electronic',    key:'electronic'},
-      {label:'Physical',      key:'physical'},
-      {label:'Confrontation', key:'confrontation'},
-      {label:'Social',        key:'social'},
-      {label:'Escape',        isEscape:true},
-    ].map(row => {
-      if (row.isEscape) {
-        const mod = job.escape_modifier != null ? job.escape_modifier : '—';
-        return `<tr><td class="ct-label">Escape</td><td class="ct-bar"></td><td class="ct-level-name ct-level-none" style="font-size:12px;font-family:monospace">modifier ${esc(String(mod))}</td></tr>`;
-      }
-      const level = (p[row.key] || 'NONE').toUpperCase();
-      return `<tr><td class="ct-label">${esc(row.label)}</td><td class="ct-bar">${Shell.helpers.buildDiffBar(level)}</td><td class="ct-level-name ${Shell.helpers.diffCls(level)}">${esc(level)}</td></tr>`;
-    }).join('');
-    profileBlock.style.display = '';
-
-    const reasoning = jobReasoningByAI[Shell.currentAI];
-    if (reasoning && (reasoning.why_this || reasoning.why_not || reasoning.legacy || typeof reasoning === 'string')) {
-      const target = $$('reasoning-text');
-      if (typeof reasoning === 'string') {
-        target.textContent = reasoning;
-      } else if (reasoning.why_this || reasoning.why_not) {
-        let html = '';
-        if (reasoning.why_this) {
-          html += `<div class="job-reasoning-subhead">Why this job</div>` +
-                  `<div class="job-reasoning-body">${esc(reasoning.why_this)}</div>`;
-        }
-        if (reasoning.why_not) {
-          html += `<div class="job-reasoning-subhead">Why not the others</div>` +
-                  `<div class="job-reasoning-body">${esc(reasoning.why_not)}</div>`;
-        }
-        target.innerHTML = html;
-      } else {
-        target.textContent = reasoning.legacy || '';
-      }
-      reasoningBlk.style.display = '';
-    } else {
-      reasoningBlk.style.display = 'none';
+    const diffMap = {
+      'bars-social':        { level: p.social,        cls: 'soc'  },
+      'bars-physical':      { level: p.physical,      cls: 'safe' },
+      'bars-electronic':    { level: p.electronic,    cls: 'hack' },
+      'bars-confrontation': { level: p.confrontation, cls: 'musc' },
+    };
+    for (const [slot, { level, cls }] of Object.entries(diffMap)) {
+      $$(slot).innerHTML = segs(levelToCount(level), cls);
     }
 
-    const hd = hdByAI[Shell.currentAI];
-    if (hd) {
-      const types = {
-        complication:          {badge:'hd-badge-complication', callout:'hd-callout-complication', label:'Complication'},
-        opportunity_with_cost: {badge:'hd-badge-opportunity',  callout:'hd-callout-opportunity',  label:'Opportunity'},
-        bonus_with_cost:       {badge:'hd-badge-bonus',        callout:'hd-callout-bonus',        label:'Bonus'},
-      };
-      const t = types[hd.element_type] || types.complication;
-      $$('hd-callout-wrap').innerHTML =
-        `<div class="hd-callout ${t.callout}"><div class="hd-badge ${t.badge}">${t.label}</div><div>${esc(hd.description)}</div></div>`;
-      $$('hd-reward').textContent =
-        `Reward rolled: ${hd.reward_label || '—'} — ${hd.reward_amount != null ? '$' + Number(hd.reward_amount).toLocaleString() : '—'}`;
-      hdBlock.style.display = '';
+    // ── escape row ────────────────────────────────────────────────────────────
+    const mod = job.escape_modifier;
+    const modStr = mod != null ? (mod > 0 ? '+' + mod : String(mod)) : '—';
+    $$('escape-mod').textContent = 'modifier ' + modStr;
+    $$('escape-warn').style.display = (mod != null && mod < 0) ? '' : 'none';
+
+    // ── team skills ───────────────────────────────────────────────────────────
+    const skillSlots = ['soc', 'safe', 'hack', 'musc', 'drive'];
+    const teamMax = {};
+    skillSlots.forEach(sk => { teamMax[sk] = 0; });
+    crew.forEach(member => {
+      skillSlots.forEach(sk => {
+        const v = Shell.helpers.skillVal(member, sk);
+        if (v > teamMax[sk]) teamMax[sk] = v;
+      });
+    });
+    skillSlots.forEach(sk => {
+      const el = $$('team-' + sk);
+      if (el) el.innerHTML = segs(teamMax[sk], sk);
+    });
+
+    // ── crew name ─────────────────────────────────────────────────────────────
+    const aiName = (Shell.aiList[aiIdx] || {}).name || ('AI ' + aiIdx);
+    $$('crew-name').textContent = aiName + "'s Crew";
+
+    // ── reasoning sidebar ─────────────────────────────────────────────────────
+    const rPanel = $$('reasoning-panel');
+    if (reasoning) {
+      let html = '';
+      if (typeof reasoning === 'string') {
+        html = `<div class="jt-reasoning-body">${esc(reasoning)}</div>`;
+      } else {
+        if (reasoning.why_this) {
+          html += `<div class="jt-reasoning-label">Why this job</div>` +
+                  `<div class="jt-reasoning-quote">${esc(reasoning.why_this)}</div>`;
+        }
+        if (reasoning.why_not) {
+          html += `<div class="jt-reasoning-group">` +
+                  `<div class="jt-reasoning-label">Why not the others</div>` +
+                  `<div class="jt-reasoning-body">${esc(reasoning.why_not)}</div>` +
+                  `</div>`;
+        }
+        if (!reasoning.why_this && !reasoning.why_not && reasoning.legacy) {
+          html = `<div class="jt-reasoning-body">${esc(reasoning.legacy)}</div>`;
+        }
+      }
+      $$('reasoning-body').innerHTML = html;
+      rPanel.style.display = html ? '' : 'none';
     } else {
-      hdBlock.style.display = 'none';
+      rPanel.style.display = 'none';
+    }
+
+    // ── hidden depth ──────────────────────────────────────────────────────────
+    const hdSection = $$('hd-section');
+    if (hd) {
+      const hdKinds = {
+        complication:          { label: 'Complication' },
+        opportunity_with_cost: { label: 'Opportunity'  },
+        bonus_with_cost:       { label: 'Bonus'        },
+      };
+      const kind = (hdKinds[hd.element_type] || hdKinds.complication).label.toLowerCase();
+      $$('hd-callout').innerHTML =
+        `<div class="jt-hd-callout hd-${kind}">` +
+          `<div class="jt-hd-badge hd-${kind}">${esc(hdKinds[hd.element_type]?.label || 'Event')}</div>` +
+          `<div>${esc(hd.description || '')}</div>` +
+        `</div>`;
+      $$('hd-reward').textContent = hd.reward_label
+        ? `Reward: ${hd.reward_label} — ${hd.reward_amount != null ? '$' + Number(hd.reward_amount).toLocaleString() : '—'}`
+        : '';
+      hdSection.style.display = '';
+    } else {
+      hdSection.style.display = 'none';
     }
   }
 
-  // ── lifecycle ───────────────────────────────────────────────────────────
+  // ── lifecycle ────────────────────────────────────────────────────────────────
+
   function mount(container, opts) {
     Shell = (opts && opts.shell) || window.Shell;
     const tpl = document.getElementById('job-template');
@@ -215,9 +505,9 @@
     const aiIdx = e.ai_idx ?? 0;
 
     if (e.type === 'turn_end' && e.label === 'job_pick' && e.parsed) {
-      jobReasoningByAI[aiIdx] = {
-        why_this: e.parsed.why_this || '',
-        why_not:  e.parsed.why_not  || '',
+      reasoningByAI[aiIdx] = {
+        why_this: e.parsed.why_this  || '',
+        why_not:  e.parsed.why_not   || '',
         legacy:   e.parsed.reasoning || '',
       };
       if (aiIdx === Shell.currentAI) render();
@@ -226,20 +516,28 @@
       jobByAI[aiIdx] = e.job;
       if (aiIdx === Shell.currentAI) render();
 
+    } else if (e.type === 'crew_known') {
+      crewByAI[aiIdx] = e.crew || [];
+      if (aiIdx === Shell.currentAI) render();
+
     } else if (e.type === 'hidden_depth_rolled') {
       hdByAI[aiIdx] = e;
       if (aiIdx === Shell.currentAI) render();
 
     } else if (e.type === 'game_done') {
-      if (e.state && e.state.job) jobByAI[aiIdx] = e.state.job;
+      if (e.state) {
+        if (e.state.job)  jobByAI[aiIdx]  = e.state.job;
+        if (e.state.crew) crewByAI[aiIdx] = e.state.crew;
+      }
       if (aiIdx === Shell.currentAI) render();
     }
   }
 
   function reset() {
-    for (const k of Object.keys(jobByAI))          delete jobByAI[k];
-    for (const k of Object.keys(jobReasoningByAI)) delete jobReasoningByAI[k];
-    for (const k of Object.keys(hdByAI))           delete hdByAI[k];
+    for (const k of Object.keys(jobByAI))       delete jobByAI[k];
+    for (const k of Object.keys(reasoningByAI)) delete reasoningByAI[k];
+    for (const k of Object.keys(hdByAI))        delete hdByAI[k];
+    for (const k of Object.keys(crewByAI))      delete crewByAI[k];
     render();
   }
 
