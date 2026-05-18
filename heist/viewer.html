@@ -35,7 +35,7 @@ body {
   height: 100vh; display: flex; flex-direction: column; overflow: hidden;
 }
 
-/* ── topbar ── */
+/* ── topbar ─────────────────────────────────────────────────────────────── */
 #topbar {
   height: 44px; padding: 0 16px; border-bottom: 1px solid var(--border);
   display: flex; align-items: center; gap: 14px; flex-shrink: 0;
@@ -71,7 +71,7 @@ body {
 .s-done    { background: #0c2018; color: var(--green); }
 .s-error   { background: #2e0c0c; color: var(--red); }
 
-/* ── tabnav ── */
+/* ── tabnav ─────────────────────────────────────────────────────────────── */
 #tabnav {
   height: 38px; padding: 0 16px; border-bottom: 1px solid var(--border);
   display: flex; align-items: stretch; flex-shrink: 0;
@@ -88,227 +88,13 @@ body {
 .tab-btn.tab-active { color: var(--accent); border-bottom-color: var(--accent); }
 .tab-btn.tab-locked { color: #3a3a44; cursor: not-allowed; }
 
-/* ── content layout ── */
+/* ── content layout ─────────────────────────────────────────────────────── */
 #content { flex: 1; display: flex; overflow: hidden; }
 #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 .tab-panel { display: none; flex: 1; overflow: hidden; flex-direction: column; }
 .tab-panel.tab-visible { display: flex; }
 
-/* ══════════════════════ DRAFT TAB ══════════════════════ */
-#tab-draft { flex-direction: column; }
-
-#draft-board {
-  flex: 1 1 55%; min-height: 0;
-  display: flex; flex-direction: column;
-  padding: 12px 16px 10px;
-  overflow: hidden;
-}
-.section-header {
-  display: flex; align-items: baseline; gap: 12px; margin-bottom: 8px;
-  flex-shrink: 0;
-}
-.section-title {
-  font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
-  color: var(--muted);
-}
-.section-sub { font-size: 11px; color: var(--muted); font-family: monospace; }
-.section-legend {
-  margin-left: auto; display: flex; gap: 10px;
-  font-size: 9px; color: var(--muted);
-}
-.legend-item { display: flex; align-items: center; gap: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
-.legend-swatch { width: 12px; height: 4px; border-radius: 1px; }
-
-.board-grid {
-  flex: 1; overflow-y: auto;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-  gap: 6px;
-  align-content: start;
-  padding-right: 4px;
-}
-
-/* character card */
-.char-card {
-  position: relative;
-  border-radius: 7px;
-  border: 1px solid var(--border);
-  overflow: hidden;
-  display: flex; flex-direction: column;
-  background: var(--panel2);
-  animation: cardIn 0.35s ease;
-}
-@keyframes cardIn {
-  from { opacity: 0; transform: scale(0.95) translateY(4px); }
-  to   { opacity: 1; transform: none; }
-}
-.char-card[data-primary="hack"]  { background: linear-gradient(180deg, rgba(88,152,224,0.32) 0%, rgba(88,152,224,0.08) 100%); border-color: rgba(88,152,224,0.65); }
-.char-card[data-primary="safe"]  { background: linear-gradient(180deg, rgba(232,160,48,0.32) 0%, rgba(232,160,48,0.08) 100%); border-color: rgba(232,160,48,0.65); }
-.char-card[data-primary="musc"]  { background: linear-gradient(180deg, rgba(224,80,80,0.32) 0%, rgba(224,80,80,0.08) 100%);  border-color: rgba(224,80,80,0.65); }
-.char-card[data-primary="soc"]   { background: linear-gradient(180deg, rgba(144,112,224,0.32) 0%, rgba(144,112,224,0.08) 100%); border-color: rgba(144,112,224,0.65); }
-.char-card[data-primary="drive"] { background: linear-gradient(180deg, rgba(82,196,122,0.32) 0%, rgba(82,196,122,0.08) 100%); border-color: rgba(82,196,122,0.65); }
-
-.char-card.bidding-flash { animation: bidFlash 0.7s ease; }
-@keyframes bidFlash {
-  0%, 100% { box-shadow: none; }
-  40%      { box-shadow: 0 0 0 2px rgba(255,255,255,0.5); }
-}
-
-.cc-portrait {
-  width: 100%;
-  aspect-ratio: 1;
-  background: rgba(0,0,0,0.35);
-  overflow: hidden;
-  position: relative;
-}
-.cc-portrait img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.cc-portrait-fallback {
-  position: absolute; inset: 0;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 36px; font-weight: 700; color: rgba(255,255,255,0.25);
-  font-family: monospace;
-}
-.cc-header {
-  display: flex; align-items: center; gap: 6px;
-  padding: 4px 8px;
-  font-weight: 800;
-  min-width: 0;
-}
-.char-card[data-primary="hack"]  .cc-header { background: var(--sk-hack);  color: #0a1428; }
-.char-card[data-primary="safe"]  .cc-header { background: var(--sk-safe);  color: #2a1c08; }
-.char-card[data-primary="musc"]  .cc-header { background: var(--sk-musc);  color: #2a0808; }
-.char-card[data-primary="soc"]   .cc-header { background: var(--sk-soc);   color: #1c1030; }
-.char-card[data-primary="drive"] .cc-header { background: var(--sk-drive); color: #0a2018; }
-.cc-name {
-  font-size: 12px; letter-spacing: 0.2px; min-width: 0; flex: 1;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.cc-cost-row {
-  padding: 4px 8px 5px;
-  font-family: monospace; font-size: 11px;
-  color: var(--muted); text-align: right;
-  border-top: 1px solid rgba(255,255,255,0.04);
-}
-.cc-info { padding: 6px 8px 7px; display: flex; flex-direction: column; gap: 3px; }
-.cc-skills { display: flex; flex-direction: column; gap: 2px; }
-.cc-skill { display: flex; align-items: center; gap: 6px; }
-.cc-skill-label {
-  font-size: 9px; font-weight: 700; letter-spacing: 0.6px;
-  color: var(--muted); width: 30px; flex-shrink: 0;
-  font-family: monospace;
-}
-.cc-skill-bars { display: flex; gap: 2px; }
-.seg { width: 10px; height: 4px; border-radius: 1px; background: rgba(255,255,255,0.08); }
-.seg.f-hack  { background: var(--sk-hack); }
-.seg.f-safe  { background: var(--sk-safe); }
-.seg.f-musc  { background: var(--sk-musc); }
-.seg.f-soc   { background: var(--sk-soc); }
-.seg.f-drive { background: var(--sk-drive); }
-
-/* crews bottom */
-#crews-section {
-  flex: 1 1 45%; min-height: 0;
-  border-top: 1px solid var(--border);
-  background: #0a0a0c;
-  padding: 12px 16px 12px;
-  display: flex; flex-direction: column;
-  overflow: hidden;
-}
-
-/* Hiring-complete: flip the layout so crews land on top and the now-drafted
-   roster collapses below. Marker class is added to #tab-draft when every AI
-   has finished its crew_known. */
-#tab-draft.hiring-done #crews-section { order: 0; flex: 1 1 65%; border-top: none; }
-#tab-draft.hiring-done #draft-board   { order: 1; flex: 1 1 35%; border-top: 1px solid var(--border); }
-.hiring-banner {
-  flex-shrink: 0;
-  padding: 8px 16px;
-  background: linear-gradient(90deg, rgba(82,196,122,0.22), rgba(82,196,122,0.05));
-  border-bottom: 1px solid rgba(82,196,122,0.4);
-  display: flex; align-items: center; gap: 10px;
-  font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
-  color: var(--green);
-}
-.hiring-banner::before {
-  content: '✓'; font-size: 14px;
-}
-.crew-columns {
-  flex: 1; min-height: 0;
-  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;
-}
-.crew-col {
-  background: var(--panel); border: 1px solid var(--border);
-  border-top: 3px solid var(--border); border-radius: 6px;
-  display: flex; flex-direction: column;
-  overflow: hidden;
-}
-.crew-col[data-crew="A"] { border-top-color: var(--ai-a); }
-.crew-col[data-crew="B"] { border-top-color: var(--ai-b); }
-.crew-col[data-crew="C"] { border-top-color: var(--ai-c); }
-.crew-col-header {
-  flex-shrink: 0; padding: 8px 12px;
-  display: flex; align-items: center; gap: 8px;
-  border-bottom: 1px solid var(--border);
-  background: var(--panel2);
-}
-.cc-badge {
-  width: 20px; height: 20px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 11px; font-weight: 700; color: #000;
-}
-.cc-crew-name {
-  font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
-  color: var(--text); flex: 1;
-}
-.cc-meta { font-family: monospace; font-size: 10px; color: var(--muted); }
-.cc-meta strong { color: var(--text); }
-.crew-col-body {
-  flex: 1; overflow-y: auto;
-  display: flex; flex-direction: column;
-  padding: 12px 14px;
-  gap: 14px;
-}
-.crew-subhead {
-  font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
-  color: var(--muted); margin-bottom: 6px;
-}
-.cum-block { display: flex; flex-direction: column; }
-.cum-rows { display: flex; flex-direction: column; gap: 5px; }
-.cum-row { display: flex; align-items: center; gap: 8px; }
-.cum-label {
-  font-size: 10px; font-weight: 700; letter-spacing: 0.8px;
-  color: var(--muted); width: 38px; flex-shrink: 0;
-  font-family: monospace;
-}
-.cum-bar { flex: 1; height: 8px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; }
-.cum-bar-fill { height: 100%; border-radius: 2px; transition: width 0.4s ease; }
-.cum-val {
-  font-family: monospace; font-size: 11px; font-weight: 700;
-  color: var(--text); width: 18px; text-align: right; flex-shrink: 0;
-}
-.cum-val.is-zero { color: #3a3a44; }
-.crew-member-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-  gap: 6px;
-}
-.cum-members { display: flex; flex-direction: column; gap: 4px; }
-.cum-member { display: flex; align-items: center; gap: 8px; font-size: 11px; }
-.cum-mem-name {
-  display: inline-block;
-  padding: 2px 7px;
-  border-radius: 3px;
-  font-weight: 800; letter-spacing: 0.3px;
-}
-.cum-mem-name[data-primary="hack"]  { background: var(--sk-hack);  color: #0a1428; }
-.cum-mem-name[data-primary="safe"]  { background: var(--sk-safe);  color: #2a1c08; }
-.cum-mem-name[data-primary="musc"]  { background: var(--sk-musc);  color: #2a0808; }
-.cum-mem-name[data-primary="soc"]   { background: var(--sk-soc);   color: #1c1030; }
-.cum-mem-name[data-primary="drive"] { background: var(--sk-drive); color: #0a2018; }
-.cum-mem-cost { font-family: monospace; color: var(--muted); margin-left: auto; font-size: 10px; }
-.cum-empty-row { font-size: 10px; color: #3a3a44; font-style: italic; padding: 2px 4px; }
-
-/* ══════════════════════ RAIL (persistent) ══════════════════════ */
+/* ── right rail (always visible across tabs) ────────────────────────────── */
 #rail {
   width: 320px; flex-shrink: 0;
   border-left: 1px solid var(--border);
@@ -433,8 +219,6 @@ body {
 .thought-line.tk-job { border-left-color: var(--purple); }
 .thought-line.tk-job .thought-kind { color: var(--purple); }
 .thought-line.tk-scene { border-left-color: var(--muted); }
-/* Mini-headers inside a thought card body (e.g. "Why this job" / "Why not the
-   others" inside a job_pick card). */
 .thought-sub-head {
   font-size: 9px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase;
   color: var(--purple);
@@ -442,8 +226,6 @@ body {
 }
 .thought-sub-head:first-child { margin-top: 0; }
 .thinking-empty { font-size: 12px; color: var(--muted); font-style: italic; text-align: center; padding: 16px 0; }
-/* Inline "✓ HIRED" stripe added to a bid card once the crew is finalized.
-   Avoids a separate hire card cluttering the rail. */
 .thought-hired-badge {
   margin-top: 6px;
   display: inline-flex; align-items: center; gap: 4px;
@@ -452,123 +234,7 @@ body {
   font-size: 10px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;
 }
 
-/* ══════════════════════ JOB TAB ══════════════════════ */
-#tab-job { padding: 24px; gap: 24px; flex-direction: column; overflow-y: auto; }
-.job-card {
-  background: var(--panel); border: 1px solid var(--border);
-  border-left: 3px solid var(--accent); border-radius: 8px; padding: 20px 24px;
-}
-.job-card-name   { font-size: 22px; font-weight: 700; color: var(--accent); margin-bottom: 8px; }
-.job-card-flavor { font-size: 14px; font-style: italic; color: #c0bcd0; line-height: 1.7; margin-bottom: 14px; }
-.job-reward      { font-family: monospace; font-size: 13px; color: var(--green); }
-.job-section-label {
-  font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
-  color: var(--muted); margin-bottom: 10px;
-}
-.challenge-table { width: 100%; border-collapse: collapse; }
-.challenge-table td { padding: 5px 0; vertical-align: middle; }
-.ct-label { font-size: 12px; color: var(--muted); width: 130px; font-family: monospace; }
-.ct-bar   { width: 80px; }
-.ct-bar-segs { display: flex; gap: 3px; }
-.ct-seg  { width: 14px; height: 10px; border-radius: 2px; background: #26262c; }
-.ct-seg.lvl-hard   { background: var(--red); }
-.ct-seg.lvl-medium { background: var(--blue); }
-.ct-seg.lvl-low    { background: var(--muted); }
-.ct-level-name   { font-size: 12px; font-family: monospace; min-width: 70px; }
-.ct-level-hard   { color: var(--red); }
-.ct-level-medium { color: var(--blue); }
-.ct-level-low    { color: var(--muted); }
-.ct-level-none   { color: #3a3a44; }
-.job-reasoning {
-  background: var(--panel2); border: 1px solid var(--border);
-  border-radius: 6px; padding: 14px 18px;
-}
-.job-reasoning-label {
-  font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
-  color: var(--muted); margin-bottom: 8px;
-}
-.job-reasoning-text { font-size: 13px; color: #c0bcd0; line-height: 1.65; }
-.job-reasoning-subhead {
-  font-size: 10px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase;
-  color: var(--accent);
-  margin-top: 10px; margin-bottom: 4px;
-}
-.job-reasoning-subhead:first-child { margin-top: 0; }
-.job-reasoning-body { font-size: 13px; color: #c0bcd0; line-height: 1.65; margin-bottom: 4px; }
-.hidden-depth-section {
-  background: var(--panel); border: 1px solid var(--border);
-  border-radius: 8px; padding: 16px 20px;
-}
-.hd-callout { border-radius: 5px; padding: 12px 16px; margin: 10px 0; font-size: 13px; line-height: 1.6; }
-.hd-callout-complication   { background: #2a0c0c; border-left: 3px solid var(--red); }
-.hd-callout-opportunity    { background: #2a1e04; border-left: 3px solid var(--accent); }
-.hd-callout-bonus          { background: #0a2018; border-left: 3px solid var(--green); }
-.hd-badge {
-  display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 1px;
-  text-transform: uppercase; padding: 2px 8px; border-radius: 3px; margin-bottom: 8px;
-}
-.hd-badge-complication { background: #3a1010; color: var(--red); }
-.hd-badge-opportunity  { background: #3a2a08; color: var(--accent); }
-.hd-badge-bonus        { background: #0c2a18; color: var(--green); }
-.hd-reward { font-family: monospace; font-size: 12px; color: var(--muted); margin-top: 8px; }
-
-/* ══════════════════════ HEIST TAB ══════════════════════ */
-#tab-heist { padding: 0; flex-direction: column; }
-.heist-heat-bar {
-  flex-shrink: 0; padding: 10px 24px;
-  background: var(--panel); border-bottom: 1px solid var(--border);
-  display: flex; align-items: center; gap: 12px;
-}
-.heist-heat-label { font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); }
-.heist-heat-dots  { font-family: monospace; font-size: 14px; color: var(--red); letter-spacing: 2px; }
-#scene-list { flex: 1; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
-.scene-card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 18px 20px; }
-.scene-card-header  { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
-.scene-card-num     { font-size: 11px; font-weight: 700; color: var(--muted); font-family: monospace; }
-.scene-card-title   { font-size: 15px; font-weight: 700; color: var(--text); flex: 1; }
-.scene-type-badge   {
-  font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
-  padding: 2px 8px; border-radius: 3px; background: #1a1a26; color: var(--muted);
-}
-.scene-type-badge.stype-core     { background: #0c1a2e; color: var(--blue); }
-.scene-type-badge.stype-escape   { background: #1a0c1a; color: var(--purple); }
-.scene-type-badge.stype-decision { background: #1a1a0c; color: var(--accent); }
-.scene-status-pending { font-size: 11px; color: var(--accent); animation: pulse 1.2s ease-in-out infinite; }
-@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-.scene-result-ok   { font-size: 12px; font-weight: 700; color: var(--green); }
-.scene-result-fail { font-size: 12px; font-weight: 700; color: var(--red); }
-.scene-result-none { font-size: 12px; color: var(--muted); }
-.scene-challenge-block { margin-bottom: 12px; }
-.sc-challenge-title {
-  font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
-  color: var(--muted); margin-bottom: 6px;
-}
-.sc-challenge-row     { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
-.sc-challenge-row-lbl { font-size: 11px; color: var(--muted); width: 70px; font-family: monospace; }
-.scene-hidden-depth-warn {
-  background: #2a1a04; border-left: 3px solid var(--accent);
-  border-radius: 4px; padding: 6px 12px; font-size: 12px; color: var(--accent); margin-top: 6px;
-}
-.scene-assigned-block  { margin-bottom: 12px; }
-.scene-assigned-label  { font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
-.scene-assigned-names  { font-size: 13px; color: var(--text); }
-.scene-reasoning-text  { font-size: 12px; color: var(--muted); font-style: italic; margin-top: 4px; line-height: 1.5; }
-.scene-decision-block  { margin-bottom: 12px; background: var(--panel2); border-radius: 5px; padding: 10px 14px; }
-.scene-decision-label  { font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
-.scene-decision-pursue { color: var(--green); font-weight: 700; font-size: 13px; }
-.scene-decision-pass   { color: var(--muted); font-weight: 700; font-size: 13px; }
-.scene-decision-reason { font-size: 12px; color: var(--muted); font-style: italic; margin-top: 4px; }
-.scene-narration  { font-size: 13px; color: #c0bcd0; line-height: 1.75; border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px; }
-.scene-narrating  { font-size: 12px; color: var(--muted); font-style: italic; border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px; }
-.escape-info      { font-size: 13px; color: var(--muted); margin-bottom: 10px; font-family: monospace; }
-.heist-outcome-card         { background: var(--panel2); border: 2px solid var(--border); border-radius: 8px; padding: 22px 24px; margin-top: 8px; }
-.heist-outcome-heading-ok   { font-size: 18px; font-weight: 700; color: var(--green); margin-bottom: 16px; }
-.heist-outcome-heading-fail { font-size: 18px; font-weight: 700; color: var(--red); margin-bottom: 16px; }
-.heist-outcome-take         { font-family: monospace; font-size: 24px; font-weight: 700; color: var(--accent); margin-bottom: 14px; }
-.heist-outcome-row          { display: flex; gap: 12px; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
-.heist-outcome-row-key      { min-width: 100px; font-family: monospace; }
-.heist-outcome-row-val      { color: var(--text); }
-
+/* ── shared prose styles (used by Heist tab narration) ──────────────────── */
 .prose { font-size: 14px; line-height: 1.8; color: #c8c4d8; }
 .prose p { margin-bottom: 12px; }
 .prose p:last-child { margin-bottom: 0; }
@@ -606,76 +272,14 @@ body {
 </div>
 
 <div id="content">
-
   <div id="main">
-
-    <!-- ═══════ HIRING ═══════ -->
-    <div class="tab-panel tab-visible" id="tab-draft">
-
-      <div class="hiring-banner" id="hiring-banner" style="display:none">
-        Hiring complete · <span id="hiring-banner-detail" style="color:var(--text);font-weight:600;letter-spacing:0.5px;text-transform:none;font-size:12px">2 crews assembled</span>
-      </div>
-
-      <div id="draft-board">
-        <div class="section-header">
-          <span class="section-title">Available Roster</span>
-          <span class="section-sub" id="board-meta">—</span>
-          <div class="section-legend">
-            <span class="legend-item"><span class="legend-swatch" style="background:var(--sk-hack)"></span>Hack</span>
-            <span class="legend-item"><span class="legend-swatch" style="background:var(--sk-safe)"></span>Safe</span>
-            <span class="legend-item"><span class="legend-swatch" style="background:var(--sk-musc)"></span>Musc</span>
-            <span class="legend-item"><span class="legend-swatch" style="background:var(--sk-soc)"></span>Soc</span>
-            <span class="legend-item"><span class="legend-swatch" style="background:var(--sk-drive)"></span>Drive</span>
-          </div>
-        </div>
-        <div class="board-grid" id="board-grid"></div>
-      </div>
-
-      <div id="crews-section">
-        <div class="section-header">
-          <span class="section-title">Crews</span>
-          <span class="section-sub" id="crews-sub">awaiting draft</span>
-        </div>
-        <div class="crew-columns" id="crew-columns"></div>
-      </div>
-    </div>
-
-    <!-- ═══════ JOB ═══════ -->
-    <div class="tab-panel" id="tab-job">
-      <div class="job-card" id="job-card" style="display:none">
-        <div class="job-card-name"   id="job-card-name"></div>
-        <div class="job-card-flavor" id="job-card-flavor"></div>
-        <div class="job-reward"      id="job-card-reward"></div>
-      </div>
-      <div id="job-profile-section" style="display:none">
-        <div class="job-section-label">Challenge Profile</div>
-        <table class="challenge-table" id="job-challenge-table"></table>
-      </div>
-      <div class="job-reasoning" id="job-reasoning-block" style="display:none">
-        <div class="job-reasoning-label">AI rationale</div>
-        <div class="job-reasoning-text" id="job-reasoning-text"></div>
-      </div>
-      <div class="hidden-depth-section" id="hidden-depth-section" style="display:none">
-        <div class="job-section-label">Hidden Depth Revealed</div>
-        <div id="hd-callout-wrap"></div>
-        <div class="hd-reward" id="hd-reward"></div>
-      </div>
-    </div>
-
-    <!-- ═══════ HEIST ═══════ -->
-    <div class="tab-panel" id="tab-heist">
-      <div class="heist-heat-bar">
-        <span class="heist-heat-label">Heat</span>
-        <span class="heist-heat-dots" id="heist-heat-dots">○○○○○</span>
-      </div>
-      <div id="scene-list"></div>
-    </div>
-
+    <!-- Tab panels are populated by their respective modules after loadTabFragment() -->
+    <div class="tab-panel tab-visible" id="tab-draft"></div>
+    <div class="tab-panel" id="tab-job"></div>
+    <div class="tab-panel" id="tab-heist"></div>
   </div>
 
-  <!-- ═══════ RAIL ═══════ -->
   <div id="rail">
-
     <div id="commentary-section">
       <div class="commentary-header">
         <span class="commentary-icon">📢</span>
@@ -706,81 +310,173 @@ body {
         <div class="thinking-empty">Waiting for the game…</div>
       </div>
     </div>
-
   </div>
-
 </div>
 
 <script>
-// ═════════════════ STATE ═════════════════
-let roster = [];                  // full character list from /api/meta
-const charById = new Map();       // id -> character
-// HIRES: char id -> array of ai_idx that hired this character.
-// (Parallel-run model: each AI plays its own heist, characters can appear in
-// multiple crews simultaneously.)
-const HIRES = {};
-const bidRationales = {};         // ai_idx -> { char_id -> string }
-const hireRationales = {};        // ai_idx -> { char_id -> string }
-const aiStreams = [[]];           // per-ai thought arrays (newest first)
-let aiList = [{ idx: 0, label: 'AI', color: 'var(--ai-a)' }];
-let currentAI = 0;
+// ═══════════════════════════════════════════════════════════════════════════
+// VIEWER SHELL
+//
+// Owns:
+//   - SSE connection + replay controls
+//   - Tab navigation (Hiring / Job / The Heist)
+//   - Top bar (job name + heat + status badge)
+//   - Right rail (commentary, AI picker, AI thinking stream)
+//   - Shared state: roster, AI list, currentAI selection
+//   - Per-AI thought streams (the "private" rail)
+//
+// Does NOT own:
+//   - Any tab body markup or rendering. Each tab is its own fragment loaded
+//     from /tabs/<name> at boot. The shell exposes window.Shell so tabs can
+//     reach into shared state + helpers without re-implementing them.
+// ═══════════════════════════════════════════════════════════════════════════
 
-const jobByAI          = {};   // ai_idx -> job
-const jobReasoningByAI = {};   // ai_idx -> "Why this job" text
-const hdByAI           = {};   // ai_idx -> last hidden_depth_rolled event
-const crewByAI         = {};   // ai_idx -> crew (for member name lookup in scene cards)
-const gameStateByAI    = {};   // ai_idx -> final state (for heist outcome card)
-const scenesByAI       = {};   // ai_idx -> { scene_num -> { meta, result, narration } }
-const narrationsByAI   = {};   // ai_idx -> { scene_num -> narration text }
-const bidParsedByAI    = {};   // ai_idx -> last parsed bid response
-const heatByAI         = {};   // ai_idx -> current heat
-const aiDoneFlags      = {};   // ai_idx -> bool
+// ── boot ────────────────────────────────────────────────────────────────────
+const TAB_NAMES = ['hiring', 'job', 'heist'];   // matches /tabs/<name> paths
+const TAB_PANEL_IDS = {                          // shell panel each tab mounts into
+  hiring: 'tab-draft',
+  job:    'tab-job',
+  heist:  'tab-heist',
+};
+const TAB_MODULE_NAMES = {                       // window.<name> after fragment loads
+  hiring: 'HiringTab',
+  job:    'JobTab',
+  heist:  'HeistTab',
+};
 
-let evtSource = null;
-let jobTabUnlocked = false;
-let heistTabUnlocked = false;
+// Shared state — mutable from inside the shell, read-only from tab modules.
+const Shell = {
+  roster: [],
+  charById: new Map(),
+  aiList: [{ idx: 0, label: 'AI', color: 'var(--ai-a)' }],
+  currentAI: 0,
 
-function _hires(charId) { return HIRES[charId] || []; }
-function _addHire(charId, aiIdx) {
-  if (!HIRES[charId]) HIRES[charId] = [];
-  if (!HIRES[charId].includes(aiIdx)) HIRES[charId].push(aiIdx);
-}
-function _bidRat(aiIdx, charId)  { return (bidRationales[aiIdx] || {})[charId]; }
-function _hireRat(aiIdx, charId) { return (hireRationales[aiIdx] || {})[charId]; }
+  // shell helpers tabs commonly need
+  helpers: {
+    escapeHtml(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); },
+    renderMd(text) {
+      if (!text) return '';
+      let s = String(text).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      s = s.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>').replace(/`(.+?)`/g,'<code>$1</code>');
+      return s.split(/\n{2,}/).map(p=>`<p>${p.replace(/\n/g,'<br>')}</p>`).join('');
+    },
+    skillVal(c, short) {
+      const apiKey = SKILL_SHORT_TO_API[short];
+      const levelStr = c.skills?.[apiKey];
+      return SKILL_VALUE[levelStr] || 0;
+    },
+    primarySkill(c) {
+      let bestKey = 'hack', bestVal = -1;
+      Object.entries(c.skills || {}).forEach(([apiKey, levelStr]) => {
+        const short = SKILL_API_TO_SHORT[apiKey];
+        if (!short) return;
+        const val = SKILL_VALUE[levelStr] || 0;
+        if (val > bestVal) { bestVal = val; bestKey = short; }
+      });
+      return bestKey;
+    },
+    portraitUrl(c) {
+      const p = Shell.helpers.primarySkill(c);
+      const seed = (c.name || '').toLowerCase().replace(/\s+/g, '');
+      return `https://api.dicebear.com/9.x/${PORTRAIT_STYLE[p]}/svg?seed=${encodeURIComponent(seed)}&backgroundColor=${PORTRAIT_BG[p]}`;
+    },
+    charCardHtml(c, opts) {
+      const { hideCost = false, noId = false } = opts || {};
+      const esc = Shell.helpers.escapeHtml;
+      const primary = Shell.helpers.primarySkill(c);
+      const initials = (c.name || '?').slice(0,1).toUpperCase();
+      const skillsHtml = SKILL_KEYS.map(sk => {
+        const val = Shell.helpers.skillVal(c, sk);
+        const segs = Array.from({length:3}, (_, j) =>
+          `<span class="seg ${j < val ? 'f-' + sk : ''}"></span>`).join('');
+        return `<div class="cc-skill"><span class="cc-skill-label">${SKILL_LABEL[sk]}</span><div class="cc-skill-bars">${segs}</div></div>`;
+      }).join('');
+      const idAttr = noId ? '' : ` id="cc-${c.id}"`;
+      const costRow = hideCost ? '' :
+        `<div class="cc-cost-row">$${Number(c.floor_cost).toLocaleString()}</div>`;
+      return `<div class="char-card" data-primary="${primary}"${idAttr}>
+        <div class="cc-portrait">
+          <div class="cc-portrait-fallback">${esc(initials)}</div>
+          <img src="${Shell.helpers.portraitUrl(c)}" alt="${esc(c.name)}" loading="lazy" onerror="this.style.display='none'">
+        </div>
+        <div class="cc-header"><span class="cc-name" title="${esc(c.name)}">${esc(c.name)}</span></div>
+        <div class="cc-info"><div class="cc-skills">${skillsHtml}</div></div>
+        ${costRow}
+      </div>`;
+    },
+    buildDiffBar(level) {
+      const segs = {HARD:3, MEDIUM:2, LOW:1, NONE:0}[level] || 0;
+      const cls  = {HARD:'lvl-hard', MEDIUM:'lvl-medium', LOW:'lvl-low'}[level] || '';
+      return '<div class="ct-bar-segs">' + Array.from({length:3}, (_,i) =>
+        `<span class="ct-seg ${i<segs?cls:''}"></span>`).join('') + '</div>';
+    },
+    diffCls(level) {
+      return {HARD:'ct-level-hard', MEDIUM:'ct-level-medium', LOW:'ct-level-low'}[level] || 'ct-level-none';
+    },
+  },
 
-// Real character API shape uses role-style keys (hacker/driver/...). Map to
-// the short visual identifiers used by CSS + skill bars.
+  // for tab → shell calls
+  setJobDisplay(name) { document.getElementById('job-display').textContent = name || '—'; },
+  setHeat(n)          { _updateHeat(n); },
+  setStatus(cls, txt) { _setStatus(cls, txt); },
+  unlockTab(name)     { _unlockTab(name); },
+  addThought(aiIdx, kind, title, bodyHtml, opts) { _addThought(aiIdx, kind, title, bodyHtml, opts); },
+  markHired(aiIdx, charId) { _markHired(aiIdx, charId); },
+
+  // for shell → tab dispatch (read by tabs after onAISelected fires)
+  onAISelected(cb) { _aiSubscribers.push(cb); },
+};
+window.Shell = Shell;
+
+// ── shared constants needed by helpers (and exposed via Shell) ──────────────
 const SKILL_API_TO_SHORT = {
-  hacker: 'hack',
-  safecracker: 'safe',
-  muscle: 'musc',
-  inside_man: 'soc',
-  driver: 'drive',
+  hacker: 'hack', safecracker: 'safe', muscle: 'musc',
+  inside_man: 'soc', driver: 'drive',
 };
 const SKILL_SHORT_TO_API = Object.fromEntries(
   Object.entries(SKILL_API_TO_SHORT).map(([k, v]) => [v, k])
 );
-const SKILL_KEYS  = ['hack','safe','musc','soc','drive'];  // display order
+const SKILL_KEYS  = ['hack','safe','musc','soc','drive'];
 const SKILL_LABEL = { hack:'HACK', safe:'SAFE', musc:'MUSC', soc:'SOC', drive:'DRIVE' };
 const SKILL_VALUE = { HIGH:3, MEDIUM:2, LOW:1, NONE:0 };
 const PORTRAIT_STYLE = { hack:'pixel-art', safe:'notionists', musc:'bottts', soc:'personas', drive:'adventurer' };
 const PORTRAIT_BG    = { hack:'1a2840', safe:'2a2008', musc:'2a0c0c', soc:'1e1430', drive:'0c2018' };
 
-// ═════════════════ BOOT ═════════════════
+// ── shell-private state ─────────────────────────────────────────────────────
+let evtSource = null;
+const aiStreams = [[]];                  // per-AI thought arrays (newest first)
+const _hiredMarks = {};                  // ai_idx -> Set<char_id>
+const _aiSubscribers = [];               // tab callbacks for AI changes
+const _tabFlags = { job: false, heist: false };
+
 const REPLAY_ID = (() => {
-  const params = new URLSearchParams(window.location.search);
-  const v = params.get('replay');
+  const v = new URLSearchParams(window.location.search).get('replay');
   return v ? parseInt(v, 10) : null;
 })();
 let REPLAY_EVENTS = [];
 let REPLAY_INDEX  = 0;
 let REPLAY_TIMER  = null;
 
+const THOUGHT_CARD_DELAY_MS = (() => {
+  const p = new URLSearchParams(window.location.search);
+  const n = parseInt(p.get('cardDelay') || '', 10);
+  return Number.isFinite(n) ? n : 5000;
+})();
+const _thoughtQueue = [];
+let   _thoughtTimer = null;
+
+// ── boot sequence ───────────────────────────────────────────────────────────
 boot();
 
 async function boot() {
-  // 1. Resolve which AIs are in this game so the picker can show real labels.
-  // Replay mode targets a specific game_id; live mode picks the most recent.
+  // 1. Pre-load all tab fragments. Each fragment registers window.<TabModule>.
+  try {
+    await Promise.all(TAB_NAMES.map(loadTabFragment));
+  } catch (e) {
+    console.error('Failed to load tab fragments:', e);
+  }
+
+  // 2. Resolve which AIs are in this game so the picker can show real labels.
   try {
     const games = await fetch('/api/games').then(r => r.json());
     const target = REPLAY_ID != null
@@ -789,52 +485,78 @@ async function boot() {
          || [...games].reverse().find(g => g.status === 'done')
          || [...games].reverse()[0]);
     if (target && target.ais && target.ais.length) {
-      aiList = target.ais.map((ai, i) => ({
+      Shell.aiList = target.ais.map((ai, i) => ({
         idx: i,
         label: ai.agent || ('AI ' + (i+1)),
         color: ['var(--ai-a)','var(--ai-b)','var(--ai-c)'][i] || 'var(--ai-a)',
       }));
-      while (aiStreams.length < aiList.length) aiStreams.push([]);
+      while (aiStreams.length < Shell.aiList.length) aiStreams.push([]);
     }
   } catch {}
+  _renderAIPicker();
 
-  renderAIPicker();
-  selectAI(0);
-
-  // 2. Load the roster so the draft board can render
+  // 3. Load the roster so tabs can render character data
   try {
     const meta = await fetch('/api/meta').then(r => r.json());
-    roster = meta.roster || [];
-    roster.forEach(c => charById.set(c.id, c));
-    renderBoard();
-    renderCrews();
+    Shell.roster = meta.roster || [];
+    Shell.roster.forEach(c => Shell.charById.set(c.id, c));
   } catch (e) {
     console.error('failed to load meta', e);
   }
 
+  // 4. Mount each tab into its panel now that fragments are loaded + state is ready
+  TAB_NAMES.forEach(name => {
+    const Mod = window[TAB_MODULE_NAMES[name]];
+    const panel = document.getElementById(TAB_PANEL_IDS[name]);
+    if (Mod && panel && typeof Mod.mount === 'function') {
+      try { Mod.mount(panel, { shell: Shell }); }
+      catch (e) { console.error(`${name} tab mount failed:`, e); }
+    }
+  });
+
+  // 5. Initial AI selection (renders rail + notifies tabs)
+  _selectAI(0);
+
+  // 6. Subscribe to events: SSE for live games, replay buffer for finished ones.
   if (REPLAY_ID != null) {
-    // 3a. Replay mode: fetch the game's full event log and let the user
-    // step / play through it. No SSE connection.
-    setStatus('s-idle', 'REPLAY');
+    _setStatus('s-idle', 'REPLAY');
     document.getElementById('replay-controls').style.display = '';
     try {
       const data = await fetch(`/api/games/${REPLAY_ID}/events`).then(r => r.json());
       REPLAY_EVENTS = data.events || [];
       _replayUpdateCounter();
     } catch (e) {
-      addThought(0, 'scene', 'Replay error', escapeHtml(String(e)));
+      _addThought(0, 'scene', 'Replay error', Shell.helpers.escapeHtml(String(e)));
     }
   } else {
-    // 3b. Live mode: subscribe to the SSE stream
     evtSource = new EventSource('/stream');
     evtSource.onmessage = handleSSE;
     evtSource.onerror = () => {
-      if (evtSource && evtSource.readyState === EventSource.CLOSED) setStatus('s-idle', 'IDLE');
+      if (evtSource && evtSource.readyState === EventSource.CLOSED) _setStatus('s-idle', 'IDLE');
     };
   }
 }
 
-// ═════════════════ REPLAY CONTROLS ═════════════════
+// ── fragment loader ─────────────────────────────────────────────────────────
+async function loadTabFragment(name) {
+  const html = await fetch('/tabs/' + name).then(r => {
+    if (!r.ok) throw new Error(`fetch /tabs/${name}: ${r.status}`);
+    return r.text();
+  });
+  const wrap = document.createElement('div');
+  wrap.innerHTML = html;
+  // Styles + templates can move over as-is
+  wrap.querySelectorAll('style, template').forEach(el => document.body.appendChild(el));
+  // Scripts inserted via innerHTML don't execute — recreate them
+  wrap.querySelectorAll('script').forEach(oldScript => {
+    const fresh = document.createElement('script');
+    if (oldScript.src) fresh.src = oldScript.src;
+    else fresh.textContent = oldScript.textContent;
+    document.body.appendChild(fresh);
+  });
+}
+
+// ── replay controls ─────────────────────────────────────────────────────────
 function replayStep() {
   if (REPLAY_INDEX >= REPLAY_EVENTS.length) return;
   const evt = REPLAY_EVENTS[REPLAY_INDEX++];
@@ -848,9 +570,6 @@ function replayToggle() {
     clearInterval(REPLAY_TIMER); REPLAY_TIMER = null;
     btn.textContent = '▶ Play';
   } else {
-    // Match the card-drain cadence so replay feels like a live game. Events
-    // that produce multiple cards (a bid turn drops ~5) still pile into the
-    // queue and drain one per THOUGHT_CARD_DELAY_MS — same as live.
     REPLAY_TIMER = setInterval(replayStep, Math.max(THOUGHT_CARD_DELAY_MS, 500));
     btn.textContent = '⏸ Pause';
   }
@@ -858,30 +577,16 @@ function replayToggle() {
 function replayReset() {
   if (REPLAY_TIMER) replayToggle();
   REPLAY_INDEX = 0;
-  // Drain any cards still queued from the prior play-through.
   _thoughtQueue.length = 0;
   if (_thoughtTimer) { clearTimeout(_thoughtTimer); _thoughtTimer = null; }
-  // Wipe all per-AI state and re-render from blank.
-  for (const k of Object.keys(HIRES))           delete HIRES[k];
-  for (const k of Object.keys(bidRationales))   delete bidRationales[k];
-  for (const k of Object.keys(hireRationales)) delete hireRationales[k];
-  for (const k of Object.keys(jobByAI))         delete jobByAI[k];
-  for (const k of Object.keys(jobReasoningByAI))delete jobReasoningByAI[k];
-  for (const k of Object.keys(hdByAI))          delete hdByAI[k];
-  for (const k of Object.keys(crewByAI))        delete crewByAI[k];
-  for (const k of Object.keys(gameStateByAI))   delete gameStateByAI[k];
-  for (const k of Object.keys(scenesByAI))      delete scenesByAI[k];
-  for (const k of Object.keys(narrationsByAI))  delete narrationsByAI[k];
-  for (const k of Object.keys(bidParsedByAI))   delete bidParsedByAI[k];
-  for (const k of Object.keys(heatByAI))        delete heatByAI[k];
-  for (const k of Object.keys(aiDoneFlags))     delete aiDoneFlags[k];
-  for (const k of Object.keys(_hiredMarks))     delete _hiredMarks[k];
+  for (const k of Object.keys(_hiredMarks)) delete _hiredMarks[k];
   aiStreams.forEach((_, i) => aiStreams[i] = []);
-  document.getElementById('tab-draft').classList.remove('hiring-done');
-  document.getElementById('hiring-banner').style.display = 'none';
-  selectAI(currentAI);
-  renderBoard();
-  renderCrews();
+  // Reset all tabs (each tab decides what "reset" means for its own state)
+  TAB_NAMES.forEach(name => {
+    const Mod = window[TAB_MODULE_NAMES[name]];
+    if (Mod && typeof Mod.reset === 'function') Mod.reset();
+  });
+  _selectAI(Shell.currentAI);
   _replayUpdateCounter();
 }
 function _replayUpdateCounter() {
@@ -889,377 +594,169 @@ function _replayUpdateCounter() {
   if (el) el.textContent = `${REPLAY_INDEX} / ${REPLAY_EVENTS.length}`;
 }
 
-// ═════════════════ TAB SWITCHING ═════════════════
+// ── tab switching ───────────────────────────────────────────────────────────
 function switchTab(name) {
-  if (name === 'job'   && !jobTabUnlocked)   return;
-  if (name === 'heist' && !heistTabUnlocked) return;
+  if (name === 'job'   && !_tabFlags.job)   return;
+  if (name === 'heist' && !_tabFlags.heist) return;
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('tab-active'));
   document.getElementById('tab-btn-' + name).classList.add('tab-active');
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('tab-visible'));
-  document.getElementById('tab-' + name).classList.add('tab-visible');
+  const panelId = name === 'hiring' ? 'tab-draft' : 'tab-' + name;
+  document.getElementById(panelId).classList.add('tab-visible');
 }
-function unlockTab(name) {
-  if (name === 'job' && !jobTabUnlocked) {
-    jobTabUnlocked = true;
+function _unlockTab(name) {
+  if (name === 'job' && !_tabFlags.job) {
+    _tabFlags.job = true;
     document.getElementById('tab-btn-job').classList.remove('tab-locked');
-  } else if (name === 'heist' && !heistTabUnlocked) {
-    heistTabUnlocked = true;
+  } else if (name === 'heist' && !_tabFlags.heist) {
+    _tabFlags.heist = true;
     document.getElementById('tab-btn-heist').classList.remove('tab-locked');
   }
 }
 
-// ═════════════════ SSE HANDLER ═════════════════
-function _scenesFor(aiIdx)     { return scenesByAI[aiIdx]     ||= {}; }
-function _narrationsFor(aiIdx) { return narrationsByAI[aiIdx] ||= {}; }
-
+// ── SSE handler — fans events out to every tab module ──────────────────────
 function handleSSE(evt) {
-  const e = JSON.parse(evt.data);
-  const aiIdx = e.ai_idx ?? 0;
-  const scenes = _scenesFor(aiIdx);
-  const narrations = _narrationsFor(aiIdx);
+  let e;
+  try { e = JSON.parse(evt.data); } catch { return; }
 
+  // Strategy / bid / hire / job-pick narration cards land in the rail. Shell
+  // owns the rail, so we extract those here before forwarding.
   if (e.type === 'turn_end') {
-    if (e.label === 'bid' && e.parsed) {
-      bidParsedByAI[aiIdx] = e.parsed;
-      if (e.parsed.casting_strategy) {
-        addThought(aiIdx, 'strategy', 'Strategy', escapeHtml(e.parsed.casting_strategy));
-      }
-      (bidRationales[aiIdx] ||= {});
-      (e.parsed.bids || []).forEach(b => {
-        if (b.rationale) bidRationales[aiIdx][b.character_id] = b.rationale;
-        flashCard(b.character_id);
-        const c = charById.get(b.character_id);
-        if (!c) return;
-        const amount = b.bid != null ? ' · $' + Number(b.bid).toLocaleString() : '';
-        addThought(aiIdx, 'bid', 'Bid · ' + c.name + amount, escapeHtml(b.rationale || '—'),
-          { id: 'bid-' + aiIdx + '-' + b.character_id, charId: b.character_id });
-      });
-    } else if (e.label === 'casting_summary' && e.parsed && e.parsed.summary) {
-      const s = e.parsed.summary;
-      addThought(aiIdx, 'strategy', 'Casting summary', escapeHtml(s.length > 240 ? s.slice(0,240) + '…' : s));
-      unlockTab('heist');
-    } else if (e.label === 'job_pick') {
-      unlockTab('job');
-      if (e.parsed) {
-        // New AI schema: {job_name, why_this, why_not}. Old replays may still
-        // carry a single `reasoning` blob — fall back to that.
-        const whyThis = e.parsed.why_this || '';
-        const whyNot  = e.parsed.why_not  || '';
-        const legacy  = e.parsed.reasoning || '';
-        jobReasoningByAI[aiIdx] = { why_this: whyThis, why_not: whyNot, legacy };
-        // Render the thought card with mini-headers if structured fields are present.
-        let body;
-        if (whyThis || whyNot) {
-          body = '';
-          if (whyThis) body += `<div class="thought-sub-head">Why this job</div>${escapeHtml(whyThis)}`;
-          if (whyNot)  body += `<div class="thought-sub-head">Why not the others</div>${escapeHtml(whyNot)}`;
-        } else {
-          body = escapeHtml(legacy || '—');
-        }
-        addThought(aiIdx, 'job', 'Job pick', body);
-        if (aiIdx === currentAI) renderJobTab();
-      }
-    } else {
-      const narMatch = e.label && e.label.match(/^scene_(\d+)_(?:escape_)?narrate$/);
-      if (narMatch && e.parsed && e.parsed.narration) {
-        const sNum = parseInt(narMatch[1], 10);
-        narrations[sNum] = e.parsed.narration;
-        if (scenes[sNum]) {
-          scenes[sNum].narration = e.parsed.narration;
-          if (aiIdx === currentAI) renderSceneCard(sNum);
-        }
-      }
+    _railFromTurnEnd(e);
+  }
+
+  // Forward to every tab. Each tab decides what (if anything) to do.
+  TAB_NAMES.forEach(name => {
+    const Mod = window[TAB_MODULE_NAMES[name]];
+    if (Mod && typeof Mod.handleEvent === 'function') {
+      try { Mod.handleEvent(e); }
+      catch (err) { console.error(`${name} tab handleEvent failed:`, err); }
     }
+  });
 
-  } else if (e.type === 'crew_known') {
-    crewByAI[aiIdx] = e.crew;
-    (hireRationales[aiIdx] ||= {});
-    e.crew.members.forEach(member => {
-      _addHire(member.id, aiIdx);
-      const bid = (bidParsedByAI[aiIdx]?.bids || []).find(b => b.character_id == member.id);
-      if (bid && bid.rationale) hireRationales[aiIdx][member.id] = bid.rationale;
-      // Upgrade the existing bid card with a green "✓ Hired" stripe rather
-      // than emitting a separate card. If the bid card hasn't drained from
-      // the queue yet, the flag still gets stamped on the stored thought.
-      markHired(aiIdx, member.id);
-    });
-    renderBoard();
-    renderCrews();
-    _maybeMarkHiringDone();
-
-  } else if (e.type === 'job_known') {
-    jobByAI[aiIdx] = e.job;
-    if (aiIdx === currentAI) {
-      document.getElementById('job-display').textContent = e.job.name;
-      renderJobTab();
-    }
-
-  } else if (e.type === 'hidden_depth_rolled') {
-    hdByAI[aiIdx] = e;
-    if (aiIdx === currentAI) renderJobTab();
-
-  } else if (e.type === 'scene_start') {
-    const sNum = e.scene_num;
-    if (!scenes[sNum]) scenes[sNum] = {};
-    scenes[sNum].meta = e;
-    if (narrations[sNum]) scenes[sNum].narration = narrations[sNum];
-    if (aiIdx === currentAI) renderSceneCard(sNum);
-    if (e.title) addThought(aiIdx, 'scene', 'Scene ' + sNum, escapeHtml(e.title));
-
-  } else if (e.type === 'scene_done') {
-    heatByAI[aiIdx] = e.heat;
-    if (aiIdx === currentAI) {
-      updateHeat(e.heat);
-      updateHeistHeat(e.heat);
-    }
-    const sNum = e.scene_num;
-    if (!scenes[sNum]) scenes[sNum] = {};
-    scenes[sNum].result = e;
-    if (narrations[sNum]) scenes[sNum].narration = narrations[sNum];
-    if (aiIdx === currentAI) renderSceneCard(sNum);
-
+  // Top bar + status are also shell concerns
+  const aiIdx = e.ai_idx ?? 0;
+  if (e.type === 'job_known' && aiIdx === Shell.currentAI) {
+    document.getElementById('job-display').textContent = e.job.name;
+  } else if (e.type === 'scene_done' && aiIdx === Shell.currentAI) {
+    _updateHeat(e.heat);
   } else if (e.type === 'game_done') {
-    gameStateByAI[aiIdx] = e.state;
-    crewByAI[aiIdx] = e.state.crew;
-    jobByAI[aiIdx]  = e.state.job;
-    heatByAI[aiIdx] = e.state.heat;
-    aiDoneFlags[aiIdx] = true;
-    if (aiIdx === currentAI) {
+    if (aiIdx === Shell.currentAI) {
       document.getElementById('job-display').textContent = e.state.job.name;
-      updateHeat(e.state.heat);
-      updateHeistHeat(e.state.heat);
-      renderHeistOutcome();
+      _updateHeat(e.state.heat);
     }
-    unlockTab('job'); unlockTab('heist');
-    _maybeFinishStream();
-
+    _unlockTab('job'); _unlockTab('heist');
+    _maybeFinishStream(e);
   } else if (e.type === 'error') {
-    addThought(aiIdx, 'scene', 'Error', escapeHtml(e.message || 'unknown error'));
-    aiDoneFlags[aiIdx] = true;
-    setStatus('s-error', 'ERROR');
-    _maybeFinishStream();
+    _addThought(aiIdx, 'scene', 'Error', Shell.helpers.escapeHtml(e.message || 'unknown error'));
+    _setStatus('s-error', 'ERROR');
+  } else if (e.type === 'crew_known') {
+    _markCrewHired(aiIdx, e.crew);
   }
 }
 
-function _maybeMarkHiringDone() {
-  // Flip the layout the moment every AI in the game has reported its crew.
-  const allHired = aiList.every(ai => crewByAI[ai.idx]);
-  if (!allHired) return;
-  const panel = document.getElementById('tab-draft');
-  if (!panel.classList.contains('hiring-done')) {
-    panel.classList.add('hiring-done');
-    const banner = document.getElementById('hiring-banner');
-    const detail = document.getElementById('hiring-banner-detail');
-    if (banner) banner.style.display = '';
-    if (detail) {
-      const n = aiList.length;
-      detail.textContent = `${n} ${n === 1 ? 'crew' : 'crews'} assembled · roster locked`;
+function _railFromTurnEnd(e) {
+  const aiIdx = e.ai_idx ?? 0;
+  const esc = Shell.helpers.escapeHtml;
+  if (e.label === 'bid' && e.parsed) {
+    if (e.parsed.casting_strategy) {
+      _addThought(aiIdx, 'strategy', 'Strategy', esc(e.parsed.casting_strategy));
     }
+    (e.parsed.bids || []).forEach(b => {
+      _flashCard(b.character_id);
+      const c = Shell.charById.get(b.character_id);
+      if (!c) return;
+      const amount = b.bid != null ? ' · $' + Number(b.bid).toLocaleString() : '';
+      _addThought(aiIdx, 'bid', 'Bid · ' + c.name + amount, esc(b.rationale || '—'),
+        { id: 'bid-' + aiIdx + '-' + b.character_id, charId: b.character_id });
+    });
+  } else if (e.label === 'casting_summary' && e.parsed && e.parsed.summary) {
+    const s = e.parsed.summary;
+    _addThought(aiIdx, 'strategy', 'Casting summary',
+      esc(s.length > 240 ? s.slice(0,240) + '…' : s));
+    _unlockTab('heist');
+  } else if (e.label === 'job_pick' && e.parsed) {
+    _unlockTab('job');
+    const whyThis = e.parsed.why_this || '';
+    const whyNot  = e.parsed.why_not  || '';
+    const legacy  = e.parsed.reasoning || '';
+    let body;
+    if (whyThis || whyNot) {
+      body = '';
+      if (whyThis) body += `<div class="thought-sub-head">Why this job</div>${esc(whyThis)}`;
+      if (whyNot)  body += `<div class="thought-sub-head">Why not the others</div>${esc(whyNot)}`;
+    } else {
+      body = esc(legacy || '—');
+    }
+    _addThought(aiIdx, 'job', 'Job pick', body);
+  } else if (e.label && e.label.match(/^scene_\d+_/)) {
+    // scene-related turns: rail just gets a marker; tabs handle the data
   }
 }
 
-function _maybeFinishStream() {
-  // Close the SSE stream only after every AI in the game has reported done/error.
-  const allDone = aiList.every(ai => aiDoneFlags[ai.idx]);
-  if (!allDone) return;
+function _markCrewHired(aiIdx, crew) {
+  if (!crew || !crew.members) return;
+  crew.members.forEach(member => _markHired(aiIdx, member.id));
+}
+
+function _maybeFinishStream(latestGameDone) {
+  // Close SSE once every AI has emitted game_done (in shell, we approximate
+  // by checking how many game_done events we've seen vs the AI list).
+  // Tabs maintain their own per-AI done flags if they care.
+  _maybeFinishStream._seenDone = _maybeFinishStream._seenDone || new Set();
+  _maybeFinishStream._seenDone.add(latestGameDone.ai_idx ?? 0);
+  if (_maybeFinishStream._seenDone.size < Shell.aiList.length) return;
   if (evtSource) { evtSource.close(); evtSource = null; }
-  // Status badge: pick the best outcome we have on record.
-  const states = aiList.map(ai => gameStateByAI[ai.idx]).filter(Boolean);
-  if (states.length) {
-    const ok = states.some(s => !s.aborted && s.escape_success !== false);
-    const best = states.reduce((a, b) =>
-      (a && a.final_take >= (b.final_take || 0)) ? a : b, null);
-    setStatus(ok ? 's-done' : 's-error',
-      ok && best && best.final_take != null
-        ? '$' + (best.final_take / 1e6).toFixed(2) + 'M'
+  // Status badge: prefer a clean outcome on any AI, otherwise show take
+  const states = [];
+  // Tabs hold per-AI state — for status calc we just inspect this latest one
+  // and call it good enough in the shell. Detail lives in the Heist tab card.
+  if (latestGameDone && latestGameDone.state) {
+    const s = latestGameDone.state;
+    const ok = !s.aborted && s.escape_success !== false;
+    _setStatus(ok ? 's-done' : 's-error',
+      ok && s.final_take != null
+        ? '$' + (s.final_take / 1e6).toFixed(2) + 'M'
         : 'FAILED');
   }
 }
 
-// ═════════════════ CHARACTER CARD ═════════════════
-function primarySkill(c) {
-  let bestKey = 'hack', bestVal = -1;
-  Object.entries(c.skills || {}).forEach(([apiKey, levelStr]) => {
-    const short = SKILL_API_TO_SHORT[apiKey];
-    if (!short) return;
-    const val = SKILL_VALUE[levelStr] || 0;
-    if (val > bestVal) { bestVal = val; bestKey = short; }
-  });
-  return bestKey;
-}
-function skillVal(c, short) {
-  const apiKey = SKILL_SHORT_TO_API[short];
-  const levelStr = c.skills?.[apiKey];
-  return SKILL_VALUE[levelStr] || 0;
-}
-function portraitUrl(c) {
-  const p = primarySkill(c);
-  const seed = (c.name || '').toLowerCase().replace(/\s+/g, '');
-  return `https://api.dicebear.com/9.x/${PORTRAIT_STYLE[p]}/svg?seed=${encodeURIComponent(seed)}&backgroundColor=${PORTRAIT_BG[p]}`;
-}
-function charCardHtml(c, opts) {
-  const { hideCost = false, noId = false } = opts || {};
-  const primary = primarySkill(c);
-  const initials = (c.name || '?').slice(0,1).toUpperCase();
-  const skillsHtml = SKILL_KEYS.map(sk => {
-    const val = skillVal(c, sk);
-    const segs = Array.from({length:3}, (_, j) =>
-      `<span class="seg ${j < val ? 'f-' + sk : ''}"></span>`).join('');
-    return `<div class="cc-skill">
-      <span class="cc-skill-label">${SKILL_LABEL[sk]}</span>
-      <div class="cc-skill-bars">${segs}</div>
-    </div>`;
-  }).join('');
-  const idAttr = noId ? '' : ` id="cc-${c.id}"`;
-  const costRow = hideCost ? '' :
-    `<div class="cc-cost-row">$${Number(c.floor_cost).toLocaleString()}</div>`;
-  return `<div class="char-card" data-primary="${primary}"${idAttr}>
-    <div class="cc-portrait">
-      <div class="cc-portrait-fallback">${escapeHtml(initials)}</div>
-      <img src="${portraitUrl(c)}" alt="${escapeHtml(c.name)}" loading="lazy" onerror="this.style.display='none'">
-    </div>
-    <div class="cc-header">
-      <span class="cc-name" title="${escapeHtml(c.name)}">${escapeHtml(c.name)}</span>
-    </div>
-    <div class="cc-info">
-      <div class="cc-skills">${skillsHtml}</div>
-    </div>
-    ${costRow}
-  </div>`;
-}
-
-function flashCard(charId) {
-  const el = document.getElementById('cc-' + charId);
-  if (!el) return;
-  el.classList.remove('bidding-flash');
-  void el.offsetWidth;
-  el.classList.add('bidding-flash');
-  el.scrollIntoView({ block:'nearest', behavior:'smooth' });
-}
-
-// ═════════════════ DRAFT BOARD ═════════════════
-function renderBoard() {
-  const el = document.getElementById('board-grid');
-  if (!el) return;
-  // A char is "off the board" only once EVERY AI in the game has hired them.
-  // In single-AI mode this matches the old behaviour. In multi-AI mode we keep
-  // contested chars visible until both crews have made a call.
-  const totalAIs = aiList.length;
-  const available = roster.filter(c => _hires(c.id).length < totalAIs);
-  el.innerHTML = available.length
-    ? available.map(charCardHtml).join('')
-    : '<div style="grid-column:1/-1;color:var(--muted);font-style:italic;font-size:13px;text-align:center;padding:30px;">All characters drafted.</div>';
-  const hired = roster.length - available.length;
-  document.getElementById('board-meta').textContent =
-    `${available.length} left · ${hired} hired`;
-}
-
-// ═════════════════ CREW COLUMNS (compressed) ═════════════════
-function renderCrews() {
-  const el = document.getElementById('crew-columns');
-  if (!el) return;
-  // Render one column per AI in the game (currently usually 1).
-  const html = aiList.map(ai => crewColHtml(ai)).join('');
-  el.innerHTML = html;
-  document.getElementById('crews-sub').textContent =
-    aiList.length === 1 ? '1 crew' : `${aiList.length} crews`;
-}
-function crewColHtml(ai) {
-  const crewLetter = ['A','B','C'][ai.idx] || '?';
-  const members = roster.filter(c => _hires(c.id).includes(ai.idx));
-
-  const sums = [0,0,0,0,0];
-  members.forEach(m => SKILL_KEYS.forEach((sk, i) => { sums[i] += skillVal(m, sk); }));
-  const cumHtml = SKILL_KEYS.map((sk, i) => {
-    const val = sums[i];
-    const pct = Math.min(100, (val / 12) * 100);
-    return `<div class="cum-row">
-      <span class="cum-label">${SKILL_LABEL[sk]}</span>
-      <div class="cum-bar">${val > 0 ? `<div class="cum-bar-fill" style="width:${pct}%;background:var(--sk-${sk});"></div>` : ''}</div>
-      <span class="cum-val ${val === 0 ? 'is-zero' : ''}">${val}</span>
-    </div>`;
-  }).join('');
-
-  // Full character cards in the crew column: portraits + name + skills, no
-  // cost shown (per the design), no id (avoid collision with the board's cards).
-  const memCardsHtml = members.length
-    ? members.map(m => charCardHtml(m, { hideCost: true, noId: true })).join('')
-    : '<div class="cum-empty-row">— no hires yet —</div>';
-
-  return `<div class="crew-col" data-crew="${crewLetter}">
-    <div class="crew-col-header">
-      <span class="cc-badge" style="background:${ai.color}">${crewLetter}</span>
-      <span class="cc-crew-name">${escapeHtml(ai.label)}</span>
-    </div>
-    <div class="crew-col-body">
-      <div class="cum-block">
-        <div class="crew-subhead">Coverage</div>
-        <div class="cum-rows">${cumHtml}</div>
-      </div>
-      <div class="cum-block">
-        <div class="crew-subhead">Crew</div>
-        <div class="crew-member-grid">${memCardsHtml}</div>
-      </div>
-    </div>
-  </div>`;
-}
-
-// ═════════════════ RAIL ═════════════════
-function renderAIPicker() {
-  const el = document.getElementById('ai-pills');
-  el.innerHTML = aiList.map(ai =>
-    `<button class="ai-pill ${ai.idx === currentAI ? 'ap-active' : ''}" data-aiidx="${ai.idx}" onclick="selectAI(${ai.idx})">
-      <span class="ap-dot"></span>${escapeHtml(ai.label)}
+// ── right-rail (AI picker + thinking stream) ────────────────────────────────
+function _renderAIPicker() {
+  const esc = Shell.helpers.escapeHtml;
+  document.getElementById('ai-pills').innerHTML = Shell.aiList.map(ai =>
+    `<button class="ai-pill ${ai.idx === Shell.currentAI ? 'ap-active' : ''}" data-aiidx="${ai.idx}" onclick="_selectAIFromUI(${ai.idx})">
+      <span class="ap-dot"></span>${esc(ai.label)}
     </button>`
   ).join('');
 }
-function selectAI(idx) {
-  currentAI = idx;
+// Exposed for inline onclick — keep stable name
+window._selectAIFromUI = (idx) => _selectAI(idx);
+
+function _selectAI(idx) {
+  Shell.currentAI = idx;
   document.querySelectorAll('.ai-pill').forEach(p =>
     p.classList.toggle('ap-active', parseInt(p.dataset.aiidx) === idx));
-  const ai = aiList[idx] || aiList[0];
+  const ai = Shell.aiList[idx] || Shell.aiList[0];
   const av = document.getElementById('thinking-avatar');
   av.textContent = ['A','B','C'][idx] || '·';
   av.style.background = ai.color;
   document.getElementById('thinking-title').textContent = ai.label;
-  renderThinking();
-  // Re-render the AI-scoped tabs with this AI's state.
-  const job = jobByAI[idx];
-  const heat = heatByAI[idx] || 0;
-  document.getElementById('job-display').textContent = job ? job.name : '—';
-  updateHeat(heat);
-  updateHeistHeat(heat);
-  renderJobTab();
-  renderSceneList();
-  renderHeistOutcome();
+  _renderThinking();
+  // Notify each tab so it can re-render with the new AI's data
+  _aiSubscribers.forEach(cb => {
+    try { cb(idx); } catch (e) { console.error('AI subscriber error:', e); }
+  });
 }
-// Pacing for the right-rail thought cards. Without this, every event from a
-// single AI turn (e.g. 5 bid rationales) lands on the rail simultaneously.
-// Cards drain from the queue one at a time so the player can read each beat.
-// Tune with ?cardDelay=N (milliseconds) in the URL. Replay mode bypasses it
-// because the user already controls pacing via the play/step buttons.
-const THOUGHT_CARD_DELAY_MS = (() => {
-  const p = new URLSearchParams(window.location.search);
-  const n = parseInt(p.get('cardDelay') || '', 10);
-  return Number.isFinite(n) ? n : 5000;
-})();
-const _thoughtQueue = [];
-let   _thoughtTimer = null;
-const _hiredMarks   = {};   // ai_idx -> Set of char_ids (for retroactive bid-card hiring)
 
-function addThought(aiIdx, kind, title, bodyHtml, opts) {
+function _addThought(aiIdx, kind, title, bodyHtml, opts) {
   const t = { aiIdx, kind, title, body: bodyHtml, ...(opts || {}) };
-  // Persist to per-AI history immediately so AI switching shows the right
-  // backlog regardless of pacing.
   while (aiStreams.length <= aiIdx) aiStreams.push([]);
   aiStreams[aiIdx].unshift(t);
   if (THOUGHT_CARD_DELAY_MS <= 0) {
-    if (aiIdx === currentAI) prependThought(t);
+    if (aiIdx === Shell.currentAI) _prependThought(t);
     return;
   }
-  // Every card — including the first in a burst — waits THOUGHT_CARD_DELAY_MS
-  // before rendering. Same behaviour for live and replay so replays feel like
-  // watching a game unfold.
   _thoughtQueue.push(t);
   if (!_thoughtTimer) {
     _thoughtTimer = setTimeout(_drainOneThought, THOUGHT_CARD_DELAY_MS);
@@ -1268,20 +765,16 @@ function addThought(aiIdx, kind, title, bodyHtml, opts) {
 function _drainOneThought() {
   const t = _thoughtQueue.shift();
   if (!t) { _thoughtTimer = null; return; }
-  if (t.aiIdx === currentAI) prependThought(t);
+  if (t.aiIdx === Shell.currentAI) _prependThought(t);
   if (_thoughtQueue.length > 0) {
     _thoughtTimer = setTimeout(_drainOneThought, THOUGHT_CARD_DELAY_MS);
   } else {
     _thoughtTimer = null;
   }
 }
-
-function prependThought(t) {
+function _prependThought(t) {
   const stream = document.getElementById('thinking-stream');
-  const empty = stream.querySelector('.thinking-empty');
-  if (empty) empty.remove();
-  // Defensive: if a card with this id is already in the stream, replace it
-  // rather than rendering a second copy. Keeps bid/hire transitions clean.
+  stream.querySelector('.thinking-empty')?.remove();
   if (t.id) {
     const existing = document.getElementById('thought-' + t.id);
     if (existing) existing.remove();
@@ -1289,58 +782,49 @@ function prependThought(t) {
   const line = document.createElement('div');
   line.className = `thought-line tk-${t.kind}`;
   if (t.id) line.id = 'thought-' + t.id;
-  // Bid cards that have already been confirmed get a "✓ HIRED" stripe baked in.
   const showHired = t.kind === 'bid' && t.charId != null
     && _hiredMarks[t.aiIdx] && _hiredMarks[t.aiIdx].has(t.charId);
   line.innerHTML =
-    `<div class="thought-kind">${escapeHtml(t.title)}</div>` +
+    `<div class="thought-kind">${Shell.helpers.escapeHtml(t.title)}</div>` +
     `<div class="thought-body">${t.body}</div>` +
     (showHired ? '<div class="thought-hired-badge">✓ Hired</div>' : '');
   stream.insertBefore(line, stream.firstChild);
   stream.scrollTop = 0;
 }
-function markHired(aiIdx, charId) {
+function _markHired(aiIdx, charId) {
   if (!_hiredMarks[aiIdx]) _hiredMarks[aiIdx] = new Set();
   if (_hiredMarks[aiIdx].has(charId)) return;
   _hiredMarks[aiIdx].add(charId);
-  // Stamp the hired flag on the stored thought so re-renders (AI switching,
-  // replay reset) keep it.
   const stream = aiStreams[aiIdx] || [];
   for (const t of stream) {
     if (t.kind === 'bid' && t.charId === charId) { t.hired = true; break; }
   }
-  if (aiIdx !== currentAI) return;
+  if (aiIdx !== Shell.currentAI) return;
   const card = document.getElementById('thought-bid-' + aiIdx + '-' + charId);
   if (!card) return;
-  // Append the green "✓ Hired" stripe if not already present.
   if (!card.querySelector('.thought-hired-badge')) {
     card.insertAdjacentHTML('beforeend', '<div class="thought-hired-badge">✓ Hired</div>');
   }
-  // Surface the state change: move the card back to the top of the rail so
-  // it's obvious which character just got hired, instead of leaving the
-  // updated card buried under newer bids.
   const streamEl = document.getElementById('thinking-stream');
   if (streamEl && streamEl.firstChild !== card) {
     streamEl.insertBefore(card, streamEl.firstChild);
     streamEl.scrollTop = 0;
   }
-  // Float the stored thought to the front of aiStreams so AI-switching and
-  // replay reset re-render it at the top too.
   const arr = aiStreams[aiIdx];
   if (arr) {
     const idx = arr.findIndex(x => x.kind === 'bid' && x.charId === charId);
     if (idx > 0) { const [item] = arr.splice(idx, 1); arr.unshift(item); }
   }
 }
-function renderThinking() {
+function _renderThinking() {
   const stream = document.getElementById('thinking-stream');
   stream.innerHTML = '';
-  const items = aiStreams[currentAI] || [];
+  const items = aiStreams[Shell.currentAI] || [];
   if (!items.length) {
     stream.innerHTML = '<div class="thinking-empty">No thoughts yet.</div>';
     return;
   }
-  const hiredHere = _hiredMarks[currentAI];
+  const hiredHere = _hiredMarks[Shell.currentAI];
   items.forEach(t => {
     const line = document.createElement('div');
     line.className = `thought-line tk-${t.kind}`;
@@ -1349,236 +833,30 @@ function renderThinking() {
     const showHired = t.kind === 'bid' && t.charId != null
       && (t.hired || (hiredHere && hiredHere.has(t.charId)));
     line.innerHTML =
-      `<div class="thought-kind">${escapeHtml(t.title)}</div>` +
+      `<div class="thought-kind">${Shell.helpers.escapeHtml(t.title)}</div>` +
       `<div class="thought-body">${t.body}</div>` +
       (showHired ? '<div class="thought-hired-badge">✓ Hired</div>' : '');
     stream.appendChild(line);
   });
 }
 
-// ═════════════════ JOB TAB ═════════════════
-function renderJobTab() {
-  const job = jobByAI[currentAI];
-  const jobCard       = document.getElementById('job-card');
-  const profileBlock  = document.getElementById('job-profile-section');
-  const reasoningBlk  = document.getElementById('job-reasoning-block');
-  const hdBlock       = document.getElementById('hidden-depth-section');
-  if (!job) {
-    jobCard.style.display = 'none';
-    profileBlock.style.display = 'none';
-    reasoningBlk.style.display = 'none';
-    hdBlock.style.display = 'none';
-    return;
-  }
-  document.getElementById('job-card-name').textContent   = job.name;
-  document.getElementById('job-card-flavor').textContent = job.flavor || '';
-  const rr = job.reward_range;
-  document.getElementById('job-card-reward').textContent = rr
-    ? '$' + (rr[0]/1e6).toFixed(1) + 'm – $' + (rr[1]/1e6).toFixed(1) + 'm' : '';
-  jobCard.style.display = '';
-
-  const p = job.profile || {};
-  document.getElementById('job-challenge-table').innerHTML = [
-    {label:'Electronic', key:'electronic'}, {label:'Physical', key:'physical'},
-    {label:'Confrontation', key:'confrontation'}, {label:'Social', key:'social'},
-    {label:'Escape', isEscape:true},
-  ].map(row => {
-    if (row.isEscape) {
-      const mod = job.escape_modifier != null ? job.escape_modifier : '—';
-      return `<tr><td class="ct-label">Escape</td><td class="ct-bar"></td><td class="ct-level-name ct-level-none" style="font-size:12px;font-family:monospace">modifier ${escapeHtml(String(mod))}</td></tr>`;
-    }
-    const level = (p[row.key] || 'NONE').toUpperCase();
-    return `<tr><td class="ct-label">${escapeHtml(row.label)}</td><td class="ct-bar">${buildDiffBar(level)}</td><td class="ct-level-name ${diffCls(level)}">${escapeHtml(level)}</td></tr>`;
-  }).join('');
-  profileBlock.style.display = '';
-
-  const reasoning = jobReasoningByAI[currentAI];
-  if (reasoning && (reasoning.why_this || reasoning.why_not || reasoning.legacy || typeof reasoning === 'string')) {
-    const target = document.getElementById('job-reasoning-text');
-    // New shape: object with why_this/why_not. Old shape (legacy replays):
-    // a plain string. Handle both.
-    if (typeof reasoning === 'string') {
-      target.textContent = reasoning;
-    } else if (reasoning.why_this || reasoning.why_not) {
-      let html = '';
-      if (reasoning.why_this) {
-        html += `<div class="job-reasoning-subhead">Why this job</div>` +
-                `<div class="job-reasoning-body">${escapeHtml(reasoning.why_this)}</div>`;
-      }
-      if (reasoning.why_not) {
-        html += `<div class="job-reasoning-subhead">Why not the others</div>` +
-                `<div class="job-reasoning-body">${escapeHtml(reasoning.why_not)}</div>`;
-      }
-      target.innerHTML = html;
-    } else {
-      target.textContent = reasoning.legacy || '';
-    }
-    reasoningBlk.style.display = '';
-  } else {
-    reasoningBlk.style.display = 'none';
-  }
-
-  const hd = hdByAI[currentAI];
-  if (hd) {
-    const types = {
-      complication:          {badge:'hd-badge-complication', callout:'hd-callout-complication', label:'Complication'},
-      opportunity_with_cost: {badge:'hd-badge-opportunity',  callout:'hd-callout-opportunity',  label:'Opportunity'},
-      bonus_with_cost:       {badge:'hd-badge-bonus',        callout:'hd-callout-bonus',        label:'Bonus'},
-    };
-    const t = types[hd.element_type] || types.complication;
-    document.getElementById('hd-callout-wrap').innerHTML =
-      `<div class="hd-callout ${t.callout}"><div class="hd-badge ${t.badge}">${t.label}</div><div>${escapeHtml(hd.description)}</div></div>`;
-    document.getElementById('hd-reward').textContent =
-      `Reward rolled: ${hd.reward_label || '—'} — ${hd.reward_amount != null ? '$' + Number(hd.reward_amount).toLocaleString() : '—'}`;
-    hdBlock.style.display = '';
-  } else {
-    hdBlock.style.display = 'none';
-  }
-}
-function buildDiffBar(level) {
-  const segs = {HARD:3, MEDIUM:2, LOW:1, NONE:0}[level] || 0;
-  const cls  = {HARD:'lvl-hard', MEDIUM:'lvl-medium', LOW:'lvl-low'}[level] || '';
-  return '<div class="ct-bar-segs">' + Array.from({length:3}, (_,i) => `<span class="ct-seg ${i<segs?cls:''}"></span>`).join('') + '</div>';
-}
-function diffCls(level) {
-  return {HARD:'ct-level-hard', MEDIUM:'ct-level-medium', LOW:'ct-level-low'}[level] || 'ct-level-none';
+function _flashCard(charId) {
+  const el = document.getElementById('cc-' + charId);
+  if (!el) return;
+  el.classList.remove('bidding-flash');
+  void el.offsetWidth;
+  el.classList.add('bidding-flash');
+  el.scrollIntoView({ block:'nearest', behavior:'smooth' });
 }
 
-// ═════════════════ HEIST TAB ═════════════════
-const skillToType = { hacker:'electronic', safecracker:'physical', muscle:'confrontation', inside_man:'social' };
-function updateHeistHeat(n) {
-  const filled = Math.min(Math.max(n || 0, 0), 5);
-  document.getElementById('heist-heat-dots').textContent = '●'.repeat(filled) + '○'.repeat(5 - filled);
-}
-function renderSceneList() {
-  // Clear and re-render all scene cards for the active AI.
-  const listEl = document.getElementById('scene-list');
-  if (!listEl) return;
-  listEl.innerHTML = '';
-  const scenes = scenesByAI[currentAI] || {};
-  const sceneNums = Object.keys(scenes).map(Number).sort((a, b) => a - b);
-  sceneNums.forEach(n => renderSceneCard(n));
-}
-function renderSceneCard(sceneNum) {
-  const scenes = scenesByAI[currentAI] || {};
-  const s = scenes[sceneNum]; if (!s) return;
-  const job  = jobByAI[currentAI];
-  const crew = crewByAI[currentAI];
-  const cardId = 'scene-card-' + sceneNum;
-  let card = document.getElementById(cardId);
-  if (!card) {
-    card = document.createElement('div');
-    card.className = 'scene-card'; card.id = cardId;
-    document.getElementById('scene-list').appendChild(card);
-  }
-  const meta = s.meta || {}, result = s.result || null, narr = s.narration || null;
-  const typeMap = { escape:'stype-escape', decision:'stype-decision' };
-  const typeCls = typeMap[meta.scene_type] || (meta.is_core ? 'stype-core' : '');
-  const typeText = { escape:'Escape', decision:'Decision' }[meta.scene_type] || (meta.is_core ? 'Core' : meta.scene_type || 'Scene');
-
-  let resultHtml = !result ? '<span class="scene-status-pending">● in progress</span>'
-    : result.aborted ? '<span class="scene-result-none">— ABORTED</span>'
-    : meta.scene_type === 'escape' ? (result.escape_success ? '<span class="scene-result-ok">✓ CLEAN EXIT</span>' : '<span class="scene-result-fail">✗ CAUGHT</span>')
-    : result.success === true ? '<span class="scene-result-ok">✓ SUCCESS</span>'
-    : result.success === false ? '<span class="scene-result-fail">✗ FAILURE</span>'
-    : '<span class="scene-result-none">—</span>';
-
-  let challengeHtml = '';
-  if (meta.scene_type === 'escape') {
-    const diff = result ? result.escape_difficulty : '?', mod = job ? job.escape_modifier : '?', heat = result ? result.heat : '?';
-    challengeHtml = `<div class="escape-info">Escape — difficulty ${escapeHtml(String(diff))} (modifier ${escapeHtml(String(mod))} + heat ${escapeHtml(String(heat))})</div>
-      ${result ? '<div class="escape-info">Result: ' + (result.escape_success ? '<span style="color:var(--green)">✓ Clean exit</span>' : '<span style="color:var(--red)">✗ Caught</span>') + '</div>' : ''}`;
-  } else if (meta.challenge_skill && meta.scene_type !== 'setup') {
-    const skill = (meta.challenge_skill || '').toLowerCase();
-    const typeKey = skillToType[skill];
-    const expected = (job && typeKey && job.profile) ? (job.profile[typeKey] || 'NONE').toUpperCase() : null;
-    const reality  = result ? (result.challenge_level || 'NONE').toUpperCase() : null;
-    const warn = (expected && reality && expected !== reality)
-      ? `<div class="scene-hidden-depth-warn">⚠ Hidden depth modified: expected ${escapeHtml(expected)}, got ${escapeHtml(reality)}</div>` : '';
-    challengeHtml = `<div class="scene-challenge-block">
-      <div class="sc-challenge-title">Challenge · ${escapeHtml(meta.challenge_skill)}</div>
-      ${expected != null ? `<div class="sc-challenge-row"><span class="sc-challenge-row-lbl">Expected</span>${buildDiffBar(expected)}<span class="ct-level-name ${diffCls(expected)}" style="font-size:11px">${escapeHtml(expected)}</span></div>` : ''}
-      ${reality  != null ? `<div class="sc-challenge-row"><span class="sc-challenge-row-lbl">Reality</span>${buildDiffBar(reality)}<span class="ct-level-name ${diffCls(reality)}" style="font-size:11px">${escapeHtml(reality)}</span></div>` : ''}
-      ${warn}</div>`;
-  } else {
-    challengeHtml = '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Narrative scene</div>';
-  }
-
-  let assignedHtml = '';
-  if (result && result.assigned_member_ids && result.assigned_member_ids.length) {
-    const names = result.assigned_member_ids.map(id => {
-      const m = crew && crew.members ? crew.members.find(x => x.id == id) : null;
-      return m ? escapeHtml(m.name) : escapeHtml(String(id));
-    }).join(', ');
-    assignedHtml = `<div class="scene-assigned-block">
-      <div class="scene-assigned-label">Assigned</div>
-      <div class="scene-assigned-names">${names}</div>
-      ${result.reasoning ? `<div class="scene-reasoning-text">"${escapeHtml(result.reasoning)}"</div>` : ''}
-    </div>`;
-  }
-
-  let decisionHtml = '';
-  if (meta.scene_type === 'decision' && result) {
-    const pursue = result.decision === 'pursue' || result.pursue === true;
-    decisionHtml = `<div class="scene-decision-block">
-      <div class="scene-decision-label">Decision</div>
-      ${pursue ? '<span class="scene-decision-pursue">▶ PURSUE</span>' : '<span class="scene-decision-pass">— PASS</span>'}
-      ${result.reasoning ? `<div class="scene-decision-reason">"${escapeHtml(result.reasoning)}"</div>` : ''}
-    </div>`;
-  }
-
-  const narrationHtml = result
-    ? (narr ? `<div class="scene-narration prose">${renderMd(narr)}</div>` : '<div class="scene-narrating">Narrating…</div>')
-    : '';
-
-  card.innerHTML = `
-    <div class="scene-card-header">
-      <span class="scene-card-num">Scene ${sceneNum}</span>
-      <span class="scene-card-title">${escapeHtml(meta.title || '')}</span>
-      <span class="scene-type-badge ${typeCls}">${escapeHtml(typeText)}</span>
-      ${resultHtml}
-    </div>
-    ${challengeHtml}${assignedHtml}${decisionHtml}${narrationHtml}`;
-}
-function renderHeistOutcome() {
-  const existing = document.getElementById('heist-outcome');
-  if (existing) existing.remove();
-  const gameState = gameStateByAI[currentAI];
-  if (!gameState) return;
-  const ok = !gameState.aborted && gameState.escape_success !== false;
-  const take = gameState.final_take != null ? '$' + Number(gameState.final_take).toLocaleString() : '—';
-  const bonusPursued = gameState.bonus_pursued;
-  const bonusStr = bonusPursued
-    ? (gameState.bonus_success ? `Pursued — succeeded ($${Number(gameState.bonus_amount).toLocaleString()})` : 'Pursued — failed')
-    : 'Not pursued';
-  const card = document.createElement('div');
-  card.id = 'heist-outcome'; card.className = 'heist-outcome-card';
-  card.innerHTML = `
-    <div class="${ok ? 'heist-outcome-heading-ok' : 'heist-outcome-heading-fail'}">${ok ? '✓ HEIST COMPLETE' : '✗ HEIST FAILED'}</div>
-    <div class="heist-outcome-take">${escapeHtml(take)}</div>
-    <div class="heist-outcome-row"><span class="heist-outcome-row-key">Escape</span><span class="heist-outcome-row-val">${gameState.escape_success ? 'Succeeded' : 'Failed'}</span></div>
-    <div class="heist-outcome-row"><span class="heist-outcome-row-key">Bonus</span><span class="heist-outcome-row-val">${escapeHtml(bonusStr)}</span></div>
-    <div class="heist-outcome-row"><span class="heist-outcome-row-key">Final heat</span><span class="heist-outcome-row-val">${gameState.heat || 0}</span></div>`;
-  document.getElementById('scene-list').appendChild(card);
-}
-
-// ═════════════════ HELPERS ═════════════════
-function setStatus(cls, text) {
+// ── status / heat ───────────────────────────────────────────────────────────
+function _setStatus(cls, text) {
   const b = document.getElementById('status-badge');
   b.className = cls; b.textContent = text;
 }
-function updateHeat(n) {
+function _updateHeat(n) {
   const el = document.getElementById('heat-display');
   el.textContent = n ? '● '.repeat(n).trim() + '  heat ' + n : '';
-}
-function escapeHtml(s) {
-  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-function renderMd(text) {
-  if (!text) return '';
-  let s = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  s = s.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>').replace(/`(.+?)`/g,'<code>$1</code>');
-  return s.split(/\n{2,}/).map(p=>`<p>${p.replace(/\n/g,'<br>')}</p>`).join('');
 }
 </script>
 </body>
