@@ -268,6 +268,7 @@ let _currentOnEvent = null;  // set by initShell; used by replayStep
 // ── isVisibleEvent: true for events that produce a visible DOM change ─────────
 function _isVisibleEvent(e) {
   if (e.type === 'turn_start') return false;
+  if (e.type === 'hidden_depth_rolled') return false;
   if (e.type === 'turn_end') {
     const label = e.label || '';
     if (label === 'bid')             return true;
@@ -277,6 +278,25 @@ function _isVisibleEvent(e) {
     return false;
   }
   return true;
+}
+
+// Returns true if the event belongs to the currently-selected AI, or has no
+// ai_idx (system/global events). Used by Step/Back to skip other AIs' events.
+function _isCurrentAIEvent(e) {
+  return e.ai_idx === undefined || e.ai_idx === Shell.currentAI;
+}
+
+// The most recent visible stage ≤ maxStage whose event is for the current AI.
+// Falls back to maxStage if no current-AI event is found (so Back never stalls).
+function _prevCurrentAIStage(maxStage) {
+  let n = 0, result = maxStage;
+  for (let i = 0; i < _REPLAY_EVENTS.length; i++) {
+    if (!_isVisibleEvent(_REPLAY_EVENTS[i])) continue;
+    n++;
+    if (n > maxStage) break;
+    if (_isCurrentAIEvent(_REPLAY_EVENTS[i])) result = n;
+  }
+  return result;
 }
 
 // ── stage helpers ─────────────────────────────────────────────────────────────
@@ -326,15 +346,23 @@ function _bufferIndexAfterStage(stage) {
 
 // ── replay controls ───────────────────────────────────────────────────────────
 function replayStep() {
-  const cur   = _currentStage();
   const total = _totalStages();
-  if (cur >= total) {
+  if (_currentStage() >= total) {
     if (_REPLAY_TIMER) replayToggle();
     return;
   }
-  const targetIdx = _bufferIndexAfterStage(cur + 1);
-  while (_REPLAY_INDEX < targetIdx && _REPLAY_INDEX < _REPLAY_EVENTS.length) {
-    _processEvent(_REPLAY_EVENTS[_REPLAY_INDEX++], _currentOnEvent);
+  // Advance through visible events until we land on one for the current AI.
+  // Events for other AIs are still processed (internal state stays correct)
+  // but don't count as a stop point — the user sees something every step.
+  while (_REPLAY_INDEX < _REPLAY_EVENTS.length) {
+    const cur        = _currentStage();
+    if (cur >= total) break;
+    const targetIdx  = _bufferIndexAfterStage(cur + 1);
+    const visibleEvt = _REPLAY_EVENTS[targetIdx - 1];
+    while (_REPLAY_INDEX < targetIdx && _REPLAY_INDEX < _REPLAY_EVENTS.length) {
+      _processEvent(_REPLAY_EVENTS[_REPLAY_INDEX++], _currentOnEvent);
+    }
+    if (!visibleEvt || _isCurrentAIEvent(visibleEvt)) break;
   }
   _replayUpdateCounter();
   if (_currentStage() >= total && _REPLAY_TIMER) replayToggle();
@@ -478,7 +506,7 @@ function replayBack() {
     if (prev) window.location = prev;
     return;
   }
-  _jumpToStage(cur - 1);
+  _jumpToStage(_prevCurrentAIStage(cur - 1));
 }
 
 // What page (= phase) are we on?
