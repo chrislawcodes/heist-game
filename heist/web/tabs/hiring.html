@@ -1,5 +1,5 @@
 <!--
-  Hiring tab. Loaded into the viewer shell at boot via /tabs/hiring.
+  Hiring tab.
 
   Shell contract:
     1. Shell loads this fragment (style + template + script all activate).
@@ -7,326 +7,843 @@
     3. Shell forwards every SSE event via HiringTab.handleEvent(ev)
     4. Shell calls HiringTab.reset() on replay reset
     5. Tab can call Shell.markHired(...) when crews land
-
-  Events the tab acts on:
-    turn_end (label='bid')  → record bid rationales (no DOM change here)
-    crew_known              → fix crew membership, re-render board + columns
-    game_done               → finalise crew membership
-
-  All other events are ignored.
 -->
 
 <style>
-/* All Hiring-tab CSS is scoped under .hiring-root */
-
-.hiring-root { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow-y: auto; padding-bottom: 16px; }
-
-.hiring-root #draft-board {
-  flex: 0 0 auto;
-  display: flex; flex-direction: column;
-  padding: 24px 16px 10px;
-  border-top: 1px solid var(--border);
+.hiring-root {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 18px 18px;
+  background:
+    radial-gradient(900px 280px at 50% -120px, rgba(232,160,48,0.06), transparent 60%),
+    var(--bg);
 }
-.hiring-root .section-header {
-  display: flex; align-items: baseline; gap: 12px; margin-bottom: 8px;
+
+.hiring-root .hr-banner {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-10px);
+  overflow: hidden;
+  margin-bottom: 0;
+  border-bottom: 1px solid transparent;
+  transition:
+    max-height 0.28s ease,
+    opacity 0.28s ease,
+    transform 0.28s ease,
+    margin-bottom 0.28s ease,
+    border-color 0.28s ease;
+}
+.hiring-root .hr-banner.is-visible {
+  max-height: 72px;
+  opacity: 1;
+  transform: translateY(0);
+  margin-bottom: 12px;
+  border-bottom-color: rgba(82,196,122,0.35);
+}
+.hiring-root .hr-banner-inner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px 10px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, rgba(82,196,122,0.2), rgba(82,196,122,0.04));
+  color: var(--green);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+.hiring-root .hr-banner-inner::before {
+  content: '✓';
+  font-size: 14px;
+}
+.hiring-root .hr-banner-detail {
+  color: var(--text);
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  text-transform: none;
+}
+
+.hiring-root .hr-floor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  min-height: 0;
+  flex: 1;
+}
+
+.hiring-root .hr-pool {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.hiring-root .hr-pool-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 8px;
   flex-shrink: 0;
 }
-.hiring-root .section-title {
-  font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+.hiring-root .hr-section-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  text-transform: uppercase;
   color: var(--muted);
 }
-.hiring-root .section-sub { font-size: 11px; color: var(--muted); font-family: monospace; }
-.hiring-root .section-legend {
-  margin-left: auto; display: flex; gap: 10px;
-  font-size: 9px; color: var(--muted);
-}
-.hiring-root .legend-item { display: flex; align-items: center; gap: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
-.hiring-root .legend-swatch { width: 12px; height: 4px; border-radius: 1px; }
-
-.hiring-root .board-grid {
-  display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  gap: 6px;
-  align-content: start;
-  padding-right: 4px;
-}
-
-.hiring-root #crews-section {
-  flex: 0 0 auto;
-  background: #0a0a0c;
-  padding: 12px 16px 12px;
-  display: flex; flex-direction: column;
-}
-.hiring-root .hiring-banner {
-  flex-shrink: 0;
-  padding: 8px 16px;
-  background: linear-gradient(90deg, rgba(82,196,122,0.22), rgba(82,196,122,0.05));
-  border-bottom: 1px solid rgba(82,196,122,0.4);
-  display: flex; align-items: center; gap: 10px;
-  font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
-  color: var(--green);
-}
-.hiring-root .hiring-banner::before { content: '✓'; font-size: 14px; }
-.hiring-root .crew-columns {
-  display: flex; gap: 10px;
-  overflow-x: auto;
-  padding-bottom: 4px;
-}
-.hiring-root .crew-col {
-  flex: 0 0 calc(40% - 8px);
-  min-width: calc(40% - 8px);
-  background: var(--panel); border: 1px solid var(--border);
-  border-top: 3px solid var(--border); border-radius: 6px;
-  display: flex; flex-direction: column;
-}
-.hiring-root .crew-col[data-crew="A"] { border-top-color: var(--ai-a); }
-.hiring-root .crew-col[data-crew="B"] { border-top-color: var(--ai-b); }
-.hiring-root .crew-col[data-crew="C"] { border-top-color: var(--ai-c); }
-.hiring-root .crew-col-header {
-  flex-shrink: 0; padding: 8px 12px;
-  display: flex; align-items: center; gap: 8px;
-  border-bottom: 1px solid var(--border);
-  background: var(--panel2);
-}
-.hiring-root .cc-badge {
-  width: 20px; height: 20px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 11px; font-weight: 700; color: #000;
-}
-.hiring-root .cc-crew-name {
-  font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
-  color: var(--text); flex: 1;
-}
-.hiring-root .cc-meta { font-family: monospace; font-size: 10px; color: var(--muted); }
-.hiring-root .cc-meta strong { color: var(--text); }
-.hiring-root .crew-col-body {
-  display: flex; flex-direction: column;
-  padding: 12px 14px;
-  gap: 14px;
-}
-.hiring-root .crew-subhead {
-  font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
-  color: var(--muted); margin-bottom: 6px;
-}
-.hiring-root .cum-block { display: flex; flex-direction: column; }
-.hiring-root .cum-rows { display: flex; flex-direction: column; gap: 5px; }
-.hiring-root .cum-row { display: flex; align-items: center; gap: 8px; }
-.hiring-root .cum-label {
-  font-size: 10px; font-weight: 700; letter-spacing: 0.8px;
-  color: var(--muted); width: 38px; flex-shrink: 0;
+.hiring-root .hr-section-count {
+  font-size: 11px;
+  color: var(--muted);
   font-family: monospace;
 }
-.hiring-root .cum-bar { flex: 1; height: 8px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; }
-.hiring-root .cum-bar-fill { height: 100%; border-radius: 2px; transition: width 0.4s ease; }
-.hiring-root .cum-val {
-  font-family: monospace; font-size: 11px; font-weight: 700;
-  color: var(--text); width: 18px; text-align: right; flex-shrink: 0;
-}
-.hiring-root .cum-val.is-zero { color: #3a3a44; }
-.hiring-root .crew-member-grid {
+.hiring-root .hr-pool-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
   gap: 6px;
+  align-content: start;
 }
-.hiring-root .cum-empty-row { font-size: 10px; color: #3a3a44; font-style: italic; padding: 2px 4px; }
+.hiring-root.is-done .hr-pool-grid {
+  opacity: 0.45;
+  filter: grayscale(0.22);
+}
+
+.hiring-root .hr-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.hiring-root .hr-card.is-leaving {
+  animation: hrLeave 0.22s ease forwards;
+}
+.hiring-root .hr-card.is-entering {
+  opacity: 0;
+  transform: translateY(8px) scale(0.985);
+  animation: hrEnter 0.28s ease forwards;
+}
+@keyframes hrLeave {
+  from { opacity: 1; transform: none; filter: none; }
+  to   { opacity: 0.22; transform: translateY(6px) scale(0.985); filter: grayscale(0.2); }
+}
+@keyframes hrEnter {
+  from { opacity: 0; transform: translateY(8px) scale(0.985); }
+  to   { opacity: 1; transform: none; }
+}
+
+.hiring-root .hr-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 5px 6px 0;
+}
+.hiring-root .hr-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  background: rgba(255,255,255,0.04);
+  background: color-mix(in srgb, var(--chip-color) 18%, transparent);
+  color: var(--chip-color);
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease,
+    color 0.2s ease,
+    background-color 0.2s ease,
+    border-color 0.2s ease;
+}
+.hiring-root .hr-chip-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 18%, transparent);
+}
+.hiring-root .hr-chip-amt {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.hiring-root .hr-chip.won {
+  --chip-color: var(--green);
+  background: color-mix(in srgb, var(--green) 16%, transparent);
+  border-color: color-mix(in srgb, var(--green) 35%, transparent);
+}
+.hiring-root .hr-chip.won .hr-chip-amt::before {
+  content: '✓';
+  font-size: 9px;
+  line-height: 1;
+}
+.hiring-root .hr-chip.lost {
+  --chip-color: #8f8e99;
+  color: #9a98a5;
+  text-decoration: line-through;
+  background: rgba(255,255,255,0.03);
+  border-color: rgba(255,255,255,0.06);
+  animation: chipLost 0.6s ease forwards;
+}
+.hiring-root .hr-chip.tied {
+  --chip-color: var(--red);
+  background: color-mix(in srgb, var(--red) 18%, transparent);
+  border-color: color-mix(in srgb, var(--red) 28%, transparent);
+  animation: tieFlash 0.85s ease-in-out infinite;
+}
+@keyframes chipLost {
+  0%   { opacity: 1; transform: none; }
+  100% { opacity: 0.55; transform: translateY(1px); }
+}
+@keyframes tieFlash {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  50%      { box-shadow: 0 0 0 2px rgba(224,80,80,0.22); }
+}
+
+.hiring-root .hr-crews {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  flex: 0 0 auto;
+  width: 192px;
+}
+.hiring-root .hr-crew-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+.hiring-root .hr-crew-col {
+  flex: 0 0 auto;
+  width: 192px;
+  min-height: 0;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-top-width: 3px;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+.hiring-root .hr-crew-col.is-active {
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.08), 0 10px 24px rgba(0,0,0,0.18);
+  transform: translateY(-1px);
+}
+.hiring-root .hr-crew-head {
+  padding: 10px 10px 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--panel2);
+  border-bottom: 1px solid var(--border);
+}
+.hiring-root .hr-crew-topline {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+.hiring-root .hr-crew-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--crew-color);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--crew-color) 16%, transparent);
+}
+.hiring-root .hr-crew-name {
+  min-width: 0;
+  flex: 1;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hiring-root .hr-crew-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+.hiring-root .hr-bankroll-text {
+  font-family: monospace;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+}
+.hiring-root .hr-done-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(82,196,122,0.14);
+  border: 1px solid rgba(82,196,122,0.24);
+  color: var(--green);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+.hiring-root .hr-bankroll {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255,255,255,0.06);
+}
+.hiring-root .hr-bankroll-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: var(--crew-color);
+  transition: width 0.35s ease, opacity 0.35s ease;
+}
+.hiring-root .hr-bankroll-fill.is-reserved {
+  opacity: 0.42;
+}
+
+.hiring-root .hr-crew-slots {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+}
+.hiring-root .hr-slot {
+  width: 100%;
+  min-height: 154px;
+}
+.hiring-root .hr-slot .hr-card,
+.hiring-root .hr-slot-empty {
+  width: 100%;
+  min-height: 154px;
+}
+.hiring-root .hr-slot-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  border: 1px dashed rgba(255,255,255,0.14);
+  color: var(--muted);
+  font-size: 12px;
+  font-style: italic;
+  background: rgba(255,255,255,0.02);
+}
+
+.hiring-root .hr-footnote {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--muted);
+}
 </style>
 
 <template id="hiring-template">
-  <div class="hiring-root">
-    <div class="hiring-banner" data-hr="banner" style="display:none">
-      Hiring complete · <span data-hr="banner-detail" style="color:var(--text);font-weight:600;letter-spacing:0.5px;text-transform:none;font-size:12px">2 crews assembled</span>
-    </div>
-
-    <div id="crews-section">
-      <div class="section-header">
-        <span class="section-title">Crews</span>
-        <span class="section-sub" data-hr="crews-sub">awaiting draft</span>
-      </div>
-      <div class="crew-columns" data-hr="crew-columns"></div>
-    </div>
-
-    <div id="draft-board">
-      <div class="section-header">
-        <span class="section-title">Available Roster</span>
-        <span class="section-sub" data-hr="board-meta">—</span>
-        <div class="section-legend">
-          <span class="legend-item"><span class="legend-swatch" style="background:var(--sk-hack)"></span>Hack</span>
-          <span class="legend-item"><span class="legend-swatch" style="background:var(--sk-safe)"></span>Safe</span>
-          <span class="legend-item"><span class="legend-swatch" style="background:var(--sk-musc)"></span>Musc</span>
-          <span class="legend-item"><span class="legend-swatch" style="background:var(--sk-soc)"></span>Soc</span>
-          <span class="legend-item"><span class="legend-swatch" style="background:var(--sk-drive)"></span>Drive</span>
-        </div>
-      </div>
-      <div class="board-grid" data-hr="board-grid"></div>
-    </div>
-  </div>
+  <div class="hiring-root"></div>
 </template>
 
 <script>
 (function () {
   'use strict';
 
-  // ── per-mount state ─────────────────────────────────────────────────────
   let root = null;
   let Shell = null;
-  // HIRES: char_id -> array of ai_idx values that hired this character
+
+  // HIRES: char_id -> array of ai_idx values that have hired this character.
   const HIRES = {};
+  // crewByAI: ai_idx -> crew payload from crew_known / game_done.
   const crewByAI = {};
+  // bidParsedByAI: ai_idx -> { char_id -> chip record }.
   const bidParsedByAI = {};
+  const crewKnownByAI = new Set();
+  const movingCharIds = new Set();
+  const moveTimersByChar = new Map();
+  const chipTimersByKey = new Map();
+  let resolvingTimer = null;
 
-  function $$(name) { return root && root.querySelector(`[data-hr="${name}"]`); }
-  function _addHire(charId, aiIdx) {
-    if (!HIRES[charId]) HIRES[charId] = [];
-    if (!HIRES[charId].includes(aiIdx)) HIRES[charId].push(aiIdx);
-  }
-  function _hires(charId) { return HIRES[charId] || []; }
+  const BANKROLL = 2000;
+  const CHIP_CLEAR_MS = 600;
+  const MOVE_MS = 240;
+  const RESOLVE_MS = 500;
 
-  // ── renderers ───────────────────────────────────────────────────────────
-  function renderBoard() {
-    if (!root) return;
-    const grid = $$('board-grid');
-    if (!grid) return;
-    const totalAIs = Shell.aiList.length;
-    const available = Shell.roster.filter(c => _hires(c.id).length < totalAIs);
-    grid.innerHTML = available.length
-      ? available.map(c => Shell.helpers.charCardHtml(c)).join('')
-      : '<div style="grid-column:1/-1;color:var(--muted);font-style:italic;font-size:13px;text-align:center;padding:30px;">All characters drafted.</div>';
-    const hired = Shell.roster.length - available.length;
-    const meta = $$('board-meta');
-    if (meta) meta.textContent = `${available.length} left · ${hired} hired`;
+  function $$(name) {
+    return root && root.querySelector(`[data-hr="${name}"]`);
   }
 
-  function renderCrews() {
-    if (!root) return;
-    const el = $$('crew-columns');
-    if (!el) return;
-    el.innerHTML = Shell.aiList.map(ai => crewColHtml(ai)).join('');
-    const sub = $$('crews-sub');
-    if (sub) sub.textContent = Shell.aiList.length === 1 ? '1 crew'
-      : `${Shell.aiList.length} crews`;
+  function charKey(id) {
+    return String(id);
   }
 
-  function crewColHtml(ai) {
-    const esc = Shell.helpers.escapeHtml;
-    const crewLetter = ['A','B','C'][ai.idx] || '?';
-    const members = Shell.roster.filter(c => _hires(c.id).includes(ai.idx));
-    const SKILL_KEYS  = ['hack','safe','musc','soc','drive'];
-    const SKILL_LABEL = { hack:'HACK', safe:'SAFE', musc:'MUSC', soc:'SOC', drive:'DRIVE' };
+  function getChar(id) {
+    if (!Shell) return null;
+    const raw = Shell.charById && (Shell.charById.get(id) || Shell.charById.get(Number(id)) || Shell.charById.get(String(id)));
+    if (raw) return raw;
+    return (Shell.roster || []).find(c => charKey(c.id) === charKey(id)) || null;
+  }
 
-    const sums = [0,0,0,0,0];
-    members.forEach(m => SKILL_KEYS.forEach((sk, i) => {
-      sums[i] += Shell.helpers.skillVal(m, sk);
-    }));
-    const cumHtml = SKILL_KEYS.map((sk, i) => {
-      const val = sums[i];
-      const pct = Math.min(100, (val / 12) * 100);
-      return `<div class="cum-row">
-        <span class="cum-label">${SKILL_LABEL[sk]}</span>
-        <div class="cum-bar">${val > 0 ? `<div class="cum-bar-fill" style="width:${pct}%;background:var(--sk-${sk});"></div>` : ''}</div>
-        <span class="cum-val ${val === 0 ? 'is-zero' : ''}">${val}</span>
-      </div>`;
+  function getCrewLetter(aiIdx) {
+    return String.fromCharCode(65 + aiIdx);
+  }
+
+  function isHiredSomewhere(charId) {
+    const key = charKey(charId);
+    return !!(HIRES[key] && HIRES[key].length);
+  }
+
+  function hiredCount() {
+    return Object.keys(HIRES).length;
+  }
+
+  function getAiLedger(aiIdx) {
+    if (!bidParsedByAI[aiIdx]) bidParsedByAI[aiIdx] = {};
+    return bidParsedByAI[aiIdx];
+  }
+
+  function getCrew(aiIdx) {
+    return crewByAI[aiIdx] || { members: [] };
+  }
+
+  function crewMembers(crew) {
+    return (crew && crew.members) || [];
+  }
+
+  function clearTimer(map, key) {
+    const t = map.get(key);
+    if (t) clearTimeout(t);
+    map.delete(key);
+  }
+
+  function addHire(charId, aiIdx) {
+    const key = charKey(charId);
+    if (!HIRES[key]) HIRES[key] = [];
+    if (!HIRES[key].includes(aiIdx)) HIRES[key].push(aiIdx);
+  }
+
+  function charById(charId) {
+    return getChar(charId);
+  }
+
+  function setBiddingStatus() {
+    if (!Shell) return;
+    Shell.setStatus('s-idle', 'BIDDING');
+  }
+
+  function setResolvingStatus() {
+    if (!Shell) return;
+    Shell.setStatus('s-running', 'RESOLVING');
+    clearTimeout(resolvingTimer);
+    resolvingTimer = setTimeout(() => {
+      if (!Shell || isAllKnown()) return;
+      Shell.setStatus('s-idle', 'BIDDING');
+    }, RESOLVE_MS);
+  }
+
+  function setDoneStatus() {
+    if (!Shell) return;
+    clearTimeout(resolvingTimer);
+    Shell.setStatus('s-done', 'HIRED');
+  }
+
+  function isAllKnown() {
+    return !!Shell && Shell.aiList.every(ai => crewKnownByAI.has(ai.idx));
+  }
+
+  function finalSpend(aiIdx) {
+    const crew = getCrew(aiIdx);
+    const memberIds = new Set(crewMembers(crew).map(m => charKey(m.id)));
+    const ledger = getAiLedger(aiIdx);
+    return Object.values(ledger).reduce((sum, chip) => {
+      if (memberIds.has(charKey(chip.charId))) return sum + chip.amount;
+      return sum;
+    }, 0);
+  }
+
+  function reservedSpend(aiIdx) {
+    const ledger = getAiLedger(aiIdx);
+    return Object.values(ledger).reduce((sum, chip) => sum + chip.amount, 0);
+  }
+
+  function aiVisibleCount() {
+    return Shell && Shell.aiList ? Shell.aiList.length : 0;
+  }
+
+  function allVisiblePoolChars() {
+    if (!Shell) return [];
+    return Shell.roster.filter(c => !isHiredSomewhere(c.id) || movingCharIds.has(charKey(c.id)));
+  }
+
+  function chipRecordsForChar(charId) {
+    const key = charKey(charId);
+    const chips = [];
+    if (!Shell) return chips;
+    Shell.aiList.forEach(ai => {
+      const ledger = getAiLedger(ai.idx);
+      const chip = ledger[key];
+      if (chip) chips.push(chip);
+    });
+    return chips;
+  }
+
+  function refreshTieStates(charId) {
+    const chips = chipRecordsForChar(charId).filter(chip => chip.state === 'pending' || chip.state === 'tied');
+    if (!chips.length) return;
+    const byAmount = new Map();
+    chips.forEach(chip => {
+      const list = byAmount.get(chip.amount) || [];
+      list.push(chip);
+      byAmount.set(chip.amount, list);
+    });
+
+    // AUCTION-V2: future backend will provide explicit tie / win / loss
+    // resolution. Today we only infer ties when two pending chips share the
+    // same amount on the same card.
+    chips.forEach(chip => {
+      const dupes = byAmount.get(chip.amount) || [];
+      chip.state = dupes.length > 1 ? 'tied' : 'pending';
+    });
+  }
+
+  function scheduleLostChipClear(aiIdx, charId) {
+    const key = `${aiIdx}:${charKey(charId)}`;
+    clearTimer(chipTimersByKey, key);
+    chipTimersByKey.set(key, setTimeout(() => {
+      const ledger = getAiLedger(aiIdx);
+      delete ledger[charKey(charId)];
+      refreshTieStates(charId);
+      render();
+      chipTimersByKey.delete(key);
+    }, CHIP_CLEAR_MS));
+  }
+
+  function markChipStateForChar(charId, state, winnerAiIdx) {
+    const key = charKey(charId);
+    Shell.aiList.forEach(ai => {
+      const ledger = getAiLedger(ai.idx);
+      const chip = ledger[key];
+      if (!chip) return;
+      if (state === 'won') {
+        chip.state = ai.idx === winnerAiIdx ? 'won' : 'lost';
+      } else if (state === 'lost') {
+        chip.state = 'lost';
+      }
+      if (chip.state === 'won') {
+        clearTimer(chipTimersByKey, `${ai.idx}:${key}`);
+      } else if (chip.state === 'lost') {
+        scheduleLostChipClear(ai.idx, key);
+      }
+    });
+    refreshTieStates(charId);
+  }
+
+  function upsertChip(aiIdx, charId, amount, source) {
+    const ledger = getAiLedger(aiIdx);
+    const key = charKey(charId);
+    ledger[key] = {
+      aiIdx,
+      charId,
+      amount: Number(amount) || 0,
+      source,
+      state: 'pending',
+    };
+    clearTimer(chipTimersByKey, `${aiIdx}:${key}`);
+    refreshTieStates(key);
+  }
+
+  function normalizeBidEvent(aiIdx, parsed) {
+    if (!parsed || !Array.isArray(parsed.bids)) return;
+    parsed.bids.forEach(bid => {
+      const charId = bid.character_id ?? bid.characterId ?? bid.id ?? bid.char_id;
+      if (charId == null) return;
+      upsertChip(aiIdx, charId, bid.bid, 'bid');
+    });
+  }
+
+  function normalizeFillEvent(aiIdx, parsed) {
+    if (!parsed || !Array.isArray(parsed.additions)) return;
+    // AUCTION-V2: this fill branch goes away once the auction backend emits
+    // direct chip placements for every AI.
+    parsed.additions.forEach(charId => {
+      const c = charById(charId);
+      if (!c) return;
+      upsertChip(aiIdx, charId, c.floor_cost, 'fill');
+    });
+  }
+
+  function renderChipRowHtml(charId) {
+    const chips = chipRecordsForChar(charId);
+    if (!chips.length) return '';
+    const html = chips.map(chip => {
+      const ai = Shell.aiList.find(a => a.idx === chip.aiIdx);
+      if (!ai) return '';
+      const cls = ['hr-chip', chip.state].filter(Boolean).join(' ');
+      const label = `$${Number(chip.amount).toLocaleString()}`;
+      return `<span class="${cls}" style="--chip-color:${ai.color}">
+        <span class="hr-chip-dot"></span>
+        <span class="hr-chip-amt">${label}</span>
+      </span>`;
     }).join('');
+    return html ? `<div class="hr-chip-row">${html}</div>` : '';
+  }
 
-    const memCardsHtml = members.length
-      ? members.map(m => Shell.helpers.charCardHtml(m, { hideCost: true, noId: true })).join('')
-      : '<div class="cum-empty-row">— no hires yet —</div>';
+  function renderPoolCardHtml(c) {
+    const key = charKey(c.id);
+    const leaving = movingCharIds.has(key) && isHiredSomewhere(key);
+    return `<div class="hr-card${leaving ? ' is-leaving' : ''}" data-char-id="${key}">
+      ${Shell.helpers.charCardHtml(c)}
+      ${renderChipRowHtml(key)}
+    </div>`;
+  }
 
-    return `<div class="crew-col" data-crew="${crewLetter}">
-      <div class="crew-col-header">
-        <span class="cc-badge" style="background:${ai.color}">${crewLetter}</span>
-        <span class="cc-crew-name">${esc(ai.label)}</span>
+  function renderCrewCardHtml(c, aiIdx) {
+    const key = charKey(c.id);
+    const entering = movingCharIds.has(key);
+    return `<div class="hr-card${entering ? ' is-entering' : ''}" data-char-id="${key}">
+      ${Shell.helpers.charCardHtml(c, { hideCost: true, noId: true })}
+    </div>`;
+  }
+
+  function renderEmptySlotHtml() {
+    return `<div class="hr-slot-empty">Empty Slot</div>`;
+  }
+
+  function renderCrewColHtml(ai) {
+    const crew = getCrew(ai.idx);
+    const members = crewMembers(crew);
+    const done = members.length >= 4;
+    const spent = crewKnownByAI.has(ai.idx) ? finalSpend(ai.idx) : reservedSpend(ai.idx);
+    const pct = Math.max(0, Math.min(100, Math.round((spent / BANKROLL) * 100)));
+    const slots = [];
+
+    members.forEach(member => {
+      const c = charById(member.id) || member;
+      slots.push(`<div class="hr-slot">${renderCrewCardHtml(c, ai.idx)}</div>`);
+    });
+    if (!done) {
+      for (let i = members.length; i < 4; i += 1) {
+        slots.push(`<div class="hr-slot">${renderEmptySlotHtml()}</div>`);
+      }
+    }
+
+    return `<div class="hr-crew-col${ai.idx === Shell.currentAI ? ' is-active' : ''}" data-ai-idx="${ai.idx}" data-crew="${getCrewLetter(ai.idx)}" style="--crew-color:${ai.color};border-top-color:${ai.color}">
+      <div class="hr-crew-head">
+        <div class="hr-crew-topline">
+          <span class="hr-crew-dot"></span>
+          <span class="hr-crew-name">${Shell.helpers.escapeHtml(ai.label)}</span>
+        </div>
+        <div class="hr-crew-meta">
+          <span class="hr-bankroll-text">$${Number(spent).toLocaleString()} / $${BANKROLL.toLocaleString()}</span>
+          ${done ? '<span class="hr-done-pill">DONE</span>' : ''}
+        </div>
+        <div class="hr-bankroll" aria-label="Bankroll meter">
+          <div class="hr-bankroll-fill${crewKnownByAI.has(ai.idx) ? '' : ' is-reserved'}" style="width:${pct}%;"></div>
+        </div>
       </div>
-      <div class="crew-col-body">
-        <div class="cum-block">
-          <div class="crew-subhead">Coverage</div>
-          <div class="cum-rows">${cumHtml}</div>
-        </div>
-        <div class="cum-block">
-          <div class="crew-subhead">Crew</div>
-          <div class="crew-member-grid">${memCardsHtml}</div>
-        </div>
+      <div class="hr-crew-slots">${slots.join('')}</div>
+    </div>`;
+  }
+
+  function renderBannerHtml() {
+    const visible = isAllKnown();
+    const count = Shell ? Shell.aiList.length : 0;
+    return `<div class="hr-banner${visible ? ' is-visible' : ''}" data-hr="banner">
+      <div class="hr-banner-inner">
+        <span>Hiring complete</span>
+        <span class="hr-banner-detail">${count} crews assembled</span>
       </div>
     </div>`;
   }
 
-  function _maybeMarkHiringDone() {
-    if (!root) return;
-    const allHired = Shell.aiList.every(ai => crewByAI[ai.idx]);
-    if (!allHired) return;
-    if (!root.classList.contains('hiring-done')) {
-      root.classList.add('hiring-done');
-      const banner = $$('banner');
-      const detail = $$('banner-detail');
-      if (banner) banner.style.display = '';
-      if (detail) {
-        const n = Shell.aiList.length;
-        detail.textContent = `${n} ${n === 1 ? 'crew' : 'crews'} assembled · roster locked`;
-      }
-    }
+  function render() {
+    if (!root || !Shell) return;
+    const crewCount = Math.max(1, aiVisibleCount());
+    const crewWidth = Math.max(192, crewCount * 192 + Math.max(0, crewCount - 1) * 12);
+    const poolChars = allVisiblePoolChars();
+    const poolCount = poolChars.length;
+    const poolHtml = poolChars.length
+      ? poolChars.map(renderPoolCardHtml).join('')
+      : '<div style="grid-column:1/-1;color:var(--muted);font-style:italic;font-size:13px;text-align:center;padding:30px;">All characters drafted.</div>';
+
+    root.classList.toggle('is-done', isAllKnown());
+    root.innerHTML = `
+      ${renderBannerHtml()}
+      <div class="hr-floor">
+        <section class="hr-pool">
+          <div class="hr-pool-header">
+            <span class="hr-section-label">Free Characters</span>
+            <span class="hr-section-count">${poolCount} remaining</span>
+          </div>
+          <div class="hr-pool-grid" data-hr="pool-grid">${poolHtml}</div>
+        </section>
+        <section class="hr-crews" style="width:${crewWidth}px">
+          <div class="hr-pool-header">
+            <span class="hr-section-label">Crews</span>
+            <span class="hr-section-count">${Shell.aiList.length} ${Shell.aiList.length === 1 ? 'crew' : 'crews'}</span>
+          </div>
+          <div class="hr-crew-list" data-hr="crew-list">
+            ${Shell.aiList.map(renderCrewColHtml).join('')}
+          </div>
+        </section>
+      </div>
+      <div class="hr-footnote">Roster cards stay in the pool until a crew claim resolves. Chips carry the bid trail; bankroll meters reflect reserved spend first, then final spend after resolution.</div>
+    `;
+    syncActiveCrewFocus();
   }
 
-  // ── lifecycle ───────────────────────────────────────────────────────────
-  function mount(container, opts) {
-    Shell = (opts && opts.shell) || window.Shell;
-    const tpl = document.getElementById('hiring-template');
-    if (!tpl) { console.error('HiringTab: #hiring-template not in DOM'); return; }
-    container.innerHTML = '';
-    container.appendChild(tpl.content.cloneNode(true));
-    root = container.querySelector('.hiring-root');
-    renderBoard();
-    renderCrews();
-    // Re-render when shell switches AI (we don't change view per AI, but boards
-    // may need an update if roster/aiList changed)
-    if (Shell.onAISelected) Shell.onAISelected(() => {
-      renderBoard();
-      renderCrews();
+  function syncActiveCrewFocus() {
+    if (!root || !Shell) return;
+    root.querySelectorAll('.hr-crew-col').forEach(el => {
+      const idx = Number(el.getAttribute('data-ai-idx'));
+      el.classList.toggle('is-active', idx === Shell.currentAI);
     });
   }
 
-  function handleEvent(e) {
-    if (!root) return;
-    const aiIdx = e.ai_idx ?? 0;
+  function finalizeCrewKnown(aiIdx, crew, opts) {
+    const safeCrew = crew || { members: [] };
+    const members = crewMembers(safeCrew);
+    crewByAI[aiIdx] = safeCrew;
+    crewKnownByAI.add(aiIdx);
 
-    if (e.type === 'turn_end' && e.label === 'bid' && e.parsed) {
-      bidParsedByAI[aiIdx] = e.parsed;
-      // bid rendering happens through Shell's rail (handled in shell)
-      // tab side just records bids for later 'hire' attribution
+    const memberKeys = new Set(members.map(m => charKey(m.id)));
+    members.forEach(member => {
+      addHire(member.id, aiIdx);
+      // Keep the rail in sync with the hired mark for the current AI stream.
+      Shell.markHired(aiIdx, member.id);
+      const key = charKey(member.id);
+      movingCharIds.add(key);
+      clearTimer(moveTimersByChar, key);
+      moveTimersByChar.set(key, setTimeout(() => {
+        movingCharIds.delete(key);
+        moveTimersByChar.delete(key);
+        render();
+      }, MOVE_MS));
+    });
 
-    } else if (e.type === 'crew_known') {
-      crewByAI[aiIdx] = e.crew;
-      e.crew.members.forEach(member => {
-        _addHire(member.id, aiIdx);
-        // Tell shell so it can stamp ✓ Hired on the bid card in the rail
-        Shell.markHired(aiIdx, member.id);
+    Shell.aiList.forEach(ai => {
+      const ledger = getAiLedger(ai.idx);
+      Object.values(ledger).forEach(chip => {
+        if (memberKeys.has(charKey(chip.charId))) {
+          chip.state = ai.idx === aiIdx ? 'won' : 'lost';
+          if (chip.state === 'lost') scheduleLostChipClear(ai.idx, chip.charId);
+          else clearTimer(chipTimersByKey, `${ai.idx}:${charKey(chip.charId)}`);
+        } else if (ai.idx === aiIdx) {
+          chip.state = 'lost';
+          scheduleLostChipClear(ai.idx, chip.charId);
+        }
       });
-      renderBoard();
-      renderCrews();
-      _maybeMarkHiringDone();
+    });
 
-    } else if (e.type === 'game_done') {
-      // Make sure crew membership is locked in
-      if (e.state && e.state.crew) {
-        crewByAI[aiIdx] = e.state.crew;
-        e.state.crew.members.forEach(m => _addHire(m.id, aiIdx));
-        renderBoard();
-        renderCrews();
-        _maybeMarkHiringDone();
-      }
+    refreshChipSetsForCrew(memberKeys);
+    render();
+
+    if (isAllKnown()) {
+      setDoneStatus();
+      return;
+    }
+
+    setResolvingStatus();
+    if (opts && opts.final) {
+      clearTimeout(resolvingTimer);
+      resolvingTimer = setTimeout(() => {
+        if (!isAllKnown()) setBiddingStatus();
+      }, 0);
     }
   }
 
-  function reset() {
+  function refreshChipSetsForCrew(memberKeys) {
+    memberKeys.forEach(charId => refreshTieStates(charId));
+  }
+
+  function handleBidTurn(aiIdx, parsed) {
+    normalizeBidEvent(aiIdx, parsed);
+    render();
+    setBiddingStatus();
+  }
+
+  function handleFillTurn(aiIdx, parsed) {
+    normalizeFillEvent(aiIdx, parsed);
+    render();
+    setBiddingStatus();
+  }
+
+  function handleEvent(e) {
+    if (!root || !Shell) return;
+    const aiIdx = e.ai_idx ?? 0;
+
+    if (e.type === 'turn_end' && e.label === 'bid' && e.parsed) {
+      handleBidTurn(aiIdx, e.parsed);
+    } else if (e.type === 'turn_end' && /^fill_\d+$/.test(e.label || '') && e.parsed) {
+      handleFillTurn(aiIdx, e.parsed);
+    } else if (e.type === 'crew_known') {
+      finalizeCrewKnown(aiIdx, e.crew);
+    } else if (e.type === 'game_done') {
+      if (e.state && e.state.crew) {
+        finalizeCrewKnown(aiIdx, e.state.crew, { final: true });
+      }
+      if (isAllKnown()) setDoneStatus();
+    } else if (e.type === '_reset') {
+      reset();
+    }
+  }
+
+  function clearAllTimers() {
+    clearTimeout(resolvingTimer);
+    resolvingTimer = null;
+    moveTimersByChar.forEach(t => clearTimeout(t));
+    moveTimersByChar.clear();
+    chipTimersByKey.forEach(t => clearTimeout(t));
+    chipTimersByKey.clear();
+  }
+
+  function resetState() {
     for (const k of Object.keys(HIRES)) delete HIRES[k];
     for (const k of Object.keys(crewByAI)) delete crewByAI[k];
     for (const k of Object.keys(bidParsedByAI)) delete bidParsedByAI[k];
-    if (root) root.classList.remove('hiring-done');
-    const banner = $$('banner');
-    if (banner) banner.style.display = 'none';
-    renderBoard();
-    renderCrews();
+    crewKnownByAI.clear();
+    movingCharIds.clear();
+    clearAllTimers();
+  }
+
+  function reset() {
+    resetState();
+    render();
+    setBiddingStatus();
+  }
+
+  function mount(container, opts) {
+    Shell = (opts && opts.shell) || window.Shell;
+    const tpl = document.getElementById('hiring-template');
+    if (!tpl) {
+      console.error('HiringTab: #hiring-template not in DOM');
+      return;
+    }
+    container.innerHTML = '';
+    container.appendChild(tpl.content.cloneNode(true));
+    root = container.querySelector('.hiring-root');
+    render();
+    setBiddingStatus();
+    if (Shell.onAISelected) {
+      Shell.onAISelected(() => {
+        syncActiveCrewFocus();
+      });
+    }
   }
 
   function unmount() {
+    clearAllTimers();
     root = null;
   }
 
