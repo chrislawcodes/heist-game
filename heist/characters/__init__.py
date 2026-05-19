@@ -211,13 +211,13 @@ ROSTER: list[Character] = [
     ),
     Character(
         id=7,
-        name='Lin "Closer" Park',
+        name='Lin "Closer" Chen',
         skills={"inside_man": H, "safecracker": L},
         floor_cost=1100,
         backstory=(
-            "Stanford MBA, recruited into McKinsey out of school, washed out after refusing "
-            "to falsify a client's quarterly report. The career was over either way; "
-            "she chose the version that paid more."
+            "Stanford MBA, second-generation Chinese-American, recruited into McKinsey out "
+            "of school, washed out after refusing to falsify a client's quarterly report. "
+            "The career was over either way; she chose the version that paid more."
         ),
         voice=(
             "Crystal-clear, mid-tempo, never raised. Uses business-school vocabulary on "
@@ -238,7 +238,7 @@ ROSTER: list[Character] = [
         ),
         weakness="Believes she can talk her way out of anything. Has occasionally been wrong.",
         look=(
-            "Korean-American woman in her early forties: sleek black hair in a long blunt "
+            "Chinese-American woman in her early forties: sleek black hair in a long blunt "
             "cut, perfect tailoring, single pearl earring. Charcoal suit jacket. "
             "Faintly knowing half-smile."
         ),
@@ -246,21 +246,24 @@ ROSTER: list[Character] = [
     ),
     Character(
         id=8,
-        name="Theo Ashland",
+        name="Theo Kapoor",
         skills={"inside_man": M},
         floor_cost=200,
         backstory=(
-            "Failed actor — three years off-Broadway, then a long slide into voiceover work "
-            "and stand-in gigs. A director he respected once told him he was 'always lying "
+            "Second-generation Indian-American from New Jersey, trained at Juilliard on a "
+            "scholarship, spent three years off-Broadway getting cast as 'terrorist #2' and "
+            "'exotic friend.' A director he respected once told him he was 'always lying "
             "about the wrong thing.' He took it badly, then he took it as a job description."
         ),
         voice=(
-            "Smooth and adaptable. Has a default voice for the road and an actor's range "
+            "Smooth and adaptable — BBC English, Jersey drawl, or a mid-Atlantic nothing, "
+            "depending on the room. Has a default voice for the road and an actor's range "
             "underneath. Hums between sentences."
         ),
         motivation=(
-            "Still wants to be on a stage. Tells himself the work funds the gap until his "
-            "next callback, even though it has been the work for nine years now."
+            "Still wants to be on a stage playing a lead, not a prop. Tells himself the "
+            "work funds the gap until his next callback, even though it has been the work "
+            "for nine years now."
         ),
         quirk="Says 'well, well, well' before lying. Has not noticed this tell yet.",
         crew_dynamic=(
@@ -272,9 +275,9 @@ ROSTER: list[Character] = [
             "Which is most people."
         ),
         look=(
-            "White man in his early forties: light brown hair pushed back, small earring in "
-            "the left ear, light beard going grey at the chin. Open-collar shirt under a "
-            "cardigan. Soft confident smile mid-sentence."
+            "Indian-American man in his early forties: dark brown hair pushed back, small "
+            "earring in the left ear, close-trimmed beard going grey at the chin. "
+            "Open-collar shirt under a cardigan. Soft confident smile mid-sentence."
         ),
         signature_line='"Well, well, well — you must be the host."',
     ),
@@ -354,9 +357,11 @@ ROSTER: list[Character] = [
         skills={"safecracker": M, "hacker": L},
         floor_cost=400,
         backstory=(
-            "Grew up in Tulsa, daughter of a competitive locksmith champion who never paid "
-            "for a hotel because he could open the door of the room next to his. Picked up "
-            "some computer security in community college because the local jobs all wanted both."
+            "Grew up in Tulsa's Greenwood District, granddaughter of a man who rebuilt his "
+            "hardware store after 1921 and never talked about it. Her father became a "
+            "competitive locksmith champion — never paid for a hotel because he could open "
+            "the room next door. Jolene picked up computer security in community college "
+            "because the local jobs all wanted both."
         ),
         voice=(
             "Easy Oklahoma drawl, says 'y'all' without irony. Talks through her work out loud "
@@ -376,9 +381,9 @@ ROSTER: list[Character] = [
             "changed the spec."
         ),
         look=(
-            "White woman in her early thirties: dirty-blonde hair in a messy braid, freckled, "
-            "faint smile. Plaid mechanic's shirt rolled to the elbows. Head tilted as if "
-            "listening, one hand holding a lock pick."
+            "Black woman in her early thirties: natural hair pulled back in a puff, freckled "
+            "nose and cheeks, faint smile. Plaid mechanic's shirt rolled to the elbows. "
+            "Head tilted as if listening, one hand holding a lock pick."
         ),
         signature_line='"Hush now, darlin\', she\'s almost talkin\' to me."',
     ),

@@ -170,7 +170,7 @@ CHARACTERS: list[dict] = [
         "signature_line": '"Hey hey, what\'re we doin\'? Talk to me here."',
     },
     {
-        "id": 7, "file": "c07_lin", "name": 'Lin "Closer" Park',
+        "id": 7, "file": "c07_lin", "name": 'Lin "Closer" Chen',
         "skills": "Inside Man H, Safecracker L", "floor_cost": 1100,
         "backstory": "Stanford MBA, recruited into McKinsey out of school, washed out after refusing to falsify a client's quarterly report. The career was over either way; she chose the version that paid more.",
         "voice": "Crystal-clear, mid-tempo, never raised. Uses business-school vocabulary on purpose — 'stakeholder alignment,' 'downside scenario.'",
@@ -180,7 +180,7 @@ CHARACTERS: list[dict] = [
         "weakness": "Believes she can talk her way out of anything. Has occasionally been wrong.",
         "look": (
             "Bust shot, slight three-quarter angle. Two fingers raised to touch her left "
-            "pearl earring — the tell she hasn't noticed. A Korean-American woman in her "
+            "pearl earring — the tell she hasn't noticed. A Chinese-American woman in her "
             "early forties — sleek black hair in a long blunt cut, perfect tailoring, "
             "a single pearl earring. Charcoal suit jacket. Faintly knowing half-smile. "
             "Sharp clean linework, minimal shading, the kind of precision that mirrors her mind."
@@ -195,7 +195,7 @@ CHARACTERS: list[dict] = [
         "signature_line": '"Let\'s stress-test the downside scenario."',
     },
     {
-        "id": 8, "file": "c08_theo", "name": "Theo Ashland",
+        "id": 8, "file": "c08_theo", "name": "Theo Kapoor",
         "skills": "Inside Man M", "floor_cost": 200,
         "backstory": "Failed actor — three years off-Broadway, then a long slide into voiceover work and stand-in gigs. A director he respected once told him he was 'always lying about the wrong thing.' He took it badly, then he took it as a job description.",
         "voice": "Smooth and adaptable. Has a default voice for the road and an actor's range underneath. Hums between sentences.",
@@ -205,8 +205,8 @@ CHARACTERS: list[dict] = [
         "weakness": "Can't take direction from people he thinks are less talented than he is. Which is most people.",
         "look": (
             "Three-quarter angle, soft confident smile mid-sentence. "
-            "A white man in his early forties — light brown hair pushed back, a small "
-            "earring in the left ear, a light beard going grey at the chin. Open-collar "
+            "An Indian-American man in his early forties — dark brown hair pushed back, a small "
+            "earring in the left ear, a close-trimmed beard going grey at the chin. Open-collar "
             "shirt under a cardigan. One hand gesturing slightly. Light hatching, expressive "
             "eyes that are performing sincerity and doing a good job of it."
         ),
@@ -284,9 +284,9 @@ CHARACTERS: list[dict] = [
         "weakness": "Gets cocky on locks she's seen before. Has been wrong about how the manufacturer changed the spec.",
         "look": (
             "Framed chest-up, head tilted as if listening, one hand holding a lock pick. "
-            "A white woman in her early thirties — dirty-blonde hair in a messy braid down "
-            "one shoulder, freckled nose and cheeks, a faint smile. Plaid mechanic's shirt "
-            "rolled to the elbows. She's mid-conversation with whatever she's about to open. "
+            "A Black woman in her early thirties — natural hair pulled back in a puff, "
+            "freckled nose and cheeks, a faint smile. Plaid mechanic's shirt rolled to the "
+            "elbows. She's mid-conversation with whatever she's about to open. "
             "Light cross-hatching."
         ),
         "setting": (
