@@ -628,7 +628,9 @@
       if (aiIdx === Shell.currentAI) render();
 
     } else if (e.type === 'crew_known') {
-      crewByAI[aiIdx] = e.crew || [];
+      // e.crew is {members: [...], total_cost: N} — store the array so the
+      // team-skill aggregation below can iterate it directly.
+      crewByAI[aiIdx] = (e.crew && e.crew.members) || [];
       if (aiIdx === Shell.currentAI) render();
 
     } else if (e.type === 'hidden_depth_rolled') {
@@ -638,7 +640,7 @@
     } else if (e.type === 'game_done') {
       if (e.state) {
         if (e.state.job)  jobByAI[aiIdx]  = e.state.job;
-        if (e.state.crew) crewByAI[aiIdx] = e.state.crew;
+        if (e.state.crew) crewByAI[aiIdx] = e.state.crew.members || [];
       }
       if (aiIdx === Shell.currentAI) render();
     }
