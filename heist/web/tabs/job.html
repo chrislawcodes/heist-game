@@ -8,8 +8,9 @@
     4. Shell calls JobTab.reset() on replay reset
 
   Events the tab acts on:
-    turn_end (label='job_pick') → record AI's why-this/why-not reasoning
     job_known                   → fix job, render job card + profile
+                                  (job_pick reasoning is shown in the rail,
+                                  not duplicated in the tab)
     crew_known                  → fix crew skills for team card
     hidden_depth_rolled         → render the hidden-depth callout
     game_done                   → finalise job state from game state
@@ -24,15 +25,19 @@
   overflow-y: auto;
   flex: 1;
   font-family: 'Georgia', serif;
+  display: flex; flex-direction: column;
 }
 
-/* ── two-column page split (main | reasoning sidebar) ── */
-.job-root .jt-split {
-  display: grid;
-  grid-template-columns: 1fr 280px;
-  gap: 24px;
-  align-items: start;
-}
+/* Default order: slate first (pre-pick), comparison below.
+   After job_known: comparison first, slate moves to the bottom as "Other Jobs". */
+.job-root .jt-slate-section { order: 1; }
+.job-root [data-jt="main"] { order: 2; }
+.job-root.has-pick .jt-slate-section { order: 2; margin-top: 24px; margin-bottom: 0; }
+.job-root.has-pick [data-jt="main"]  { order: 1; }
+
+/* Single-column main content (reasoning is shown in the rail's
+   Play-by-Play stream so we don't duplicate it here). */
+.job-root .jt-split { display: block; }
 
 /* ── section heading with trailing rule ── */
 .job-root .jt-heading {
@@ -148,41 +153,6 @@
 }
 
 /* ══════════════════════════════════════════
-   REASONING SIDEBAR
-══════════════════════════════════════════ */
-.job-root .jt-reasoning {
-  background: var(--panel); border: 1px solid var(--border);
-  border-radius: 8px; padding: 22px 20px;
-  position: sticky; top: 20px;
-}
-.job-root .jt-reasoning-eyebrow {
-  font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
-  color: var(--accent); margin-bottom: 6px;
-}
-.job-root .jt-reasoning-title {
-  font-size: 18px; font-weight: normal; color: var(--text); margin-bottom: 18px;
-}
-.job-root .jt-reasoning-group { margin-bottom: 18px; }
-.job-root .jt-reasoning-group:last-child { margin-bottom: 0; }
-.job-root .jt-reasoning-label {
-  font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
-  color: var(--muted); margin-bottom: 8px;
-}
-.job-root .jt-reasoning-quote {
-  font-size: 13px; line-height: 1.65; color: var(--muted); font-style: italic;
-  padding: 10px 14px; border-left: 2px solid var(--accent);
-  background: var(--panel2); border-radius: 0 4px 4px 0;
-}
-.job-root .jt-reasoning-body {
-  font-size: 13px; line-height: 1.6; color: var(--muted);
-}
-.job-root .jt-reasoning-subhead {
-  font-size: 10px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase;
-  color: var(--accent); margin: 10px 0 4px;
-}
-.job-root .jt-reasoning-subhead:first-child { margin-top: 0; }
-
-/* ══════════════════════════════════════════
    HIDDEN DEPTH SECTION
 ══════════════════════════════════════════ */
 .job-root .jt-hd {
@@ -206,11 +176,60 @@
 .job-root .jt-hd-reward {
   font-family: monospace; font-size: 12px; color: var(--muted); margin-top: 8px;
 }
+
+/* ══════════════════════════════════════════
+   JOB SLATE  (shown before AI picks; highlights pick once known)
+══════════════════════════════════════════ */
+.job-root .jt-slate-section { margin-bottom: 24px; }
+.job-root .jt-slate-status {
+  font-size: 11px; color: var(--muted); font-style: italic; margin: -6px 0 10px;
+}
+.job-root .jt-slate-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+.job-root .jt-slate-card {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 8px; padding: 14px;
+  transition: all 0.25s ease;
+}
+.job-root .jt-slate-name-row {
+  display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px;
+}
+.job-root .jt-slate-name {
+  font-size: 14px; font-weight: 700; color: var(--text); flex: 1;
+}
+.job-root .jt-slate-reward {
+  font-family: monospace; font-size: 11px; color: var(--muted); margin-bottom: 10px;
+}
+.job-root .jt-slate-reward strong { color: var(--accent); }
+/* Bar-style difficulty rows on slate cards (matches the big location card) */
+.job-root .jt-slate-rows {
+  display: flex; flex-direction: column; gap: 4px;
+}
+.job-root .jt-slate-row {
+  display: flex; align-items: center; gap: 8px;
+}
+.job-root .jt-slate-row-label {
+  font-size: 10px; color: var(--muted);
+  flex: 1; min-width: 0;
+}
 </style>
 
 <template id="job-template">
   <div class="job-root">
-    <!-- shown once job is known -->
+
+    <!-- Job slate: starts at the top showing all 7 jobs. Once job_known fires
+         the picked card drops out and the rest slide BELOW the big comparison
+         (via .has-pick on the root + CSS order). Heading text swaps too. -->
+    <div class="jt-slate-section">
+      <div class="jt-heading" data-jt="slate-heading">Jobs On The Table</div>
+      <div class="jt-slate-status" data-jt="slate-status">Waiting for the AI to pick a job…</div>
+      <div class="jt-slate-grid" data-jt="slate-grid"></div>
+    </div>
+
+    <!-- Detail view: shown once job is known -->
     <div data-jt="main" style="display:none">
       <div class="jt-split">
 
@@ -300,13 +319,6 @@
 
         </div><!-- /left column -->
 
-        <!-- ── Reasoning sidebar ── -->
-        <div class="jt-reasoning" data-jt="reasoning-panel" style="display:none">
-          <div class="jt-reasoning-eyebrow">AI Reasoning</div>
-          <div class="jt-reasoning-title">Why this job</div>
-          <div data-jt="reasoning-body"></div>
-        </div>
-
       </div><!-- /.jt-split -->
     </div><!-- /main -->
   </div>
@@ -320,9 +332,9 @@
   let Shell = null;
 
   const jobByAI       = {};   // ai_idx → job object
-  const reasoningByAI = {};   // ai_idx → { why_this, why_not, legacy }
   const hdByAI        = {};   // ai_idx → hidden_depth_rolled event
   const crewByAI      = {};   // ai_idx → array of crew members
+  // job_pick reasoning is rendered in the shell rail's Play-by-Play stream, not here.
 
   function $$(name) { return root && root.querySelector(`[data-jt="${name}"]`); }
 
@@ -374,15 +386,68 @@
 
   // ── render ───────────────────────────────────────────────────────────────────
 
+  function renderSlate() {
+    if (!root || !Shell) return;
+    const grid = $$('slate-grid');
+    const status = $$('slate-status');
+    const heading = $$('slate-heading');
+    if (!grid) return;
+    const esc = Shell.helpers.escapeHtml;
+    const jobs = Shell.jobs || [];
+    const picked = jobByAI[Shell.currentAI];
+    const pickedName = picked ? picked.name : null;
+
+    // Once the AI has picked, the slate becomes "Other Jobs" sitting BELOW the
+    // big comparison card — and the picked job drops out (it's already shown
+    // big above). Toggle .has-pick on root to swap the order via CSS.
+    root.classList.toggle('has-pick', pickedName !== null);
+    if (heading) heading.textContent = pickedName ? 'Other Jobs' : 'Jobs On The Table';
+    if (status) {
+      status.textContent = pickedName
+        ? `The AI passed on these ${jobs.length - 1}.`
+        : `${jobs.length} jobs to choose from. Waiting for the AI to pick…`;
+      status.style.display = '';
+    }
+
+    // skill key (used by the bar segments) for each challenge type
+    const challengeSkill = {
+      social: 'soc', physical: 'safe', electronic: 'hack', confrontation: 'musc',
+    };
+
+    const visibleJobs = pickedName ? jobs.filter(j => j.name !== pickedName) : jobs;
+    grid.innerHTML = visibleJobs.map(j => {
+      const rr = j.reward_range;
+      const reward = rr
+        ? `<strong>$${(rr[0]/1e6).toFixed(1)}m – $${(rr[1]/1e6).toFixed(1)}m</strong>`
+        : '—';
+      const profile = j.profile || {};
+      const rows = ['social','physical','electronic','confrontation'].map(key => {
+        const level = profile[key];
+        const skillCls = challengeSkill[key];
+        return `<div class="jt-slate-row">
+          <span class="jt-slate-row-label">${key.charAt(0).toUpperCase()}${key.slice(1)}</span>
+          <div class="cs-bars">${segs(levelToCount(level), skillCls)}</div>
+        </div>`;
+      }).join('');
+      return `<div class="jt-slate-card">
+        <div class="jt-slate-name-row">
+          <div class="jt-slate-name">${esc(j.name)}</div>
+        </div>
+        <div class="jt-slate-reward">Reward ${reward}</div>
+        <div class="jt-slate-rows">${rows}</div>
+      </div>`;
+    }).join('');
+  }
+
   function render() {
     if (!root || !Shell) return;
+    renderSlate();
     const esc  = Shell.helpers.escapeHtml;
     const aiIdx = Shell.currentAI;
 
-    const job       = jobByAI[aiIdx];
-    const reasoning = reasoningByAI[aiIdx];
-    const hd        = hdByAI[aiIdx];
-    const crew      = crewByAI[aiIdx] || [];
+    const job  = jobByAI[aiIdx];
+    const hd   = hdByAI[aiIdx];
+    const crew = crewByAI[aiIdx] || [];
 
     const main = $$('main');
     if (!job) { main.style.display = 'none'; return; }
@@ -437,33 +502,6 @@
     const aiName = (Shell.aiList[aiIdx] || {}).name || ('AI ' + aiIdx);
     $$('crew-name').textContent = aiName + "'s Crew";
 
-    // ── reasoning sidebar ─────────────────────────────────────────────────────
-    const rPanel = $$('reasoning-panel');
-    if (reasoning) {
-      let html = '';
-      if (typeof reasoning === 'string') {
-        html = `<div class="jt-reasoning-body">${esc(reasoning)}</div>`;
-      } else {
-        if (reasoning.why_this) {
-          html += `<div class="jt-reasoning-label">Why this job</div>` +
-                  `<div class="jt-reasoning-quote">${esc(reasoning.why_this)}</div>`;
-        }
-        if (reasoning.why_not) {
-          html += `<div class="jt-reasoning-group">` +
-                  `<div class="jt-reasoning-label">Why not the others</div>` +
-                  `<div class="jt-reasoning-body">${esc(reasoning.why_not)}</div>` +
-                  `</div>`;
-        }
-        if (!reasoning.why_this && !reasoning.why_not && reasoning.legacy) {
-          html = `<div class="jt-reasoning-body">${esc(reasoning.legacy)}</div>`;
-        }
-      }
-      $$('reasoning-body').innerHTML = html;
-      rPanel.style.display = html ? '' : 'none';
-    } else {
-      rPanel.style.display = 'none';
-    }
-
     // ── hidden depth ──────────────────────────────────────────────────────────
     const hdSection = $$('hd-section');
     if (hd) {
@@ -504,20 +542,14 @@
     if (!root || !Shell) return;
     const aiIdx = e.ai_idx ?? 0;
 
-    if (e.type === 'turn_end' && e.label === 'job_pick' && e.parsed) {
-      reasoningByAI[aiIdx] = {
-        why_this: e.parsed.why_this  || '',
-        why_not:  e.parsed.why_not   || '',
-        legacy:   e.parsed.reasoning || '',
-      };
-      if (aiIdx === Shell.currentAI) render();
-
-    } else if (e.type === 'job_known') {
+    if (e.type === 'job_known') {
       jobByAI[aiIdx] = e.job;
       if (aiIdx === Shell.currentAI) render();
 
     } else if (e.type === 'crew_known') {
-      crewByAI[aiIdx] = e.crew || [];
+      // e.crew is {members: [...], total_cost: N} — store the array so the
+      // team-skill aggregation below can iterate it directly.
+      crewByAI[aiIdx] = (e.crew && e.crew.members) || [];
       if (aiIdx === Shell.currentAI) render();
 
     } else if (e.type === 'hidden_depth_rolled') {
@@ -527,17 +559,16 @@
     } else if (e.type === 'game_done') {
       if (e.state) {
         if (e.state.job)  jobByAI[aiIdx]  = e.state.job;
-        if (e.state.crew) crewByAI[aiIdx] = e.state.crew;
+        if (e.state.crew) crewByAI[aiIdx] = e.state.crew.members || [];
       }
       if (aiIdx === Shell.currentAI) render();
     }
   }
 
   function reset() {
-    for (const k of Object.keys(jobByAI))       delete jobByAI[k];
-    for (const k of Object.keys(reasoningByAI)) delete reasoningByAI[k];
-    for (const k of Object.keys(hdByAI))        delete hdByAI[k];
-    for (const k of Object.keys(crewByAI))      delete crewByAI[k];
+    for (const k of Object.keys(jobByAI)) delete jobByAI[k];
+    for (const k of Object.keys(hdByAI))  delete hdByAI[k];
+    for (const k of Object.keys(crewByAI))delete crewByAI[k];
     render();
   }
 

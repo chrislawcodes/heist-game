@@ -149,10 +149,13 @@ function _isVisibleEvent(e) {
 }
 
 // ── stage helpers ─────────────────────────────────────────────────────────────
-// A "stage" is the Nth visible event in each AI's stream. Stages are common
-// across AIs: pressing Step advances every AI by one event. An AI that's
-// shorter than the global total stays frozen at its final state.
+// A "stage" is one visible event in the buffer, counted globally (not per-AI).
+// Step advances by 1 visible event; Back rewinds by 1. Multi-AI events
+// interleave in the buffer in the order the runner emitted them, so each
+// stage = exactly one DOM-affecting thing happens.
 function _computeVisibleByAI() {
+  // Kept for backwards compat (the AI picker uses it indirectly via stage
+  // helpers below); rebuilt now as a simple index→AI lookup.
   _visibleByAI = {};
   _REPLAY_EVENTS.forEach((evt, i) => {
     if (!_isVisibleEvent(evt)) return;
@@ -162,31 +165,32 @@ function _computeVisibleByAI() {
   });
 }
 function _totalStages() {
-  let max = 0;
-  for (const arr of Object.values(_visibleByAI)) {
-    if (arr.length > max) max = arr.length;
+  let n = 0;
+  for (let i = 0; i < _REPLAY_EVENTS.length; i++) {
+    if (_isVisibleEvent(_REPLAY_EVENTS[i])) n++;
   }
-  return max;
+  return n;
 }
 function _currentStage() {
-  // How many visible events of the slowest-progressing AI are already processed
-  let max = 0;
-  for (const arr of Object.values(_visibleByAI)) {
-    let n = 0;
-    for (const idx of arr) { if (idx >= _REPLAY_INDEX) break; n++; }
-    if (n > max) max = n;
+  let n = 0;
+  const cap = Math.min(_REPLAY_INDEX, _REPLAY_EVENTS.length);
+  for (let i = 0; i < cap; i++) {
+    if (_isVisibleEvent(_REPLAY_EVENTS[i])) n++;
   }
-  return max;
+  return n;
 }
+// Buffer index right after the Nth visible event in the whole buffer.
+// Used by Step/Back/_jumpToStage to set _REPLAY_INDEX precisely.
 function _bufferIndexAfterStage(stage) {
-  // Buffer index right after stage `stage`'s events for every AI
-  let max = 0;
-  for (const arr of Object.values(_visibleByAI)) {
-    if (arr.length === 0) continue;
-    const i = arr[Math.min(stage - 1, arr.length - 1)];
-    if (i + 1 > max) max = i + 1;
+  if (stage <= 0) return 0;
+  let n = 0;
+  for (let i = 0; i < _REPLAY_EVENTS.length; i++) {
+    if (_isVisibleEvent(_REPLAY_EVENTS[i])) {
+      n++;
+      if (n === stage) return i + 1;
+    }
   }
-  return max;
+  return _REPLAY_EVENTS.length;
 }
 
 // ── replay controls ───────────────────────────────────────────────────────────
@@ -295,16 +299,17 @@ function _replayUpdateCounter() {
   el.textContent = `${_currentStage()} / ${_totalStages()}`;
 }
 
-function _prevPhaseUrl() {
+function _prevPhaseUrl(stage) {
   const gameId = new URLSearchParams(window.location.search).get('game');
   if (!gameId) return null;
   const current = window.location.pathname.replace(/^\//, '');
   const phases   = ['hiring', 'job', 'heist', 'epilogue'];
   const idx      = phases.indexOf(current);
   if (idx <= 0) return null;
-  // No ?review=1 — let the previous page auto-fast-forward to ITS phase start
-  // instead of the end of everything. "Back" = one step back, even across pages.
-  return `/${phases[idx - 1]}?game=${gameId}`;
+  // Pass the target stage so the previous page lands exactly one event back
+  // instead of fast-forwarding to its own phase-start default.
+  const stageParam = stage != null ? `&atStage=${stage}` : '';
+  return `/${phases[idx - 1]}?game=${gameId}${stageParam}`;
 }
 
 // Jump replay state to exactly `stage` stages processed across all AIs.
@@ -335,8 +340,10 @@ function replayBack() {
   const cur = _currentStage();
   const phaseStart = _phaseStartStage(_currentPhasePath()) || 1;
   if (cur <= phaseStart) {
-    // At the start of this phase — go back to the previous phase page in review mode
-    const prev = _prevPhaseUrl();
+    // At the start of this phase — hop to the previous page at stage (cur - 1)
+    // so Back keeps moving one event backward even across page boundaries.
+    if (cur <= 1) return;  // already at the very first event; nothing before it
+    const prev = _prevPhaseUrl(cur - 1);
     if (prev) window.location = prev;
     return;
   }
@@ -349,18 +356,35 @@ function _currentPhasePath() {
   return p || 'hiring';
 }
 
+// Stage where the current page's phase ENDS (= last visible event still
+// rendered on this page). Beyond this, events affect the NEXT page only,
+// so Back here has no visible effect — that's why we cap to this.
+function _phaseEndStage(phase) {
+  const phases = ['hiring', 'job', 'heist', 'epilogue'];
+  const idx = phases.indexOf(phase);
+  if (idx < 0 || idx === phases.length - 1) return _totalStages();
+  const nextStart = _phaseStartStage(phases[idx + 1]);
+  return nextStart ? Math.max(1, nextStart - 1) : _totalStages();
+}
+
 // Stage where the current page's content begins. Each page auto-fast-forwards
 // to this stage on load so the user starts at their phase, not at the bid.
 function _phaseStartStage(phase) {
   if (phase === 'hiring') return 1;
-  const arr0 = _visibleByAI[0] || [];
   let pred;
-  if      (phase === 'job')      pred = e => e.type === 'job_known';
+  // /job opens BEFORE the AI's pick lands — at casting_summary — so the user
+  // sees the full job slate first and watches the AI choose.
+  if      (phase === 'job')      pred = e => e.type === 'turn_end' && e.label === 'casting_summary';
   else if (phase === 'heist')    pred = e => e.type === 'scene_start';
   else if (phase === 'epilogue') pred = e => e.type === 'game_done';
   else return 1;
-  for (let i = 0; i < arr0.length; i++) {
-    if (pred(_REPLAY_EVENTS[arr0[i]])) return i + 1;
+  // Scan the full buffer in order; first visible event matching pred
+  // (across any AI) is the phase boundary.
+  let n = 0;
+  for (let i = 0; i < _REPLAY_EVENTS.length; i++) {
+    if (!_isVisibleEvent(_REPLAY_EVENTS[i])) continue;
+    n++;
+    if (pred(_REPLAY_EVENTS[i])) return n;
   }
   return null;
 }
@@ -400,11 +424,12 @@ window.loadTabFragment = loadTabFragment;
 window.initShell = async function({ gameId, onEvent } = {}) {
   _currentOnEvent = onEvent || null;
 
-  // 1. Load roster so tab fragments can render character data
+  // 1. Load roster + job slate so tab fragments can render them
   try {
     const meta = await fetch('/api/meta').then(r => r.json());
     Shell.roster = meta.roster || [];
     Shell.roster.forEach(c => Shell.charById.set(c.id, c));
+    Shell.jobs = meta.jobs || [];
   } catch (e) {
     console.error('shell: failed to load meta', e);
   }
@@ -452,18 +477,29 @@ window.initShell = async function({ gameId, onEvent } = {}) {
   }
 
   const _params = new URLSearchParams(window.location.search);
+  const _phaseEnd = _phaseEndStage(_currentPhasePath());
 
   if (_params.get('review') === '1') {
-    // Review mode: fast-forward all events instantly so the page shows its
-    // full state without the user having to step through it again.
-    _jumpToStage(_totalStages());
+    // Review mode: fast-forward to the END of THIS page's phase (not the end
+    // of the whole game). Past that point, events only affect later pages
+    // and Back would have no visible effect here.
+    _jumpToStage(_phaseEnd);
     return;
   }
 
-  // Auto-fast-forward to the start of THIS page's phase so the user begins
-  // at the content that's relevant here, not at the very first bid.
-  const startStage = _phaseStartStage(_currentPhasePath());
-  if (startStage && startStage > 1) _jumpToStage(startStage);
+  // ?atStage=N — explicit target stage from Back navigation. Honored over the
+  // default phase-start jump so "Back" can land on the exact previous event.
+  // Capped to this page's phaseEnd so we never sit on a stage with no visible
+  // effect on this page.
+  const atStageParam = parseInt(_params.get('atStage') || '', 10);
+  if (Number.isFinite(atStageParam) && atStageParam >= 0) {
+    _jumpToStage(Math.min(atStageParam, _phaseEnd));
+  } else {
+    // Auto-fast-forward to the start of THIS page's phase so the user begins
+    // at the content that's relevant here, not at the very first bid.
+    const startStage = _phaseStartStage(_currentPhasePath());
+    if (startStage && startStage > 1) _jumpToStage(startStage);
+  }
 
   // If the previous page handed off in play mode, resume playing automatically.
   if (_params.get('autoplay') === '1') replayToggle();

@@ -18,7 +18,7 @@ A single-player (Phase 1) → multiplayer (Phase 2+) AI heist game. The player w
 - Hard challenges require High skill (Medium + Medium collaboration counts)
 - Bankroll: $2,000
 - Roster: 15 characters, locked
-- Phase 1 jobs: Museum Gala, Armored Car, Corporate Server Farm
+- Job slate is not locked — add/remove freely in `heist/content.py` (`JOBS` list). Current slate: Museum Gala, Armored Car, Corporate Server Farm, Penthouse Caper, Cargo Yard, Diplomatic Reception, Casino Vault
 - System owns all deterministic mechanics; Heist AI owns all creative/interpretive decisions
 
 ## Current Phase
@@ -90,10 +90,11 @@ lobby and vice versa.
 
 ## UI Mockups
 
-Mockups live in `heist/web/mockups/`. The server mounts the whole `heist/web/` directory at `/web/`, so any file there is immediately viewable at:
+Mockups live in `heist/mocks/`. Served at:
 
 ```
-http://127.0.0.1:8000/web/mockups/<filename>.html
+http://127.0.0.1:8000/mocks/                    # index
+http://127.0.0.1:8000/mocks/<filename>.html     # specific mock
 ```
 
-Drop a new HTML file in that folder and reload — no server restart needed. Mockups can call the live `/api/heist` endpoint directly since they're served from the same origin.
+Drop a new HTML file in that folder and reload — no server restart needed. Mocks can call any `/api/*` endpoint since they're served from the same origin.

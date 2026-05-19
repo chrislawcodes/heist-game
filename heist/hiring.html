@@ -267,7 +267,9 @@ body {
         return;
       }
       if (window.HiringTab) HiringTab.handleEvent(e);
-      if (e.type === 'job_known') {
+      // Navigate to /job AFTER hiring wraps (casting_summary) but BEFORE the
+      // AI commits — user sees the full job slate first.
+      if (e.type === 'turn_end' && e.label === 'casting_summary') {
         Shell.atPhaseEnd(`/job?game=${gameId}`);
       }
     }
