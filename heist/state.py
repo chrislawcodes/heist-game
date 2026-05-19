@@ -31,7 +31,15 @@ class Character:
     name: str
     skills: dict[str, SkillLevel]
     floor_cost: int
-    personality: str
+    # Profile fields — all optional so mechanical-only definitions stay concise.
+    backstory: str = ""
+    voice: str = ""
+    motivation: str = ""
+    quirk: str = ""
+    crew_dynamic: str = ""
+    weakness: str = ""
+    look: str = ""
+    signature_line: str = ""
 
 
 @dataclass(frozen=True)

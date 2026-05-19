@@ -1,0 +1,522 @@
+"""Character roster for the heist game.
+
+This is the single source of truth for all character data.
+Portraits (*.jpeg) live alongside this file in the same directory.
+
+Exports
+-------
+ROSTER       list[Character]  — ordered by id
+ROSTER_BY_ID dict[int, Character]
+"""
+from __future__ import annotations
+
+from heist.state import Character, SkillLevel
+
+H = SkillLevel.HIGH
+M = SkillLevel.MEDIUM
+L = SkillLevel.LOW
+
+ROSTER: list[Character] = [
+    Character(
+        id=1,
+        name='Marcus "Prodigy" Renault',
+        skills={"hacker": H, "driver": L},
+        floor_cost=1100,
+        backstory=(
+            "Got caught running a botnet at seventeen in Lyon, did three years in a French "
+            "juvenile facility, came out at twenty already too well-known for legitimate work, "
+            "fell into corporate espionage by twenty-two."
+        ),
+        voice=(
+            "Switches between rapid French-accented English and dead silence. Doesn't joke, "
+            "doesn't notice when other people do. Uses 'obviously' too much."
+        ),
+        motivation=(
+            "Repaying his mother for the lawyer bills she's still working off. "
+            "Has never told her what he does."
+        ),
+        quirk="Cracks his knuckles in sets of three before any keyboard work.",
+        crew_dynamic=(
+            "Treats people as either assets or obstacles. Polite to drivers because drivers "
+            "save lives. Distant with everyone else."
+        ),
+        weakness="Falls apart if his hands are restrained — can't think without typing motions.",
+        look=(
+            "Young French-Algerian man in his mid-twenties: sharp cheekbones, slicked dark "
+            "hair, cleft chin, dark sunken eyes. Black turtleneck under a charcoal blazer. "
+            "Faintly mocking expression, one eyebrow slightly raised."
+        ),
+        signature_line='"Obviously, that won\'t work. Let me show you what does."',
+    ),
+    Character(
+        id=2,
+        name="Sasha Kuznetsova",
+        skills={"hacker": M},
+        floor_cost=200,
+        backstory=(
+            "Grew up in a Moscow apartment block; learned coding from her father's pirated "
+            "copies of MSDN. Came to Toronto on a student visa, never went home; "
+            "the visa expired five years ago."
+        ),
+        voice=(
+            "Quiet and flat. Speaks with the cadence of someone translating in her head. "
+            "Drops 'the' and 'a' before nouns."
+        ),
+        motivation=(
+            "Saving for a Canadian passport on the open market. Knows exactly what it costs "
+            "and has about a quarter of it."
+        ),
+        quirk="Eats apples down to the seeds — core and all — when she's nervous.",
+        crew_dynamic=(
+            "Listens more than she talks. Will execute any reasonable order; silently refuses "
+            "unreasonable ones and lets the crew figure out why."
+        ),
+        weakness="Goes to pieces around uniformed police. Not cops in plainclothes — uniforms specifically.",
+        look=(
+            "Pale Slavic woman in her late twenties: mousy bobbed hair, thin lips, alert pale "
+            "eyes, no makeup. Plain wool sweater, no jewelry. Completely still expression "
+            "that gives nothing away."
+        ),
+        signature_line='"I have done it. Move."',
+    ),
+    Character(
+        id=3,
+        name='Eli "Owl" Park',
+        skills={"hacker": L, "inside_man": L},
+        floor_cost=200,
+        backstory=(
+            "Bartended in Koreatown LA for a decade and watched every kind of grift come "
+            "through the door. A regular taught her enough Linux to be dangerous, then died "
+            "of a heart attack still owing her $1,400."
+        ),
+        voice=(
+            "Quick, warm, slightly hoarse like she's just been laughing. Calls people "
+            "'sweetheart' only when she wants something from them."
+        ),
+        motivation=(
+            "Buying back the bar she used to work at. The family sold it during COVID and "
+            "the new owners gutted it and put in a juice place."
+        ),
+        quirk=(
+            "Counts everything visible in a room without realizing she's doing it. "
+            "Will tell you afterwards there were 'eleven bottles, three glasses, and a chipped sink.'"
+        ),
+        crew_dynamic=(
+            "The unofficial mom. Remembers everyone's allergies. Will fight anyone who picks "
+            "on the youngest crew member."
+        ),
+        weakness="Can't lie to people who look like her grandmother. Will give the whole job away.",
+        look=(
+            "Korean-American woman in her late thirties: dark hair in a messy low ponytail, "
+            "round wire-frame glasses, plain button-up with sleeves rolled, bar towel over "
+            "one shoulder. Faint amused smile."
+        ),
+        signature_line='"Sweetheart, count again. There\'s eleven."',
+    ),
+    Character(
+        id=4,
+        name='Vance "The Wall" Tobin',
+        skills={"muscle": H},
+        floor_cost=700,
+        backstory=(
+            "Heavyweight boxer out of Detroit, ranked top twenty in the late 2000s. "
+            "Got knocked out by a southpaw he should have beaten, took a head injury, "
+            "never fought again. The pension stopped at $1,200 a month."
+        ),
+        voice=(
+            "Slow and deliberate, like every word costs him a thought. Pronounces every "
+            "consonant. Calls everyone 'boss' — even people he doesn't respect."
+        ),
+        motivation=(
+            "His daughter has cerebral palsy. He's bought every piece of equipment "
+            "in her room with this work."
+        ),
+        quirk="Finishes every sentence with a long, slow nod, even on the phone.",
+        crew_dynamic=(
+            "Gentle outside of the work, terrifying inside it. Apologizes to everyone he "
+            "has to hurt, in a low voice they can hear but the cameras can't."
+        ),
+        weakness="His knees go cold in damp weather. He can hide it for about six minutes.",
+        look=(
+            "Heavy-set Black man in his mid-fifties: shaved head, broken nose, scar across "
+            "one cheekbone. Plain dark crewneck stretched at the shoulders. Looking down and "
+            "slightly to the side, calm — the stillness reads as controlled, not passive."
+        ),
+        signature_line='"Sorry about this, boss. Stay down."',
+    ),
+    Character(
+        id=5,
+        name="Carla Reyes",
+        skills={"muscle": M, "driver": L},
+        floor_cost=400,
+        backstory=(
+            "Two tours as a Marine MP in Iraq, came home and couldn't sleep. Joined a private "
+            "security firm in Houston, quit when she realized half the job was harassing day "
+            "laborers. The work she does now pays better and bothers her less."
+        ),
+        voice=(
+            "Direct, no wasted words. Uses military verbs ('clear,' 'secure,' 'negative'). "
+            "When she swears in Spanish she sounds about ten years younger."
+        ),
+        motivation=(
+            "Building her sister's repair shop into a real business. The sister doesn't know "
+            "the money isn't from 'private security gigs.'"
+        ),
+        quirk="Reflexively scans every room she enters — top-down, left to right, takes about four seconds.",
+        crew_dynamic="Earns trust from drivers fast. Doesn't like operators who treat the crew like NPCs.",
+        weakness=(
+            "Has a hard time on jobs that involve kids being present, even tangentially. "
+            "Will adjust the plan to keep them clear."
+        ),
+        look=(
+            "Mexican-American woman in her late thirties: dark hair in a tight braid, strong "
+            "jaw, no makeup. Fitted dark T-shirt under an open denim jacket. Arms crossed, "
+            "steady gaze."
+        ),
+        signature_line='"Negative. We\'re going around."',
+    ),
+    Character(
+        id=6,
+        name="Big Mike Donato",
+        skills={"muscle": L, "driver": L},
+        floor_cost=200,
+        backstory=(
+            "Worked the Newark docks for twenty years until the longshoremen's union got "
+            "broken. Picked up driving for a chop shop, then for crews. Knows every back "
+            "route between Trenton and the Bronx."
+        ),
+        voice=(
+            "Loud, friendly, profane. Hugs hello. Has exactly two volumes: "
+            "warm shouting and quiet menace."
+        ),
+        motivation=(
+            "Pays alimony to two ex-wives and child support for four kids. "
+            "Cheerfully calls himself 'the joke at his own family's holidays.'"
+        ),
+        quirk=(
+            "Eats during every job. Pulls out a meatball sandwich during stakeouts. "
+            "Crews who don't know him assume it's an act."
+        ),
+        crew_dynamic=(
+            "Treats everyone like family. Will lend money he won't see again. "
+            "Will defend the crew with disproportionate violence if pushed."
+        ),
+        weakness="Talks too much to attractive strangers. Has compromised himself this way before.",
+        look=(
+            "Heavy-set Italian-American man in his late fifties: balding with a horseshoe "
+            "of close-cropped hair, thick mustache, big jowls. Stained Henley under an open "
+            "work jacket. Wide grin showing a chipped tooth."
+        ),
+        signature_line='"Hey hey, what\'re we doin\'? Talk to me here."',
+    ),
+    Character(
+        id=7,
+        name='Lin "Closer" Park',
+        skills={"inside_man": H, "safecracker": L},
+        floor_cost=1100,
+        backstory=(
+            "Stanford MBA, recruited into McKinsey out of school, washed out after refusing "
+            "to falsify a client's quarterly report. The career was over either way; "
+            "she chose the version that paid more."
+        ),
+        voice=(
+            "Crystal-clear, mid-tempo, never raised. Uses business-school vocabulary on "
+            "purpose — 'stakeholder alignment,' 'downside scenario.'"
+        ),
+        motivation=(
+            "Not in it for money anymore. Wants to prove her judgment was right about that "
+            "quarterly report, and the cleanest evidence is doing the work for fifteen years "
+            "without getting caught."
+        ),
+        quirk=(
+            "Touches her left earring with two fingers when she's about to ask the question "
+            "that ends the conversation."
+        ),
+        crew_dynamic=(
+            "Crew lead by default whether or not she's in charge. "
+            "Doesn't tolerate sloppiness or pep talks."
+        ),
+        weakness="Believes she can talk her way out of anything. Has occasionally been wrong.",
+        look=(
+            "Korean-American woman in her early forties: sleek black hair in a long blunt "
+            "cut, perfect tailoring, single pearl earring. Charcoal suit jacket. "
+            "Faintly knowing half-smile."
+        ),
+        signature_line='"Let\'s stress-test the downside scenario."',
+    ),
+    Character(
+        id=8,
+        name="Theo Ashland",
+        skills={"inside_man": M},
+        floor_cost=200,
+        backstory=(
+            "Failed actor — three years off-Broadway, then a long slide into voiceover work "
+            "and stand-in gigs. A director he respected once told him he was 'always lying "
+            "about the wrong thing.' He took it badly, then he took it as a job description."
+        ),
+        voice=(
+            "Smooth and adaptable. Has a default voice for the road and an actor's range "
+            "underneath. Hums between sentences."
+        ),
+        motivation=(
+            "Still wants to be on a stage. Tells himself the work funds the gap until his "
+            "next callback, even though it has been the work for nine years now."
+        ),
+        quirk="Says 'well, well, well' before lying. Has not noticed this tell yet.",
+        crew_dynamic=(
+            "Charming, slightly performative. Reads the room well, gets a little resentful "
+            "when the room reads him back."
+        ),
+        weakness=(
+            "Can't take direction from people he thinks are less talented than he is. "
+            "Which is most people."
+        ),
+        look=(
+            "White man in his early forties: light brown hair pushed back, small earring in "
+            "the left ear, light beard going grey at the chin. Open-collar shirt under a "
+            "cardigan. Soft confident smile mid-sentence."
+        ),
+        signature_line='"Well, well, well — you must be the host."',
+    ),
+    Character(
+        id=9,
+        name="Pearl Sutton",
+        skills={"inside_man": M, "muscle": L},
+        floor_cost=400,
+        backstory=(
+            "Catholic boarding-school girl who ran away at sixteen, joined a small-town "
+            "hustler's two-person grift in West Virginia, and learned more in eighteen months "
+            "than the convent taught in eight years. The hustler is in prison; Pearl is not."
+        ),
+        voice=(
+            "Grandmotherly Appalachian accent that disarms people in seconds. "
+            "Says 'darlin'' with at least three different meanings."
+        ),
+        motivation=(
+            "Doesn't know. Hasn't asked herself in a decade. Tells the crew it's about a "
+            "great-niece's tuition — and the great-niece is real, but the tuition is paid."
+        ),
+        quirk="Knits during planning sessions. Gives finished scarves to crew members at the end of jobs.",
+        crew_dynamic=(
+            "Maternal in the same way a wolf is maternal — the protectiveness is real, "
+            "but so are the teeth."
+        ),
+        weakness="Underestimates anyone under thirty until they've proven her wrong twice.",
+        look=(
+            "White woman in her early sixties: silver hair in a low bun, weathered face with "
+            "crow's-feet, half-moon reading glasses on a beaded chain. Cable-knit cardigan "
+            "over a high-collar blouse, antique cameo brooch at the throat. Knitting needles "
+            "in her hands. Gentle smile that doesn't quite reach her eyes."
+        ),
+        signature_line='"Sit down, darlin\'. Tell me how I can help."',
+    ),
+    Character(
+        id=10,
+        name="Rook Ferreira",
+        skills={"safecracker": H},
+        floor_cost=700,
+        backstory=(
+            "Apprenticed under a Lisbon locksmith named Henriques for nine years; the old man "
+            "taught her by tying her hands and making her feel the tumblers. Henriques was "
+            "murdered for refusing a job in 2017. She didn't take that job either, but she "
+            "has been picking it apart in her head ever since."
+        ),
+        voice=(
+            "Soft, almost whispered, with the tail of a Portuguese accent on long vowels. "
+            "Never repeats herself; will simply walk away if asked."
+        ),
+        motivation=(
+            "Wants to be the person Henriques expected her to be. "
+            "Doesn't believe she has gotten there yet."
+        ),
+        quirk=(
+            "Carries an antique tuning fork. Strikes it against the side of a safe before "
+            "she starts. Says she's not sure why anymore."
+        ),
+        crew_dynamic=(
+            "Speaks rarely; when she does, the crew listens. Brings everyone coffee on the "
+            "second day of any multi-day job; if she stops, something is wrong."
+        ),
+        weakness=(
+            "Slow. The most consistent safecracker the crew will ever meet, and also the one "
+            "most likely to be standing in front of the safe when the alarm hits eight minutes."
+        ),
+        look=(
+            "Portuguese woman in her late forties: hair cut very short and silver-grey, lean "
+            "angular face, bird-bone wrists. Old leather glove on one hand. Dark workshirt. "
+            "Expression of absolute concentration."
+        ),
+        signature_line='"Quiet, please. I need to listen."',
+    ),
+    Character(
+        id=11,
+        name='Jolene "Jo" Hayes',
+        skills={"safecracker": M, "hacker": L},
+        floor_cost=400,
+        backstory=(
+            "Grew up in Tulsa, daughter of a competitive locksmith champion who never paid "
+            "for a hotel because he could open the door of the room next to his. Picked up "
+            "some computer security in community college because the local jobs all wanted both."
+        ),
+        voice=(
+            "Easy Oklahoma drawl, says 'y'all' without irony. Talks through her work out loud "
+            "— sometimes to the lock, sometimes to no one."
+        ),
+        motivation=(
+            "Wants to be invited to her father's annual locksmith convention as a guest of "
+            "honor. Knows she can't tell him how she got that good."
+        ),
+        quirk="Names every safe she opens. Writes the names down in a notebook.",
+        crew_dynamic=(
+            "Easygoing, willing to grunt-work. Tolerates almost any personality except "
+            "people who interrupt her mid-tumbler."
+        ),
+        weakness=(
+            "Gets cocky on locks she's seen before. Has been wrong about how the manufacturer "
+            "changed the spec."
+        ),
+        look=(
+            "White woman in her early thirties: dirty-blonde hair in a messy braid, freckled, "
+            "faint smile. Plaid mechanic's shirt rolled to the elbows. Head tilted as if "
+            "listening, one hand holding a lock pick."
+        ),
+        signature_line='"Hush now, darlin\', she\'s almost talkin\' to me."',
+    ),
+    Character(
+        id=12,
+        name="Nestor Bly",
+        skills={"safecracker": L, "hacker": L},
+        floor_cost=200,
+        backstory=(
+            "Career safecracker out of Philadelphia who never quite made it to first chair, "
+            "did time in '03 for a botched mall job, picked up enough hacking in the federal "
+            "library to be useful again at fifty."
+        ),
+        voice="Wry, slow, with a Philly bite on the vowels. Loves a long story.",
+        motivation=(
+            "Stays in because the apartment costs $2,400 and his social security is $1,800. "
+            "Tells the crew he stays for the company."
+        ),
+        quirk=(
+            "Wears the same battered field watch every job. "
+            "Resets it manually to the radio tower signal before each one."
+        ),
+        crew_dynamic=(
+            "Plays the wise uncle. Underestimated by younger crew members until they need "
+            "a story he's already lived."
+        ),
+        weakness="Tires fast on long jobs. Six hours is his limit; after that his hands shake.",
+        look=(
+            "White man in his early sixties: thinning grey hair combed back, deep crow's-feet, "
+            "a few days of stubble. Worn flannel under a canvas jacket, battered field watch "
+            "on his wrist. Wry half-grin."
+        ),
+        signature_line='"Used to be I could do this in my sleep. Now I just sleep through it."',
+    ),
+    Character(
+        id=13,
+        name='"Slim" Adesanya',
+        skills={"driver": H},
+        floor_cost=700,
+        backstory=(
+            "Drove auto-rickshaws in Lagos until eighteen, came to London as a courier and "
+            "discovered he could navigate the city without a GPS. Was scouted by a crew after "
+            "he outran a panicked dispatcher who happened to be a getaway driver for a bigger crew."
+        ),
+        voice=(
+            "London-Nigerian, fast, warm, never panicked. Counts out loud during chases "
+            "('three seconds, four, five — we're clear')."
+        ),
+        motivation=(
+            "Sending money home to his mother who runs a small fabric shop in Surulere. "
+            "She thinks he's a 'private chauffeur.'"
+        ),
+        quirk=(
+            "Refuses to drive any vehicle without first sitting in the driver's seat for "
+            "sixty seconds, hands on the wheel, eyes closed."
+        ),
+        crew_dynamic=(
+            "Steady, unflappable presence on the radio. Won't speak to anyone in the car "
+            "for the first thirty seconds — 'the car's still introducing itself.'"
+        ),
+        weakness=(
+            "Will not abandon a crew member to make an escape window. Has made this choice "
+            "three times and gotten away with it twice."
+        ),
+        look=(
+            "Tall lean Nigerian man in his late twenties: very short hair, thin gold chain, "
+            "slightly amused expression. Dark hoodie under a fitted jacket. One hand resting "
+            "on a steering wheel."
+        ),
+        signature_line='"Three seconds. Four. Five. Clear."',
+    ),
+    Character(
+        id=14,
+        name="Margot Vinter",
+        skills={"driver": M, "inside_man": L},
+        floor_cost=400,
+        backstory=(
+            "Daughter of an East German rally driver who defected with her in 1988. Grew up "
+            "between Hamburg and Berlin, did club racing in her twenties, lost her license "
+            "after the third DUI. Picked up freelance driving when no insurance company "
+            "would take her."
+        ),
+        voice=(
+            "Mid-Atlantic by way of West Berlin. Light, sardonic, never serious. "
+            "Calls every traffic light a 'suggestion.'"
+        ),
+        motivation=(
+            "Believes she is being punished by some larger force for the DUIs and that the "
+            "only way out is enough money to make herself untouchable."
+        ),
+        quirk="Smokes a single clove cigarette before and after every drive. Never during.",
+        crew_dynamic=(
+            "Chatty on the way in, silent on the way out. "
+            "The crew has learned not to interrupt the silence."
+        ),
+        weakness=(
+            "Real intersections rattle her. Will refuse routes with more than six lights "
+            "in the escape path."
+        ),
+        look=(
+            "White woman in her late thirties: platinum-blonde hair in a short pixie cut, "
+            "sharp cheekbones, thin scar through one eyebrow. Driving gloves, leather jacket. "
+            "Unlit clove cigarette held loosely between two fingers. Half-smile, eyes amused."
+        ),
+        signature_line='"Lights are suggestions, darling. Brake lights especially."',
+    ),
+    Character(
+        id=15,
+        name="Dex Owusu",
+        skills={"driver": L, "muscle": L},
+        floor_cost=200,
+        backstory=(
+            "Grew up in the Bronx, son of Ghanaian immigrants. Worked maintenance at a city "
+            "bus depot for six years; learned mechanical work and pulled a couple of side gigs "
+            "that got him noticed. Stayed in the work because the bus depot fired him."
+        ),
+        voice=(
+            "Brooklyn-Ghanaian cadence, slow with sudden bursts. Doesn't curse. "
+            "Says 'lord have mercy' when things go badly."
+        ),
+        motivation=(
+            "Trying to save enough to start a small auto-repair shop with his cousin. "
+            "Has been 'two more jobs away' for three years."
+        ),
+        quirk="Wears the same Mets cap on every job. Won't say where he got it.",
+        crew_dynamic=(
+            "Reliable, mid-tier presence. Doesn't volunteer for hero work; doesn't shirk "
+            "grunt work. The crew tends to forget he's there until they need him to lift "
+            "something heavy."
+        ),
+        weakness="Bad with computers, refuses to learn. Will hand off any tech task to whoever else is in the room.",
+        look=(
+            "Ghanaian-American man in his late thirties: short black hair, broad nose, "
+            "full beard kept close-cropped. Mets cap pulled low, plain dark zip jacket. "
+            "Work gloves tucked into a back pocket. Neutral expression, slight nod."
+        ),
+        signature_line='"Lord have mercy. Where do you want it?"',
+    ),
+]
+
+ROSTER_BY_ID: dict[int, Character] = {c.id: c for c in ROSTER}
