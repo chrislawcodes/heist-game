@@ -256,11 +256,34 @@ def _scene_decision_prompt(scene: Scene) -> str:
     )
 
 
-def _scene_narrate_prompt(scene: Scene, outcome_summary: str) -> str:
+def _crew_brief(assigned: list) -> str:
+    """One-paragraph brief per assigned character: voice, quirk, look."""
+    lines = []
+    for c in assigned:
+        parts = [f"**{c.name}**"]
+        if c.voice:
+            parts.append(f"Voice: {c.voice}")
+        if c.quirk:
+            parts.append(f"Quirk: {c.quirk}")
+        if c.look:
+            parts.append(f"Look: {c.look}")
+        lines.append(" | ".join(parts))
+    return "\n".join(f"  - {ln}" for ln in lines)
+
+
+def _scene_narrate_prompt(scene: Scene, outcome_summary: str, assigned: list | None = None) -> str:
+    crew_section = ""
+    if assigned:
+        crew_section = (
+            "\nAssigned crew for this scene:\n"
+            f"{_crew_brief(assigned)}\n\n"
+            "Write them as they actually are — use their specific voices, gestures, and looks.\n"
+        )
     return (
         f"Narrate scene {scene.number} ({scene.title}) in 100-150 words. "
         "Keep it tight: short paragraphs, terse dialogue with minimal tags, "
-        "concrete sensory detail over flowery prose. Use the characters' voices. "
+        "concrete sensory detail over flowery prose."
+        f"{crew_section}\n"
         "The mechanical outcome:\n"
         f"  {outcome_summary}\n\n"
         "Reply with ONLY JSON:\n"
@@ -820,7 +843,7 @@ def _execute_scene(
         outcome_summary = "(no resolution)"
 
     narrate_turn = _call(
-        ai, _scene_narrate_prompt(scene, outcome_summary),
+        ai, _scene_narrate_prompt(scene, outcome_summary, assigned),
         f"scene_{scene.number}_narrate", logs, emit,
     )
     narrate_parsed = parse_json_block(narrate_turn.text)
@@ -872,10 +895,11 @@ def _execute_escape(
     )
     assign_parsed = parse_json_block(assign_turn.text)
     member_ids = [int(i) for i in assign_parsed.get("assigned_member_ids", [])]
+    escape_assigned = [ROSTER_BY_ID[i] for i in member_ids if i in ROSTER_BY_ID]
     assignment_reasoning = assign_parsed.get("reasoning", "")
 
     narrate_turn = _call(
-        ai, _scene_narrate_prompt(scene, outcome_summary),
+        ai, _scene_narrate_prompt(scene, outcome_summary, escape_assigned),
         f"scene_{scene.number}_escape_narrate", logs, emit,
     )
     narration = parse_json_block(narrate_turn.text).get("narration", "")
