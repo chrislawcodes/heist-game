@@ -8,8 +8,9 @@
     4. Shell calls JobTab.reset() on replay reset
 
   Events the tab acts on:
-    turn_end (label='job_pick') → record AI's why-this/why-not reasoning
     job_known                   → fix job, render job card + profile
+                                  (job_pick reasoning is shown in the rail,
+                                  not duplicated in the tab)
     crew_known                  → fix crew skills for team card
     hidden_depth_rolled         → render the hidden-depth callout
     game_done                   → finalise job state from game state
@@ -34,13 +35,9 @@
 .job-root.has-pick .jt-slate-section { order: 2; margin-top: 24px; margin-bottom: 0; }
 .job-root.has-pick [data-jt="main"]  { order: 1; }
 
-/* ── two-column page split (main | reasoning sidebar) ── */
-.job-root .jt-split {
-  display: grid;
-  grid-template-columns: 1fr 280px;
-  gap: 24px;
-  align-items: start;
-}
+/* Single-column main content (reasoning is shown in the rail's
+   Play-by-Play stream so we don't duplicate it here). */
+.job-root .jt-split { display: block; }
 
 /* ── section heading with trailing rule ── */
 .job-root .jt-heading {
@@ -154,41 +151,6 @@
 .job-root .jt-escape-mod {
   font-family: monospace; font-size: 12px; color: var(--muted);
 }
-
-/* ══════════════════════════════════════════
-   REASONING SIDEBAR
-══════════════════════════════════════════ */
-.job-root .jt-reasoning {
-  background: var(--panel); border: 1px solid var(--border);
-  border-radius: 8px; padding: 22px 20px;
-  position: sticky; top: 20px;
-}
-.job-root .jt-reasoning-eyebrow {
-  font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
-  color: var(--accent); margin-bottom: 6px;
-}
-.job-root .jt-reasoning-title {
-  font-size: 18px; font-weight: normal; color: var(--text); margin-bottom: 18px;
-}
-.job-root .jt-reasoning-group { margin-bottom: 18px; }
-.job-root .jt-reasoning-group:last-child { margin-bottom: 0; }
-.job-root .jt-reasoning-label {
-  font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
-  color: var(--muted); margin-bottom: 8px;
-}
-.job-root .jt-reasoning-quote {
-  font-size: 13px; line-height: 1.65; color: var(--muted); font-style: italic;
-  padding: 10px 14px; border-left: 2px solid var(--accent);
-  background: var(--panel2); border-radius: 0 4px 4px 0;
-}
-.job-root .jt-reasoning-body {
-  font-size: 13px; line-height: 1.6; color: var(--muted);
-}
-.job-root .jt-reasoning-subhead {
-  font-size: 10px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase;
-  color: var(--accent); margin: 10px 0 4px;
-}
-.job-root .jt-reasoning-subhead:first-child { margin-top: 0; }
 
 /* ══════════════════════════════════════════
    HIDDEN DEPTH SECTION
@@ -357,13 +319,6 @@
 
         </div><!-- /left column -->
 
-        <!-- ── Reasoning sidebar ── -->
-        <div class="jt-reasoning" data-jt="reasoning-panel" style="display:none">
-          <div class="jt-reasoning-eyebrow">AI Reasoning</div>
-          <div class="jt-reasoning-title">Why this job</div>
-          <div data-jt="reasoning-body"></div>
-        </div>
-
       </div><!-- /.jt-split -->
     </div><!-- /main -->
   </div>
@@ -377,9 +332,9 @@
   let Shell = null;
 
   const jobByAI       = {};   // ai_idx → job object
-  const reasoningByAI = {};   // ai_idx → { why_this, why_not, legacy }
   const hdByAI        = {};   // ai_idx → hidden_depth_rolled event
   const crewByAI      = {};   // ai_idx → array of crew members
+  // job_pick reasoning is rendered in the shell rail's Play-by-Play stream, not here.
 
   function $$(name) { return root && root.querySelector(`[data-jt="${name}"]`); }
 
@@ -490,10 +445,9 @@
     const esc  = Shell.helpers.escapeHtml;
     const aiIdx = Shell.currentAI;
 
-    const job       = jobByAI[aiIdx];
-    const reasoning = reasoningByAI[aiIdx];
-    const hd        = hdByAI[aiIdx];
-    const crew      = crewByAI[aiIdx] || [];
+    const job  = jobByAI[aiIdx];
+    const hd   = hdByAI[aiIdx];
+    const crew = crewByAI[aiIdx] || [];
 
     const main = $$('main');
     if (!job) { main.style.display = 'none'; return; }
@@ -548,33 +502,6 @@
     const aiName = (Shell.aiList[aiIdx] || {}).name || ('AI ' + aiIdx);
     $$('crew-name').textContent = aiName + "'s Crew";
 
-    // ── reasoning sidebar ─────────────────────────────────────────────────────
-    const rPanel = $$('reasoning-panel');
-    if (reasoning) {
-      let html = '';
-      if (typeof reasoning === 'string') {
-        html = `<div class="jt-reasoning-body">${esc(reasoning)}</div>`;
-      } else {
-        if (reasoning.why_this) {
-          html += `<div class="jt-reasoning-label">Why this job</div>` +
-                  `<div class="jt-reasoning-quote">${esc(reasoning.why_this)}</div>`;
-        }
-        if (reasoning.why_not) {
-          html += `<div class="jt-reasoning-group">` +
-                  `<div class="jt-reasoning-label">Why not the others</div>` +
-                  `<div class="jt-reasoning-body">${esc(reasoning.why_not)}</div>` +
-                  `</div>`;
-        }
-        if (!reasoning.why_this && !reasoning.why_not && reasoning.legacy) {
-          html = `<div class="jt-reasoning-body">${esc(reasoning.legacy)}</div>`;
-        }
-      }
-      $$('reasoning-body').innerHTML = html;
-      rPanel.style.display = html ? '' : 'none';
-    } else {
-      rPanel.style.display = 'none';
-    }
-
     // ── hidden depth ──────────────────────────────────────────────────────────
     const hdSection = $$('hd-section');
     if (hd) {
@@ -615,15 +542,7 @@
     if (!root || !Shell) return;
     const aiIdx = e.ai_idx ?? 0;
 
-    if (e.type === 'turn_end' && e.label === 'job_pick' && e.parsed) {
-      reasoningByAI[aiIdx] = {
-        why_this: e.parsed.why_this  || '',
-        why_not:  e.parsed.why_not   || '',
-        legacy:   e.parsed.reasoning || '',
-      };
-      if (aiIdx === Shell.currentAI) render();
-
-    } else if (e.type === 'job_known') {
+    if (e.type === 'job_known') {
       jobByAI[aiIdx] = e.job;
       if (aiIdx === Shell.currentAI) render();
 
@@ -647,10 +566,9 @@
   }
 
   function reset() {
-    for (const k of Object.keys(jobByAI))       delete jobByAI[k];
-    for (const k of Object.keys(reasoningByAI)) delete reasoningByAI[k];
-    for (const k of Object.keys(hdByAI))        delete hdByAI[k];
-    for (const k of Object.keys(crewByAI))      delete crewByAI[k];
+    for (const k of Object.keys(jobByAI)) delete jobByAI[k];
+    for (const k of Object.keys(hdByAI))  delete hdByAI[k];
+    for (const k of Object.keys(crewByAI))delete crewByAI[k];
     render();
   }
 
