@@ -9,6 +9,95 @@
  */
 'use strict';
 
+// ── shared component styles ─────────────────────────────────────────────────
+// The .char-card component is rendered by Shell.helpers.charCardHtml below
+// and used across the Hiring, Job, and Heist tabs. Its CSS lives here so the
+// component is self-contained — any page that loads shell.js gets the styling
+// without each tab having to re-import the rules.
+(function injectCharCardStyles() {
+  if (document.getElementById('shell-char-card-styles')) return;
+  const style = document.createElement('style');
+  style.id = 'shell-char-card-styles';
+  style.textContent = `
+/* character card (rendered by Shell.helpers.charCardHtml) */
+.char-card {
+  position: relative;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  display: flex; flex-direction: column;
+  background: var(--panel2);
+  animation: cardIn 0.35s ease;
+}
+@keyframes cardIn {
+  from { opacity: 0; transform: scale(0.95) translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+.char-card[data-primary="hack"]  { background: linear-gradient(180deg, rgba(88,152,224,0.32) 0%, rgba(88,152,224,0.08) 100%); border-color: rgba(88,152,224,0.65); }
+.char-card[data-primary="safe"]  { background: linear-gradient(180deg, rgba(232,160,48,0.32) 0%, rgba(232,160,48,0.08) 100%); border-color: rgba(232,160,48,0.65); }
+.char-card[data-primary="musc"]  { background: linear-gradient(180deg, rgba(224,80,80,0.32) 0%, rgba(224,80,80,0.08) 100%);  border-color: rgba(224,80,80,0.65); }
+.char-card[data-primary="soc"]   { background: linear-gradient(180deg, rgba(144,112,224,0.32) 0%, rgba(144,112,224,0.08) 100%); border-color: rgba(144,112,224,0.65); }
+.char-card[data-primary="drive"] { background: linear-gradient(180deg, rgba(82,196,122,0.32) 0%, rgba(82,196,122,0.08) 100%); border-color: rgba(82,196,122,0.65); }
+
+.char-card.bidding-flash { animation: bidFlash 0.7s ease; }
+@keyframes bidFlash {
+  0%, 100% { box-shadow: none; }
+  40%      { box-shadow: 0 0 0 2px rgba(255,255,255,0.5); }
+}
+
+.cc-portrait {
+  width: 100%; aspect-ratio: 1;
+  background: rgba(0,0,0,0.35);
+  overflow: hidden;
+  position: relative;
+}
+.cc-portrait img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cc-portrait-fallback {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 36px; font-weight: 700; color: rgba(255,255,255,0.25);
+  font-family: monospace;
+}
+.cc-header {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 8px;
+  font-weight: 800;
+  min-width: 0;
+}
+.char-card[data-primary="hack"]  .cc-header { background: var(--sk-hack);  color: #0a1428; }
+.char-card[data-primary="safe"]  .cc-header { background: var(--sk-safe);  color: #2a1c08; }
+.char-card[data-primary="musc"]  .cc-header { background: var(--sk-musc);  color: #2a0808; }
+.char-card[data-primary="soc"]   .cc-header { background: var(--sk-soc);   color: #1c1030; }
+.char-card[data-primary="drive"] .cc-header { background: var(--sk-drive); color: #0a2018; }
+.cc-name {
+  font-size: 12px; letter-spacing: 0.2px; min-width: 0; flex: 1;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cc-cost-row {
+  padding: 4px 8px 5px;
+  font-family: monospace; font-size: 11px;
+  color: var(--muted); text-align: right;
+  border-top: 1px solid rgba(255,255,255,0.04);
+}
+.cc-info { padding: 6px 8px 7px; display: flex; flex-direction: column; gap: 3px; }
+.cc-skills { display: flex; flex-direction: column; gap: 2px; }
+.cc-skill { display: flex; align-items: center; gap: 6px; }
+.cc-skill-label {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.6px;
+  color: var(--muted); width: 30px; flex-shrink: 0;
+  font-family: monospace;
+}
+.cc-skill-bars { display: flex; gap: 2px; }
+.seg { width: 10px; height: 4px; border-radius: 1px; background: rgba(255,255,255,0.08); }
+.seg.f-hack  { background: var(--sk-hack); }
+.seg.f-safe  { background: var(--sk-safe); }
+.seg.f-musc  { background: var(--sk-musc); }
+.seg.f-soc   { background: var(--sk-soc); }
+.seg.f-drive { background: var(--sk-drive); }
+`;
+  document.head.appendChild(style);
+})();
+
 // ── constants ─────────────────────────────────────────────────────────────────
 const SKILL_API_TO_SHORT = {
   hacker: 'hack', safecracker: 'safe', muscle: 'musc',
