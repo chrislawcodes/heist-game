@@ -548,7 +548,7 @@ function _phaseStartStage(phase) {
   // /job opens BEFORE the AI's pick lands — at casting_summary — so the user
   // sees the full job slate first and watches the AI choose.
   if      (phase === 'job')      pred = e => e.type === 'turn_end' && e.label === 'casting_summary';
-  else if (phase === 'heist')    pred = e => e.type === 'scene_start';
+  else if (phase === 'heist')    pred = e => e.type === 'scene_done';
   else if (phase === 'epilogue') pred = e => e.type === 'game_done';
   else return 1;
   // Scan the full buffer in order; first visible event matching pred
