@@ -116,25 +116,6 @@ body {
   background: var(--panel);
   display: flex; flex-direction: column; overflow: hidden;
 }
-#commentary-section {
-  flex: 0 0 auto; max-height: 36%;
-  display: flex; flex-direction: column; overflow: hidden;
-  border-bottom: 2px solid var(--border);
-}
-.commentary-header {
-  padding: 7px 14px; flex-shrink: 0;
-  display: flex; align-items: center; gap: 8px;
-  border-bottom: 1px solid var(--border);
-  background: #15140e;
-}
-.commentary-icon { font-size: 12px; }
-.commentary-title { font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--commentator); flex: 1; }
-.commentary-attrib { font-size: 9px; font-weight: 700; letter-spacing: 0.5px; color: var(--muted); font-family: monospace; }
-.commentary-status { font-size: 9px; font-weight: 700; letter-spacing: 1px; color: var(--muted); background: #1e1e22; padding: 2px 6px; border-radius: 3px; }
-#commentary-stream { flex: 1; overflow-y: auto; padding: 8px 14px; display: flex; flex-direction: column; gap: 6px; }
-.commentary-stub { font-size: 11px; color: var(--muted); line-height: 1.5; padding: 12px 10px; border: 1px dashed var(--border); border-radius: 5px; text-align: center; }
-.commentary-stub strong { color: var(--text); }
-
 #ai-picker {
   flex-shrink: 0; padding: 7px 10px;
   display: flex; gap: 5px; align-items: center;
@@ -232,21 +213,6 @@ body {
   </div>
 
   <div id="rail">
-    <div id="commentary-section">
-      <div class="commentary-header">
-        <span class="commentary-icon">📢</span>
-        <span class="commentary-title">Play-by-Play</span>
-        <span class="commentary-attrib">codex</span>
-        <span class="commentary-status">Not wired</span>
-      </div>
-      <div id="commentary-stream">
-        <div class="commentary-stub">
-          <strong>Commentary not configured.</strong><br>
-          A Codex commentator will narrate the game from public info here.
-        </div>
-      </div>
-    </div>
-
     <div id="ai-picker">
       <span class="ai-pick-label">Mind of</span>
       <span id="ai-pills"></span>

@@ -95,24 +95,6 @@
 .seg.f-soc   { background: var(--sk-soc); }
 .seg.f-drive { background: var(--sk-drive); }
 
-/* Play-by-Play card (added by Shell.addCommentary) */
-.commentary-item {
-  background: var(--panel2);
-  border: 1px solid var(--border);
-  border-left: 3px solid var(--commentator, var(--accent));
-  border-radius: 4px;
-  padding: 8px 11px;
-  animation: cardIn 0.35s ease;
-}
-.commentary-item + .commentary-item { margin-top: 6px; }
-.commentary-item-title {
-  font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
-  color: var(--commentator, var(--accent));
-  margin-bottom: 4px;
-}
-.commentary-item-body {
-  font-size: 12px; line-height: 1.55; color: #d0cee0;
-}
 `;
   document.head.appendChild(style);
 })();
@@ -221,25 +203,6 @@ const Shell = {
   markHired(aiIdx, charId) { _markHired(aiIdx, charId); },
   onAISelected(cb) { _aiSubscribers.push(cb); },
 
-  /** Push a card into the right-rail Play-by-Play (#commentary-stream).
-   *  No-op on pages without a commentary section. Each call appends a new
-   *  card and auto-scrolls so the latest entry is visible. */
-  addCommentary(title, bodyHtml) {
-    const stream = document.getElementById('commentary-stream');
-    if (!stream) return;
-    // Drop the "Commentary not configured" stub the first time we have content
-    stream.querySelector('.commentary-stub')?.remove();
-    // Hide the "Not wired" status badge once content arrives
-    const status = document.querySelector('#commentary-section .commentary-status');
-    if (status) status.style.display = 'none';
-    const el = document.createElement('div');
-    el.className = 'commentary-item';
-    el.innerHTML =
-      (title ? `<div class="commentary-item-title">${Shell.helpers.escapeHtml(title)}</div>` : '') +
-      `<div class="commentary-item-body">${bodyHtml}</div>`;
-    stream.appendChild(el);
-    stream.scrollTop = stream.scrollHeight;
-  },
 };
 window.Shell = Shell;
 
