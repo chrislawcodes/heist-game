@@ -295,16 +295,17 @@ function _replayUpdateCounter() {
   el.textContent = `${_currentStage()} / ${_totalStages()}`;
 }
 
-function _prevPhaseUrl() {
+function _prevPhaseUrl(stage) {
   const gameId = new URLSearchParams(window.location.search).get('game');
   if (!gameId) return null;
   const current = window.location.pathname.replace(/^\//, '');
   const phases   = ['hiring', 'job', 'heist', 'epilogue'];
   const idx      = phases.indexOf(current);
   if (idx <= 0) return null;
-  // No ?review=1 — let the previous page auto-fast-forward to ITS phase start
-  // instead of the end of everything. "Back" = one step back, even across pages.
-  return `/${phases[idx - 1]}?game=${gameId}`;
+  // Pass the target stage so the previous page lands exactly one event back
+  // instead of fast-forwarding to its own phase-start default.
+  const stageParam = stage != null ? `&atStage=${stage}` : '';
+  return `/${phases[idx - 1]}?game=${gameId}${stageParam}`;
 }
 
 // Jump replay state to exactly `stage` stages processed across all AIs.
@@ -335,8 +336,10 @@ function replayBack() {
   const cur = _currentStage();
   const phaseStart = _phaseStartStage(_currentPhasePath()) || 1;
   if (cur <= phaseStart) {
-    // At the start of this phase — go back to the previous phase page in review mode
-    const prev = _prevPhaseUrl();
+    // At the start of this phase — hop to the previous page at stage (cur - 1)
+    // so Back keeps moving one event backward even across page boundaries.
+    if (cur <= 1) return;  // already at the very first event; nothing before it
+    const prev = _prevPhaseUrl(cur - 1);
     if (prev) window.location = prev;
     return;
   }
@@ -463,10 +466,17 @@ window.initShell = async function({ gameId, onEvent } = {}) {
     return;
   }
 
-  // Auto-fast-forward to the start of THIS page's phase so the user begins
-  // at the content that's relevant here, not at the very first bid.
-  const startStage = _phaseStartStage(_currentPhasePath());
-  if (startStage && startStage > 1) _jumpToStage(startStage);
+  // ?atStage=N — explicit target stage from Back navigation. Honored over the
+  // default phase-start jump so "Back" can land on the exact previous event.
+  const atStageParam = parseInt(_params.get('atStage') || '', 10);
+  if (Number.isFinite(atStageParam) && atStageParam >= 0) {
+    _jumpToStage(Math.min(atStageParam, _totalStages()));
+  } else {
+    // Auto-fast-forward to the start of THIS page's phase so the user begins
+    // at the content that's relevant here, not at the very first bid.
+    const startStage = _phaseStartStage(_currentPhasePath());
+    if (startStage && startStage > 1) _jumpToStage(startStage);
+  }
 
   // If the previous page handed off in play mode, resume playing automatically.
   if (_params.get('autoplay') === '1') replayToggle();
