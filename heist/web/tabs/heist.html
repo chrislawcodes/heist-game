@@ -134,9 +134,21 @@
   color: var(--muted); margin-bottom: 10px;
 }
 
-/* ── assigned characters (uses Shell's .char-card from hiring.html) ───────── */
-.heist-root .h2-chars { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-start; }
-.heist-root .h2-chars .char-card { width: 130px; }
+/* ── assigned characters ─────────────────────────────────────────────────── */
+/* Same .char-card markup the hiring board renders, sized to roughly match
+   what hiring shows (~130px). We don't stretch them via 1fr because the
+   scene-card chars column is narrow — stretching would blow the portrait
+   up to ~220px and make the whole scene card taller than the visible panel. */
+.heist-root .h2-chars {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: flex-start;
+}
+.heist-root .h2-chars .char-card {
+  width: 130px;
+  flex-shrink: 0;
+}
 
 .heist-root .h2-reasoning {
   font-size: 12px; color: var(--muted); font-style: italic;
@@ -417,8 +429,8 @@
     if (assignedIds.length && crew && crew.members) {
       const blocks = assignedIds.map(id => {
         const c = crew.members.find(x => x.id == id);
-        // Same vertical card as hiring board, just without the cost row and id
-        return c ? Shell.helpers.charCardHtml(c, { hideCost: true, noId: true }) : '';
+        // Exactly the card the hiring page renders — no overrides
+        return c ? Shell.helpers.charCardHtml(c, { noId: true }) : '';
       }).filter(Boolean).join('');
       const reasoningHtml = result && result.reasoning
         ? `<div class="h2-reasoning">"${esc(result.reasoning)}"</div>` : '';
