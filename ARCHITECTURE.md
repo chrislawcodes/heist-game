@@ -63,11 +63,53 @@ Each fragment registers a global `window.{Hiring|Job|Heist}Tab` object exposing 
 | `web/tabs/job.html` | Comparison grid (team skills card vs location card) + AI reasoning sidebar + hidden depth callout | `turn_end(job_pick)`, `job_known`, `crew_known`, `hidden_depth_rolled`, `game_done` |
 | `web/tabs/heist.html` | Job header (chips + reward) + expandable scene cards (chevron, type badge, outcome chip, char blocks, challenge block, narration) + outcome card | `crew_known`, `job_known`, `scene_start`, `scene_done`, `turn_end(scene_N_narrate)`, `game_done` |
 
+#### Adding a new tab fragment
+
+1. Create `heist/web/tabs/<name>.html`. The file is HTML — `<style>` / `<template>` / `<script>` all go inline. Server serves it at `/tabs/<name>` with the right content-type.
+2. At the bottom of the fragment's `<script>`, register the tab on `window`:
+   ```js
+   window.MyTab = {
+     mount(panel, { shell }) { /* attach DOM to `panel`, store `shell` ref */ },
+     handleEvent(e) { /* called for every replay event */ },
+     reset() { /* called on replayReset and back-step rewinds */ },
+     unmount() { /* optional — clear timers, listeners */ },
+   };
+   ```
+3. Create or update a phase page (e.g. `heist/mypage.html`) that calls `initShell({ gameId, onEvent: (e) => window.MyTab.handleEvent(e) })` and then `loadTabFragment('<name>')` followed by `window.MyTab.mount(panel, { shell: Shell })`.
+4. Add the page's route to `heist/server.py` `_dispatch_get` and a constant like `_MYPAGE_HTML` at the top of the file.
+5. If the page is part of the phase navigation chain, wire `_atPhaseEnd('/next-page?game=...')` in `handleEvent` at the boundary trigger, and add it to the `phases` array in `_updatePhasenav` (in `shell.js`).
+
 ### Other pages
 
 - `heist/lobby.html` → `/` — list of staged/running/done games, "Start New Game", "Quick Test", per-row replay link
 - `heist/web/setup.html` → `/setup?game=N` — 4-step wizard (Risk → Crew → Decisions → Run It) that POSTs `/api/add-ai`
 - `heist/epilogue.html` → `/epilogue?game=N` — renders take + escape + aborted + epilogue text from the game's `game_done` event
+
+### Replay model (the UI is always replay-driven)
+
+**There is no live SSE in the UI.** Every phase page boots by fetching `/api/games/<id>/events` (the persisted buffer that grows in real time on the backend) and walking through it locally. To see newer events you refresh the page. This is deliberate: it makes the UI deterministic, debuggable from the lobby's Replay link without distinction from a "live" view, and trivially scrubbable.
+
+**Step / Play / Reset operate on the buffer.** Topbar controls advance `_REPLAY_INDEX` one **visible stage** at a time. "Visible" excludes invisible events (e.g., `_reset` synthetic signals); the count is a property of the whole game, not per-AI — a Step means "advance the whole game by one beat" not "advance the AI I'm watching."
+
+**Phase auto-navigation.** When a phase-boundary event fires, the page navigates to the next URL:
+
+| From | Trigger event | To |
+|---|---|---|
+| `/hiring` | `job_known` | `/job` |
+| `/job` | first `scene_start` | `/heist` |
+| `/heist` | `game_done` | `/epilogue` |
+
+In **play mode** (`_REPLAY_TIMER` running), the URL carries `autoplay=1` so the next page resumes playing. In **step mode** the user lands on the next page paused.
+
+**Back across phase boundaries.** Each page can compute `_prevPhaseUrl(stage)` and navigate to the previous phase with `?atStage=N`. The receiving page calls `_jumpToStage(N)` which:
+
+1. Resets all per-AI state (`_aiStreams`, `_hiredMarks`, etc.)
+2. Replays the buffer in "review mode" (no UI animations, no auto-nav) up to event index N
+3. Hands control back to the user, paused
+
+Net effect: Back is always exactly one stage back, even across phase boundaries — never a fast-forward to "current."
+
+**Phasenav** (`#phasenav` in the topbar): completed phases become `<a>` links so the user can jump back to any phase in review mode without manual Back-stepping.
 
 ### Mockups
 
@@ -117,9 +159,9 @@ Every event includes `ai_idx` so the viewer can split per-AI state. The shell's 
 ### Persistence + recovery (`heist/persist.py`)
 
 - `state/games/<id>.json` — full game record (status, AIs, results, full events list)
-- `state/runners/<game_id>_<ai_idx>.json` — per-AI runner snapshot (stage, scene_idx, codex session_id) so a crashed game can resume mid-scene
+- `state/games/<id>/ai-<idx>.json` — per-AI runner snapshot (stage, scene_idx, codex session_id, base64-pickled RNG state) so a crashed game can resume mid-scene. Deleted when the AI completes; only present while a run is in-flight.
 
-On startup, `_recover_games()` reloads every game record. For any game whose status is `running`, it checks `state/runners/*.json` for in-flight AI snapshots and spawns resume threads via `resume_heist()`. AIs without snapshots are marked errored.
+On startup, `_recover_games()` reloads every game record. For any game whose status is `running`, it scans `state/games/<id>/` for in-flight AI snapshots and spawns resume threads via `resume_heist()`. AIs without snapshots are marked errored.
 
 ### `--web-dir` flag
 
@@ -139,7 +181,7 @@ On startup, `_recover_games()` reloads every game record. For any game whose sta
    *emits* `turn_end(fill_*)`, `crew_known`
 3. **Casting summary** — AI explains its crew choices  
    *emits* `turn_end(casting_summary)`
-4. **Job pick** — AI selects one of 4 jobs (with why-this + why-not)  
+4. **Job pick** — AI selects one of the jobs in the slate (currently 7; see `heist/content.py`'s `JOBS` list) with why-this + why-not  
    *emits* `turn_end(job_pick)`, `job_known`, `hidden_depth_rolled`
 5. **Scene loop** — for each scene: assign → (decision?) → resolve → narrate  
    *emits* `scene_start`, `turn_end(scene_N_assign)`, `turn_end(scene_N_decision)`, `scene_done`, `turn_end(scene_N_narrate)`
@@ -161,7 +203,7 @@ Pure functions, no AI calls.
 ### `heist/state.py`, `heist/content.py`, `heist/scenes.py`
 
 - `state.py` — frozen dataclasses (`Character`, `Job`, `Scene`, `SceneResult`, `HeistState`)
-- `content.py` — 15-character roster, 4 jobs, default prompt
+- `content.py` — 15-character roster, 7-job slate (the `JOBS` list, free to evolve), default prompt
 - `scenes.py` — builds the scene list for a job, splicing in the hidden-depth element
 
 ### `heist/serialize.py`
