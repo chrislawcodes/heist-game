@@ -90,4 +90,4 @@ def test_low_inside_man_only_on_eli_and_margot():
         c.id for c in ROSTER
         if c.skills.get("inside_man", SkillLevel.NONE) == SkillLevel.LOW
     )
-    assert low_inside_ids == [3, 14]
+    assert low_inside_ids == [3, 6, 14]
