@@ -68,7 +68,7 @@
 }
 .hiring-root .hiring-banner::before { content: '✓'; font-size: 14px; }
 .hiring-root .crew-columns {
-  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(50%, 1fr)); gap: 10px;
 }
 .hiring-root .crew-col {
   background: var(--panel); border: 1px solid var(--border);
@@ -121,7 +121,7 @@
 .hiring-root .cum-val.is-zero { color: #3a3a44; }
 .hiring-root .crew-member-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 6px;
 }
 .hiring-root .cum-empty-row { font-size: 10px; color: #3a3a44; font-style: italic; padding: 2px 4px; }
