@@ -167,6 +167,9 @@ const Shell = {
       return bestKey;
     },
     portraitUrl(c) {
+      // Try local portrait first. Server returns 404 if not generated yet;
+      // the <img> onerror handler hides the image and the initials show instead.
+      if (c && c.id) return `/portraits/${c.id}`;
       const p = Shell.helpers.primarySkill(c);
       const seed = (c.name || '').toLowerCase().replace(/\s+/g, '');
       return `https://api.dicebear.com/9.x/${PORTRAIT_STYLE[p]}/svg?seed=${encodeURIComponent(seed)}&backgroundColor=${PORTRAIT_BG[p]}`;
