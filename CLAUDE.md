@@ -98,3 +98,65 @@ http://127.0.0.1:8000/mocks/<filename>.html     # specific mock
 ```
 
 Drop a new HTML file in that folder and reload — no server restart needed. Mocks can call any `/api/*` endpoint since they're served from the same origin.
+
+## Workflow
+
+Default workflow for any Claude (or Codex) agent working in this repo.
+
+### Direct Path
+
+```
+Decide → optional spec → dispatch → verify → commit → push → /ship
+```
+
+- **Implementer** for substantial work: Sonnet subagent via the Agent tool with `isolation: "worktree"`. The subagent commits in its own worktree on a separate branch; the orchestrator merges that branch back. **Not** Codex CLI as an implementer — codex-mini is a *player* inside the game, not an agent that writes code here.
+- **Specs** for non-trivial dispatches live inline in the Agent tool's `prompt` parameter. They must be self-contained: the subagent has no memory of the conversation.
+- **Inline edits** by the orchestrator for small changes (≤ ~30 lines, no design risk).
+- **Merge always via `/ship`**, never `gh pr merge` directly. `/ship` runs preflight, watches CI, fixes the squash-drift trap (see below), and squash-merges.
+
+### Preflight (run before every push)
+
+```bash
+python3 -m ruff check . && \
+mypy heist/ agents.py demo.py && \
+pytest -q
+```
+
+`/ship` runs this in Step 3. Run it locally first to skip CI roundtrips.
+
+### Lanes
+
+| Lane | Files | Who |
+|---|---|---|
+| **UI** | `heist/hiring.html`, `heist/job.html`, `heist/heist.html`, `heist/epilogue.html`, `heist/lobby.html`, `heist/web/setup.html`, `heist/web/shell.js`, `heist/web/tabs/*.html`, `heist/mocks/*` | Operator + orchestrator. **Don't dispatch a subagent to UI files** — iteration is conversation-driven; a backgrounded agent will collide with live edits. |
+| **Backend** | `heist/server.py`, `heist/runner.py`, `heist/persist.py`, `heist/serialize.py`, `heist/scenes.py`, `heist/mechanics.py`, `agents.py`, tests | Subagent territory. Dispatch with a comprehensive spec. |
+| **Design / docs** | `heist_game_design.md`, `ARCHITECTURE.md`, `CLAUDE.md`, `README.md` | Operator. Subagents may append sections (e.g. logging recipes, persistence layout); fine to merge. |
+
+### Files that conflict often in parallel work
+
+- `heist/server.py` — UI routes and backend hooks both land here
+- `heist/runner.py` — stages refactor often
+- `heist/web/shell.js` — both UI iteration and replay-model changes land here
+- `README.md` / `ARCHITECTURE.md` — appended sections from multiple work streams; usually auto-merges
+
+If a subagent will touch one of these, hold operator-side edits to that file until the merge.
+
+### Squash-drift trap
+
+After `/ship` squash-merges a PR, the branch's local commits live on as un-squashed equivalents. Re-pushing the same branch makes GitHub see `DIRTY/CONFLICTING` against main even though the content is identical. Recovery (codified in `/ship` Step 2):
+
+```bash
+git reset --hard origin/main
+git cherry-pick <new-commit-sha>
+git push --force-with-lease
+```
+
+### What is NOT here
+
+No Feature Factory, no structured spec/plan/implement runner, no adversarial AI reviews by default. The project is at a scale where Direct Path covers everything. If a change feels big enough that Direct Path is unsafe (data migrations, AI prompt audits across all call types, multi-day refactors), stop and discuss before dispatching.
+
+### Cross-references
+
+- **Global spec-writing rules**: `~/.claude/rules/spec-writing.md`
+- **Global agent-invocation rules**: `~/.claude/rules/agent-invocation.md`
+- **Cross-session memory**: `~/.claude/projects/-Users-chrislaw-heist-game/memory/MEMORY.md`

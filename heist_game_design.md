@@ -468,12 +468,47 @@ and lets Phase 2's runner orchestrate the AI dance separately.
 
 ---
 
-## Phase 4 — Cops
+## Phase 4 — Hidden location info & scouting
+
+**Goal:** Give the player real intelligence work to do before the heist. Today
+the full job slate is laid bare — profile, escape modifier, reward range,
+hidden depth pool. That's a lot of free signal. In Phase 4 the player starts
+each location knowing **one** piece of information; everything else is fogged
+until they pay to learn it.
+
+This is also the planned counterweight to the heat cascade (which is
+intentionally steep at +1 difficulty per suspicion — see MEMORY). Scouting
+is how a smart player de-risks before they commit.
+
+**Sketch (details TBD):**
+
+- Each location surfaces a single seed fact on the slate (e.g. just the
+  reward range, or just one challenge type). The rest of the profile, the
+  escape modifier, and the hidden-depth pool are hidden until scouted.
+- Scouting is a pre-heist action: the player picks which locations to scout
+  and which dimensions to probe. Each scout has a cost (money, time, or
+  crew action) and may itself be risky (heat, exposure, false reads).
+- The Heist AI's job-pick prompt operates on the *known* slice plus
+  whatever was scouted — so picking the right thing to scout is itself a
+  strategic decision.
+
+To be designed:
+
+- Cost model for scouting (flat fee? per-dimension? crew-skill-gated?)
+- Reliability (do scouts ever return wrong info?)
+- How heat from scouting interacts with the main heist's heat track
+- UI affordances on the lobby / setup screen for browsing the partially-
+  known slate and queuing scouts
+
+---
+
+## Phase 5 — Cops
 
 **Goal:** Full adversarial structure.
 
 - Human cop player
-- Cops have full location info; robbers must scout
+- Cops have full location info; robbers must scout (extends Phase 4's
+  asymmetry: now there's a real opponent who knows what the player doesn't)
 - Cops have defense budget
 - Cops investigate, surveil, strike
 
