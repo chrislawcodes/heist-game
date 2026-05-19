@@ -119,27 +119,11 @@
 .heist-root .h2-body { padding: 0 16px; display: none; }
 .heist-root .h2-card.expanded .h2-body { display: block; padding: 16px; }
 
-/* Body splits 50/50 between two sections:
-     Left  half  → assigned characters + challenge card, side-by-side
-     Right half  → narration
-*/
-.heist-root .h2-body-grid {
-  display: flex; flex-direction: row; gap: 0;
-}
-.heist-root .h2-body-left  {
-  flex: 1 1 0; min-width: 0;
-  display: flex; flex-direction: column; gap: 18px;
-}
-.heist-root .h2-body-right {
-  flex: 1 1 0; min-width: 0;
-  border-left: 1px solid var(--border);
-  margin-left: 20px; padding-left: 20px;
-  display: flex; flex-direction: column; gap: 10px;
-}
-
-/* Inner row inside the left half: chars on the left, challenge on the right. */
+/* Scene card body is a single row: assigned characters on the left,
+   challenge card on the right. Narration lives in the right-rail
+   "Mind of <AI>" thinking stream, not in the card. */
 .heist-root .h2-section-row {
-  display: flex; flex-direction: row; gap: 20px;
+  display: flex; flex-direction: row; gap: 24px;
   align-items: flex-start;
 }
 .heist-root .h2-section-chars     { flex: 1 1 0; min-width: 0; }
@@ -246,18 +230,8 @@
   font-size: 13px; color: var(--muted); font-family: monospace;
 }
 
-/* ── narration (lives in the right half) ─────────────────────────────────── */
-/* Sized for ~400-word literary passages with dialogue. Smaller + tighter
-   than scene meta text so a long passage doesn't bloat the card. */
-.heist-root .h2-narration {
-  font-size: 12px; line-height: 1.75; color: #c0bdd4;
-  font-style: italic;
-}
-.heist-root .h2-narration p { margin-bottom: 9px; }
-.heist-root .h2-narration p:last-child { margin-bottom: 0; }
-.heist-root .h2-narrating {
-  font-size: 11px; color: var(--muted); font-style: italic;
-}
+/* Narration lives in the "Mind of <AI>" thinking stream (shell-rail),
+   not in the scene card. No scene-card narration styles needed. */
 
 /* ── outcome card ─────────────────────────────────────────────────────────── */
 .heist-root .h2-outcome {
@@ -441,14 +415,15 @@
 
     card.className = 'h2-card ' + cardCls + (isNew || card.classList.contains('expanded') ? ' expanded' : '');
 
-    // ── assigned characters (just the cards — no inline reasoning, that
-    //                       goes to the Play-by-Play rail) ──
+    // ── assigned characters (just the cards — no inline reasoning) ──
     let charsContent = '';
     const assignedIds = (result && result.assigned_member_ids) || [];
     if (assignedIds.length && crew && crew.members) {
       const blocks = assignedIds.map(id => {
         const c = crew.members.find(x => x.id == id);
-        return c ? Shell.helpers.charCardHtml(c, { noId: true }) : '';
+        // hideCost: don't show the bid $ amount inside scene cards — that
+        // belongs to the hiring view, not gameplay.
+        return c ? Shell.helpers.charCardHtml(c, { noId: true, hideCost: true }) : '';
       }).filter(Boolean).join('');
       charsContent = `<div class="h2-chars">${blocks}</div>`;
     } else if (!result) {
@@ -504,11 +479,8 @@
       </div>`;
     }
 
-    // ── narration (right half) ───────────────────────────────────────────────
-    const narrationHtml = result
-      ? (narr ? `<div class="h2-narration">${Shell.helpers.renderMd(narr)}</div>`
-              : '<div class="h2-narrating">Narrating…</div>')
-      : '<div class="h2-narrating">—</div>';
+    // Narration is no longer in the scene card — it goes to the right-rail
+    // "Mind of <AI>" thinking stream (pushed on turn_end narrate events).
 
     card.innerHTML = `
       <div class="h2-head">
@@ -519,19 +491,11 @@
         <span class="h2-outcome-chip ${chipCls}">${chipText}</span>
       </div>
       <div class="h2-body">
-        <div class="h2-body-grid">
-          <div class="h2-body-left">
-            <div class="h2-section-row">
-              ${charsSection}
-              ${challengeSection}
-            </div>
-            ${decisionHtml}
-          </div>
-          <div class="h2-body-right">
-            <div class="h2-section-label">Narration</div>
-            ${narrationHtml}
-          </div>
+        <div class="h2-section-row">
+          ${charsSection}
+          ${challengeSection}
         </div>
+        ${decisionHtml}
       </div>`;
 
     // Click header to toggle expand
@@ -645,6 +609,14 @@
           scenes[sNum].narration = e.parsed.narration;
           if (aiIdx === Shell.currentAI) renderSceneCard(sNum);
         }
+        // Mirror the narration into the right-rail "Mind of <AI>" thinking
+        // stream. The {id} key dedupes if the same narration arrives twice
+        // (replay re-emits the same turn_end).
+        const sceneTitle = (scenes[sNum] && scenes[sNum].meta && scenes[sNum].meta.title) || '';
+        const title = `Scene ${sNum} narration${sceneTitle ? ' — ' + sceneTitle : ''}`;
+        Shell.addThought(aiIdx, 'scene', title,
+          Shell.helpers.renderMd(e.parsed.narration),
+          { id: 'narration-' + sNum });
       }
 
     } else if (e.type === 'scene_start') {
@@ -661,13 +633,6 @@
       scenes[sNum].result = e;
       if (narrations[sNum]) scenes[sNum].narration = narrations[sNum];
       if (aiIdx === Shell.currentAI) renderSceneCard(sNum);
-
-      // Push the AI's scene reasoning to the right-rail Play-by-Play.
-      // Only for the active AI so the stream isn't a mix of two crews.
-      if (e.reasoning && aiIdx === Shell.currentAI && Shell.addCommentary) {
-        const title = `Scene ${sNum}${e.title ? ' — ' + e.title : ''}`;
-        Shell.addCommentary(title, Shell.helpers.escapeHtml(e.reasoning));
-      }
 
     } else if (e.type === 'game_done') {
       gameStateByAI[aiIdx] = e.state;
