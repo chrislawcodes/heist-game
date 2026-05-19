@@ -300,7 +300,7 @@ CHARACTERS: list[dict] = [
     },
     {
         "id": 12, "file": "c12_nestor", "name": "Nestor Bly",
-        "skills": "Safecracker L, Hacker L", "floor_cost": 200,
+        "skills": "Safecracker M, Hacker L", "floor_cost": 400,
         "backstory": "Career safecracker out of Philadelphia who never quite made it to first chair, did time in '03 for a botched mall job, picked up enough hacking in the federal library to be useful again at fifty.",
         "voice": "Wry, slow, with a Philly bite on the vowels. Loves a long story.",
         "motivation": "Stays in because the apartment costs $2,400 and his social security is $1,800. Tells the crew he stays for the company.",
@@ -377,7 +377,7 @@ CHARACTERS: list[dict] = [
     },
     {
         "id": 15, "file": "c15_dex", "name": "Dex Owusu",
-        "skills": "Driver L, Muscle L", "floor_cost": 200,
+        "skills": "Driver M, Muscle L", "floor_cost": 400,
         "backstory": "Grew up in the Bronx, son of Ghanaian immigrants. Worked maintenance at a city bus depot for six years; learned mechanical work and pulled a couple of side gigs that got him noticed. Stayed in the work because the bus depot fired him.",
         "voice": "Brooklyn-Ghanaian cadence, slow with sudden bursts. Doesn't curse. Says 'lord have mercy' when things go badly.",
         "motivation": "Trying to save enough to start a small auto-repair shop with his cousin. Has been 'two more jobs away' for three years.",
@@ -400,6 +400,30 @@ CHARACTERS: list[dict] = [
             "Not yet."
         ),
         "signature_line": '"Lord have mercy. Where do you want it?"',
+    },
+    {
+        "id": 16, "file": "c16_val", "name": 'Valentina "Val" Cruz',
+        "skills": "Muscle M, Inside Man L", "floor_cost": 400,
+        "backstory": "Eight years as a Cook County corrections officer in Chicago — knew every shift pattern, every blind spot, every guard who'd look the other way for the right story. Left after a use-of-force review that went nowhere. Does asset recovery now.",
+        "voice": "Flat Chicago working-class. Short sentences. Doesn't explain herself twice. When she laughs it surprises people — loud and genuine, gone in a second.",
+        "motivation": "Supporting her mother and two younger sisters after her father's deportation. The repo work pays well. She doesn't think too hard about the rest.",
+        "quirk": "Scopes every room for the two exits and the one person who looks like trouble. Ranks them in her head before she's taken her coat off.",
+        "crew_dynamic": "Calm under pressure in a way that unnerves people who don't know her. The crew trusts her immediately. She takes longer to trust the crew.",
+        "weakness": "Reads people in authority as a known quantity — occasionally underestimates the ones who don't fit the profile.",
+        "look": (
+            "Bust shot, weight slightly forward, arms at her sides — still in the way that "
+            "means she's about to move. A Puerto Rican-American woman in her mid-thirties: "
+            "dark hair pulled back tight, strong build, a small scar on her chin. Plain dark "
+            "jacket over a fitted turtleneck. Expression neutral, eyes tracking."
+        ),
+        "setting": (
+            "A institutional corridor at night — almost entirely in darkness. A single "
+            "fluorescent tube overhead throws a hard strip of light down onto her, the rest "
+            "cross-hatched into near-black. A heavy security door visible behind her, its "
+            "window reinforced with wire mesh. A keycard reader on the wall, light glowing. "
+            "She's on the right side of the door. She's been on both sides."
+        ),
+        "signature_line": '"I\'ve been on the other side of this door. Trust me."',
     },
 ]
 
