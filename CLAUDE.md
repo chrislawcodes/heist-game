@@ -103,10 +103,14 @@ Drop a new HTML file in that folder and reload — no server restart needed. Moc
 
 Default workflow for any Claude (or Codex) agent working in this repo.
 
+### Staging Rule
+
+**After every commit, always push to staging.** Commit → push branch → run `.claude/scripts/refresh-staging.sh`. No exceptions. The user reviews changes on staging at http://127.0.0.1:8001/ before shipping.
+
 ### Direct Path
 
 ```
-Decide → optional spec → dispatch → verify → commit → push → /ship
+Decide → optional spec → dispatch → verify → commit → push → refresh staging → /ship
 ```
 
 - **Implementer** for substantial work: Sonnet subagent via the Agent tool with `isolation: "worktree"`. The subagent commits in its own worktree on a separate branch; the orchestrator merges that branch back. **Not** Codex CLI as an implementer — codex-mini is a *player* inside the game, not an agent that writes code here.
