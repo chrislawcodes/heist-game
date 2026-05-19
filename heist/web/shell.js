@@ -355,7 +355,9 @@ function _phaseStartStage(phase) {
   if (phase === 'hiring') return 1;
   const arr0 = _visibleByAI[0] || [];
   let pred;
-  if      (phase === 'job')      pred = e => e.type === 'job_known';
+  // /job opens BEFORE the AI's pick lands — at casting_summary — so the user
+  // sees the full job slate first and watches the AI choose.
+  if      (phase === 'job')      pred = e => e.type === 'turn_end' && e.label === 'casting_summary';
   else if (phase === 'heist')    pred = e => e.type === 'scene_start';
   else if (phase === 'epilogue') pred = e => e.type === 'game_done';
   else return 1;
@@ -400,11 +402,12 @@ window.loadTabFragment = loadTabFragment;
 window.initShell = async function({ gameId, onEvent } = {}) {
   _currentOnEvent = onEvent || null;
 
-  // 1. Load roster so tab fragments can render character data
+  // 1. Load roster + job slate so tab fragments can render them
   try {
     const meta = await fetch('/api/meta').then(r => r.json());
     Shell.roster = meta.roster || [];
     Shell.roster.forEach(c => Shell.charById.set(c.id, c));
+    Shell.jobs = meta.jobs || [];
   } catch (e) {
     console.error('shell: failed to load meta', e);
   }

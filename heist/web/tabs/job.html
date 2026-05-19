@@ -206,11 +206,70 @@
 .job-root .jt-hd-reward {
   font-family: monospace; font-size: 12px; color: var(--muted); margin-top: 8px;
 }
+
+/* ══════════════════════════════════════════
+   JOB SLATE  (shown before AI picks; highlights pick once known)
+══════════════════════════════════════════ */
+.job-root .jt-slate-section { margin-bottom: 24px; }
+.job-root .jt-slate-status {
+  font-size: 11px; color: var(--muted); font-style: italic; margin: -6px 0 10px;
+}
+.job-root .jt-slate-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+.job-root .jt-slate-card {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 8px; padding: 14px;
+  transition: all 0.25s ease;
+}
+.job-root .jt-slate-card.picked {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), 0 4px 16px rgba(232,160,48,0.15);
+  background: rgba(232,160,48,0.05);
+}
+.job-root .jt-slate-card.passed { opacity: 0.35; }
+.job-root .jt-slate-name-row {
+  display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px;
+}
+.job-root .jt-slate-name {
+  font-size: 14px; font-weight: 700; color: var(--text); flex: 1;
+}
+.job-root .jt-slate-picked-badge {
+  font-size: 9px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 3px;
+  background: var(--accent); color: #000; flex-shrink: 0;
+}
+.job-root .jt-slate-reward {
+  font-family: monospace; font-size: 11px; color: var(--muted); margin-bottom: 10px;
+}
+.job-root .jt-slate-reward strong { color: var(--accent); }
+.job-root .jt-slate-chips {
+  display: flex; gap: 4px; flex-wrap: wrap;
+}
+.job-root .jt-slate-chip {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.5px;
+  padding: 2px 6px; border-radius: 3px;
+  background: var(--panel2); color: var(--muted);
+}
+.job-root .jt-slate-chip.lvl-hard { background: rgba(224,80,80,0.15);  color: var(--red); }
+.job-root .jt-slate-chip.lvl-med  { background: rgba(232,160,48,0.15); color: var(--accent); }
+.job-root .jt-slate-chip.lvl-low  { background: rgba(82,196,122,0.15); color: var(--green); }
 </style>
 
 <template id="job-template">
   <div class="job-root">
-    <!-- shown once job is known -->
+
+    <!-- Job slate: always visible during the job phase. Lights up the picked
+         card once job_known fires; dims the others. -->
+    <div class="jt-slate-section">
+      <div class="jt-heading">Jobs On The Table</div>
+      <div class="jt-slate-status" data-jt="slate-status">Waiting for the AI to pick a job…</div>
+      <div class="jt-slate-grid" data-jt="slate-grid"></div>
+    </div>
+
+    <!-- Detail view: shown once job is known -->
     <div data-jt="main" style="display:none">
       <div class="jt-split">
 
@@ -374,8 +433,56 @@
 
   // ── render ───────────────────────────────────────────────────────────────────
 
+  function renderSlate() {
+    if (!root || !Shell) return;
+    const grid = $$('slate-grid');
+    const status = $$('slate-status');
+    if (!grid) return;
+    const esc = Shell.helpers.escapeHtml;
+    const jobs = Shell.jobs || [];
+    const picked = jobByAI[Shell.currentAI];
+    const pickedName = picked ? picked.name : null;
+
+    if (status) {
+      status.textContent = pickedName
+        ? `The AI picked ${pickedName}. The other ${jobs.length - 1} were available.`
+        : `${jobs.length} jobs to choose from. Waiting for the AI to pick…`;
+    }
+
+    grid.innerHTML = jobs.map(j => {
+      const isPicked = pickedName === j.name;
+      const isPassed = pickedName !== null && !isPicked;
+      const rr = j.reward_range;
+      const reward = rr
+        ? `<strong>$${(rr[0]/1e6).toFixed(1)}m – $${(rr[1]/1e6).toFixed(1)}m</strong>`
+        : '—';
+      const profile = j.profile || {};
+      const chips = ['social','physical','electronic','confrontation'].map(key => {
+        const level = (profile[key] || 'NONE').toUpperCase();
+        if (level === 'NONE') return '';
+        const cls = level === 'HARD' ? 'lvl-hard' : level === 'MEDIUM' ? 'lvl-med' : 'lvl-low';
+        const short = level === 'MEDIUM' ? 'MED' : level;
+        return `<span class="jt-slate-chip ${cls}">${key.toUpperCase()} ${short}</span>`;
+      }).filter(Boolean).join('');
+      const cls = ['jt-slate-card'];
+      if (isPicked) cls.push('picked');
+      if (isPassed) cls.push('passed');
+      const badge = isPicked
+        ? '<span class="jt-slate-picked-badge">Picked</span>' : '';
+      return `<div class="${cls.join(' ')}">
+        <div class="jt-slate-name-row">
+          <div class="jt-slate-name">${esc(j.name)}</div>
+          ${badge}
+        </div>
+        <div class="jt-slate-reward">Reward ${reward}</div>
+        <div class="jt-slate-chips">${chips}</div>
+      </div>`;
+    }).join('');
+  }
+
   function render() {
     if (!root || !Shell) return;
+    renderSlate();
     const esc  = Shell.helpers.escapeHtml;
     const aiIdx = Shell.currentAI;
 
