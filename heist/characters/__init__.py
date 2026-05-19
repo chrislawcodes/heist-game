@@ -178,7 +178,7 @@ ROSTER: list[Character] = [
     Character(
         id=6,
         name="Big Mike Donato",
-        skills={"muscle": L, "driver": L},
+        skills={"muscle": L, "driver": L, "inside_man": L},
         floor_cost=200,
         backstory=(
             "Worked the Newark docks for twenty years until the longshoremen's union got "
