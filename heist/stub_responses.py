@@ -18,15 +18,15 @@ _JOB_BIDS: dict[str, list[tuple[int, int, str]]] = {
     ],
     "The Armored Car": [
         (4, 700, "High muscle for the guards."),
-        (11, 400, "Safecracker M for the truck's locks."),
+        (5, 400, "Muscle M + Driver L backup."),
         (13, 700, "High driver for the getaway."),
-        (15, 200, "Muscle L + Driver L support."),
+        (2, 200, "Hacker M for any electronic interference."),
     ],
     "The Corporate Server Farm": [
         (1, 1100, "High hacker plus backup driver in one body."),
         (8, 200, "Inside Man M for the social layer."),
         (11, 400, "Safecracker M for the server-room lock."),
-        (15, 200, "Muscle L + Driver L support."),
+        (3, 200, "Hacker L + Inside Man L — cheap third pair of eyes."),
     ],
     "The Penthouse Caper": [
         (2, 200, "Hacker M for the smart home."),
@@ -48,7 +48,7 @@ _JOB_BIDS: dict[str, list[tuple[int, int, str]]] = {
     ],
     "The Casino Vault": [
         (2, 200, "Hacker M; half of the electronic collaboration."),
-        (12, 200, "Safecracker L + Hacker L; the other half of hacker collab."),
+        (12, 400, "Safecracker M + Hacker L; the other half of hacker collab."),
         (10, 700, "Safecracker H for the vault."),
         (8, 200, "Inside Man M for the floor."),
     ],
