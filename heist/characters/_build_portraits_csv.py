@@ -146,7 +146,7 @@ CHARACTERS: list[dict] = [
     },
     {
         "id": 6, "file": "c06_big_mike", "name": "Big Mike Donato",
-        "skills": "Muscle L, Driver L", "floor_cost": 200,
+        "skills": "Muscle L, Driver L, Inside Man L", "floor_cost": 200,
         "backstory": "Worked the Newark docks for twenty years until the longshoremen's union got broken. Picked up driving for a chop shop, then for crews. Knows every back route between Trenton and the Bronx.",
         "voice": "Loud, friendly, profane. Hugs hello. Has exactly two volumes: warm shouting and quiet menace.",
         "motivation": "Pays alimony to two ex-wives and child support for four kids. Cheerfully calls himself 'the joke at his own family's holidays.'",
