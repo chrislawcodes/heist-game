@@ -15,6 +15,7 @@ POST /api/launch    → {game_id} → start the game, returns {ok}
 POST /api/quick-game → preset: stage + launch 2× codex-mini AIs with the default prompt
 GET  /api/games     → all games (staged + running + done)
 GET  /api/games/<id>/events → full event history for a game (for replay)
+DELETE /api/games/<id> → remove a non-running game (record + snapshots)
 GET  /api/status    → {has_history, game_running}
 GET  /api/meta      → roster + jobs
 GET  /stream        → SSE event stream
@@ -34,6 +35,7 @@ from pathlib import Path
 
 from heist.logs import log
 from heist.persist import (
+    delete_game_record,
     delete_runner_snapshot,
     list_pending_snapshots,
     load_game_records,
@@ -196,6 +198,19 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                 self.end_headers()
         finally:
             self._http_log("POST", t0)
+
+    def do_DELETE(self):
+        t0 = time.monotonic()
+        p = self.path.split("?")[0]
+        try:
+            # /api/games/<id>
+            if p.startswith("/api/games/") and "/" not in p[len("/api/games/"):]:
+                self._handle_delete_game(p[len("/api/games/"):])
+            else:
+                self.send_response(404)
+                self.end_headers()
+        finally:
+            self._http_log("DELETE", t0)
 
     def do_OPTIONS(self):
         self.send_response(200)
@@ -477,6 +492,45 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                 daemon=True,
             )
             t.start()
+
+    def _handle_delete_game(self, gid_str: str) -> None:
+        """Remove a non-running game: drop it from the in-memory dict and
+        delete both the persisted record and any per-AI runner snapshots."""
+        try:
+            gid = int(gid_str)
+        except ValueError:
+            self._json_error(400, "bad game id")
+            return
+        with _lock:
+            game = _games.get(gid)
+            if not game:
+                self._json_error(404, "game not found")
+                return
+            if game.get("status") == "running":
+                self._json_error(
+                    409,
+                    "game is running — wait for it to finish (or kill the server) before deleting",
+                )
+                return
+            # Drop the in-memory record so future /api/games calls don't see it.
+            _games.pop(gid, None)
+        # Best-effort cleanup of every persisted artifact for this game.
+        try:
+            snapshots = list_pending_snapshots(gid)
+        except Exception:
+            snapshots = {}
+        for ai_idx in snapshots:
+            try:
+                delete_runner_snapshot(gid, ai_idx)
+            except Exception as exc:
+                log.warn("delete_runner_snapshot_failed",
+                         game_id=gid, ai_idx=ai_idx, error=str(exc))
+        try:
+            delete_game_record(gid)
+        except Exception as exc:
+            log.warn("delete_game_record_failed", game_id=gid, error=str(exc))
+        log.info("game_deleted", game_id=gid)
+        self._json_ok({"ok": True, "game_id": gid})
 
     # ── SSE ──
 

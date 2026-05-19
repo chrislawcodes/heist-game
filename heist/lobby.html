@@ -138,6 +138,20 @@ header {
 }
 .action-btn:hover { background: #f0b840; }
 
+/* Secondary destructive action — sits next to Replay / + Add AI. */
+.action-delete {
+  font-size: 16px; line-height: 1; font-weight: 700;
+  width: 26px; height: 26px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; color: var(--muted);
+  border: 1px solid var(--border); border-radius: 4px;
+  cursor: pointer; transition: color 0.15s, border-color 0.15s, background 0.15s;
+  padding: 0;
+}
+.action-delete:hover { color: var(--red); border-color: var(--red); background: rgba(224,80,80,0.08); }
+.action-delete:disabled { opacity: 0.4; cursor: not-allowed; }
+.action-delete:disabled:hover { color: var(--muted); border-color: var(--border); background: transparent; }
+
 /* ── empty state ── */
 .empty-state {
   background: var(--panel); border: 1px solid var(--border);
@@ -207,27 +221,36 @@ function renderGames(games) {
       takeHtml = `<div class="game-take failed">$0</div>`;
     }
 
+    // Delete button: present on every non-running game. Running games can't be
+    // deleted cleanly (their threads are mid-codex-call) so we render it disabled.
+    const deleteBtn = isRunning
+      ? `<button class="action-delete" disabled title="Can't delete while a game is running — wait for it to finish.">✕</button>`
+      : `<button class="action-delete" onclick="deleteGame(${g.id}, '${esc(jobName).replace(/'/g, "\\'")}')" title="Delete this game">✕</button>`;
+
     let actionHtml = '';
     if (isStaging) {
       actionHtml = `
         <div class="game-actions">
           <a class="action-link" href="/setup?game=${g.id}">+ Add AI</a>
           ${aiCount > 0 ? `<button class="action-btn" onclick="launchGame(${g.id})">▶ Launch</button>` : ''}
+          ${deleteBtn}
         </div>`;
     } else if (isDone) {
       actionHtml = `
         <div class="game-actions">
           <a class="action-link" href="/hiring?game=${g.id}">↻ Replay</a>
+          ${deleteBtn}
         </div>`;
+    } else if (isRunning) {
+      actionHtml = `<div class="game-actions">${deleteBtn}</div>`;
     }
 
-    // Done games show a Replay action inline → use a <div> so the nested
-    // <a> doesn't get eaten by a row-wide anchor. Running games stay as a
-    // clickable row that goes to the live viewer.
-    const wrapAsRow = isStaging || isDone;
-    const href = isRunning ? `/hiring?game=${g.id}` : '#';
-    const rowTag = wrapAsRow ? `<div class="game-row"` : `<a class="game-row" href="${href}"`;
-    const rowClose = wrapAsRow ? `</div>` : `</a>`;
+    // Every status now has at least one nested button (delete), so the row
+    // is always a <div>. Game-info clicking is wired separately to keep
+    // running games still navigable to the live viewer.
+    const navHref = isRunning ? `/hiring?game=${g.id}` : (isDone ? `/hiring?game=${g.id}` : '');
+    const rowTag = `<div class="game-row"${navHref ? ` onclick="if(event.target.closest('button,a'))return; window.location='${navHref}'"` : ''}`;
+    const rowClose = `</div>`;
 
     return `${rowTag}>
       <div class="game-status">
@@ -283,6 +306,18 @@ async function launchGame(id) {
     window.location = `/hiring?game=${id}`;
   } catch (e) {
     alert('Launch failed: ' + e.message);
+  }
+}
+
+async function deleteGame(id, jobName) {
+  const label = jobName && jobName !== 'Unknown' ? `"${jobName}"` : `game #${id}`;
+  if (!confirm(`Delete ${label}? This wipes the record and any saved snapshots — can't be undone.`)) return;
+  try {
+    const resp = await fetch(`/api/games/${id}`, { method: 'DELETE' });
+    if (!resp.ok) { const d = await resp.json(); throw new Error(d.error || resp.status); }
+    refresh();
+  } catch (e) {
+    alert('Delete failed: ' + e.message);
   }
 }
 
