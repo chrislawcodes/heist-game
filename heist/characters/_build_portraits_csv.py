@@ -60,11 +60,13 @@ CHARACTERS: list[dict] = [
             "The directness of her gaze is slightly unsettling."
         ),
         "setting": (
-            "A sparse immigrant kitchen — a single halogen bulb overhead, a pile of "
-            "photocopied transit maps and dog-eared computer manuals on the table beside her, "
-            "an empty instant-noodle cup, a cheap folding chair. A window behind her shows "
-            "a snow-dusted fire escape. The room is clean but nearly empty. Nothing here "
-            "belongs to the place; everything belongs to her."
+            "A sparse immigrant kitchen at night — a laptop open on the table in front of "
+            "her, its screen filling the frame with a terminal window and scrolling lines of "
+            "code, the harsh glow casting deep cross-hatched shadows across her face and "
+            "wool sweater. A tangle of USB drives and ethernet cables beside the laptop, "
+            "an empty instant-noodle cup pushed to the edge. A snow-dusted fire escape "
+            "visible through the window behind her. The kitchen has almost nothing in it "
+            "except the machine and her."
         ),
         "signature_line": '"I have done it. Move."',
     },
@@ -85,11 +87,11 @@ CHARACTERS: list[dict] = [
             "steps ahead of the room. Heavy ink shadows behind her."
         ),
         "setting": (
-            "Behind a bar — rows of bottles on shelves behind her, a column of taps at the "
-            "edge of frame, a cracked mirror reflecting more bottles, the worn edge of a bar "
-            "rail in the foreground. A chalk wall menu with partial words visible. "
-            "A handwritten note taped to the register: 'Out of Malort.' The bar is closed "
-            "but feels like it belongs to her."
+            "Behind a closed bar — but on the counter in front of her, half-hidden under a "
+            "bar towel, a slim laptop sits open showing a network topology diagram. A short "
+            "ethernet cable runs from the laptop to a router tucked behind the bottle shelf. "
+            "Rows of bottles behind her, a cracked mirror, the worn bar rail. She looks like "
+            "she's tending bar; the laptop says otherwise."
         ),
         "signature_line": '"Sweetheart, count again. There\'s eleven."',
     },
@@ -159,11 +161,11 @@ CHARACTERS: list[dict] = [
             "sub in one hand, mid-bite interrupted by a grin. Soft shading."
         ),
         "setting": (
-            "A working-class diner counter — a cracked vinyl stool, a laminated menu on "
-            "the counter beside him, a coffee mug with the diner's name partially visible, "
-            "the short-order window open behind him with a cook's arm visible. A small "
-            "wall-mounted TV showing a sports score. Ketchup and mustard dispensers on "
-            "the counter. The diner is his office and everyone here knows his name."
+            "A loading dock at night — a massive shipping container looms behind him, its "
+            "heavy steel door hanging open. A dock hook and chain are visible to one side, "
+            "a pallet of stacked crates behind that. He's got the meatball sub in one hand "
+            "and a crowbar resting across his knee. The scale of the container makes most "
+            "people look small; it doesn't do that to him."
         ),
         "signature_line": '"Hey hey, what\'re we doin\'? Talk to me here."',
     },
@@ -314,11 +316,11 @@ CHARACTERS: list[dict] = [
             "heard worse news and had better coffee."
         ),
         "setting": (
-            "A diner booth — a Formica table with a white coffee mug and a folded newspaper "
-            "open to the crossword (several squares filled in, one word crossed out). "
-            "A cracked vinyl seat, the edge of a jukebox at the far end of the room, "
-            "ketchup and mustard dispensers on the table. This diner has been here since "
-            "before Nestor's first job and will be here after his last."
+            "A diner booth — but on the Formica table beside his coffee mug: a small "
+            "combination padlock with its shackle open, a stethoscope coiled next to it, "
+            "and a folded paper diagram of a safe mechanism with handwritten margin notes. "
+            "The newspaper crossword is there too, half-finished. He does both for the same "
+            "reason — something to keep the hands working."
         ),
         "signature_line": '"Used to be I could do this in my sleep. Now I just sleep through it."',
     },
@@ -390,11 +392,11 @@ CHARACTERS: list[dict] = [
             "one side. He doesn't try to be memorable and it doesn't work — you remember him."
         ),
         "setting": (
-            "A city bus depot — the tall flank of a transit bus looms at one edge of the "
-            "frame, the bus number just visible. A maintenance pit ramp nearby, a toolbox "
-            "on wheels in the foreground with a wrench resting across the top. Fluorescent "
-            "tube lights overhead casting flat institutional shadows. Taped to the wall "
-            "above his eye line: a small photograph, too small to read. His cousin's shop. "
+            "Inside the cab of a city bus — he's in the driver's seat, door open, one foot "
+            "on the step. The wide steering wheel dominates the foreground, the long "
+            "empty aisle stretching behind him into the dark. A set of keys hangs from the "
+            "ignition. Through the windscreen: the depot's fluorescent-lit yard. Taped to "
+            "the dashboard: a small photograph, too small to read. His cousin's shop. "
             "Not yet."
         ),
         "signature_line": '"Lord have mercy. Where do you want it?"',

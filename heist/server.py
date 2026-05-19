@@ -7,6 +7,7 @@ GET  /job           → job.html     (phase 2 — ?game=ID)
 GET  /heist         → heist.html   (phase 3 — ?game=ID)
 GET  /epilogue      → epilogue.html (phase 4 — ?game=ID)
 GET  /shell.js      → web/shell.js  (shared JS module)
+GET  /portraits/<id> → heist/characters/c<id>_*.jpeg (or .jpg) — serves portrait by character id
 
 POST /api/new-game  → create a staged game, returns {game_id}
 POST /api/add-ai    → {game_id, prompt, agent} → stage an AI onto a game
@@ -59,8 +60,9 @@ _JOB_HTML      = Path(__file__).parent / "job.html"
 _HEIST_HTML    = Path(__file__).parent / "heist.html"
 _EPILOGUE_HTML = Path(__file__).parent / "epilogue.html"
 _SHELL_JS      = Path(__file__).parent / "web" / "shell.js"
-_MOCKS_DIR     = Path(__file__).parent / "mocks"
-_TABS_DIR      = Path(__file__).parent / "web" / "tabs"
+_MOCKS_DIR       = Path(__file__).parent / "mocks"
+_TABS_DIR        = Path(__file__).parent / "web" / "tabs"
+_PORTRAITS_DIR   = Path(__file__).parent / "characters"
 
 
 def _broadcast(event: dict) -> None:
@@ -159,6 +161,8 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             self._serve_mocks_index()
         elif p.startswith("/mocks/"):
             self._serve_mock(p[len("/mocks/"):])
+        elif p.startswith("/portraits/"):
+            self._serve_portrait(p[len("/portraits/"):])
         elif p.startswith("/tabs/"):
             self._serve_tab(p[len("/tabs/"):])
         elif p == "/stream":
@@ -241,6 +245,39 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
             return
         self._serve_file(resolved)
+
+    def _serve_portrait(self, char_id_str: str) -> None:
+        """Serve a character portrait by id.
+
+        URL: /portraits/9  →  heist/characters/c09_pearl.jpeg (or .jpg)
+        Falls back to 404 if the file doesn't exist yet — the frontend
+        onerror handler hides the <img> and shows the initials fallback.
+        """
+        try:
+            char_id = int(char_id_str)
+        except ValueError:
+            self.send_response(404)
+            self.end_headers()
+            return
+        prefix = f"c{char_id:02d}_"
+        portrait: Path | None = None
+        for ext in (".jpeg", ".jpg"):
+            matches = list(_PORTRAITS_DIR.glob(f"{prefix}*{ext}"))
+            if matches:
+                portrait = matches[0]
+                break
+        if portrait is None or not portrait.is_file():
+            self.send_response(404)
+            self.end_headers()
+            return
+        content = portrait.read_bytes()
+        mime = "image/jpeg"
+        self.send_response(200)
+        self.send_header("Content-Type", mime)
+        self.send_header("Content-Length", str(len(content)))
+        self.send_header("Cache-Control", "public, max-age=3600")
+        self.end_headers()
+        self.wfile.write(content)
 
     def _serve_tab(self, name: str) -> None:
         """Serve a tab fragment from web/tabs/<name>.html. The viewer shell
