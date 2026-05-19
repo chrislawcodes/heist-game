@@ -286,15 +286,29 @@ function _isCurrentAIEvent(e) {
   return e.ai_idx === undefined || e.ai_idx === Shell.currentAI;
 }
 
-// The most recent visible stage ≤ maxStage whose event is for the current AI.
-// Falls back to maxStage if no current-AI event is found (so Back never stalls).
+// Returns true if Step/Back should skip this event even when it belongs to
+// the current AI.  On the heist page:
+//   • scene_start  — card is empty until scene_done; skip so user sees nothing
+//                    until the full card (chars + narration + result) lands.
+//   • scene_narrate — narration arrives before chars; skipping means scene_done
+//                     shows both together in one step.
+function _isReplaySkipEvent(e) {
+  if (_currentPhasePath() !== 'heist') return false;
+  if (e.type === 'scene_start') return true;
+  if (e.type === 'turn_end' && /^scene_\d+_(escape_)?narrate$/.test(e.label || '')) return true;
+  return false;
+}
+
+// The most recent visible stage ≤ maxStage whose event is for the current AI
+// and is not a replay-skip event.
+// Falls back to maxStage if no such event is found (so Back never stalls).
 function _prevCurrentAIStage(maxStage) {
   let n = 0, result = maxStage;
   for (let i = 0; i < _REPLAY_EVENTS.length; i++) {
     if (!_isVisibleEvent(_REPLAY_EVENTS[i])) continue;
     n++;
     if (n > maxStage) break;
-    if (_isCurrentAIEvent(_REPLAY_EVENTS[i])) result = n;
+    if (_isCurrentAIEvent(_REPLAY_EVENTS[i]) && !_isReplaySkipEvent(_REPLAY_EVENTS[i])) result = n;
   }
   return result;
 }
@@ -362,7 +376,7 @@ function replayStep() {
     while (_REPLAY_INDEX < targetIdx && _REPLAY_INDEX < _REPLAY_EVENTS.length) {
       _processEvent(_REPLAY_EVENTS[_REPLAY_INDEX++], _currentOnEvent);
     }
-    if (!visibleEvt || _isCurrentAIEvent(visibleEvt)) break;
+    if (!visibleEvt || (_isCurrentAIEvent(visibleEvt) && !_isReplaySkipEvent(visibleEvt))) break;
   }
   _replayUpdateCounter();
   if (_currentStage() >= total && _REPLAY_TIMER) replayToggle();
