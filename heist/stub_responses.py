@@ -20,13 +20,13 @@ _JOB_BIDS: dict[str, list[tuple[int, int, str]]] = {
         (4, 700, "High muscle for the guards."),
         (11, 400, "Safecracker M for the truck's locks."),
         (13, 700, "High driver for the getaway."),
-        (6, 200, "Muscle L + Driver L support."),
+        (15, 200, "Muscle L + Driver L support."),
     ],
     "The Corporate Server Farm": [
         (1, 1100, "High hacker plus backup driver in one body."),
         (8, 200, "Inside Man M for the social layer."),
         (11, 400, "Safecracker M for the server-room lock."),
-        (6, 200, "Muscle L + Driver L support."),
+        (15, 200, "Muscle L + Driver L support."),
     ],
     "The Penthouse Caper": [
         (2, 200, "Hacker M for the smart home."),
