@@ -268,6 +268,7 @@ let _currentOnEvent = null;  // set by initShell; used by replayStep
 // ── isVisibleEvent: true for events that produce a visible DOM change ─────────
 function _isVisibleEvent(e) {
   if (e.type === 'turn_start') return false;
+  if (e.type === 'hidden_depth_rolled') return false;
   if (e.type === 'turn_end') {
     const label = e.label || '';
     if (label === 'bid')             return true;
@@ -277,6 +278,39 @@ function _isVisibleEvent(e) {
     return false;
   }
   return true;
+}
+
+// Returns true if the event belongs to the currently-selected AI, or has no
+// ai_idx (system/global events). Used by Step/Back to skip other AIs' events.
+function _isCurrentAIEvent(e) {
+  return e.ai_idx === undefined || e.ai_idx === Shell.currentAI;
+}
+
+// Returns true if Step/Back should skip this event even when it belongs to
+// the current AI.  On the heist page:
+//   • scene_start  — card is empty until scene_done; skip so user sees nothing
+//                    until the full card (chars + narration + result) lands.
+//   • scene_narrate — narration arrives before chars; skipping means scene_done
+//                     shows both together in one step.
+function _isReplaySkipEvent(e) {
+  if (_currentPhasePath() !== 'heist') return false;
+  if (e.type === 'scene_start') return true;
+  if (e.type === 'turn_end' && /^scene_\d+_(escape_)?narrate$/.test(e.label || '')) return true;
+  return false;
+}
+
+// The most recent visible stage ≤ maxStage whose event is for the current AI
+// and is not a replay-skip event.
+// Falls back to maxStage if no such event is found (so Back never stalls).
+function _prevCurrentAIStage(maxStage) {
+  let n = 0, result = maxStage;
+  for (let i = 0; i < _REPLAY_EVENTS.length; i++) {
+    if (!_isVisibleEvent(_REPLAY_EVENTS[i])) continue;
+    n++;
+    if (n > maxStage) break;
+    if (_isCurrentAIEvent(_REPLAY_EVENTS[i]) && !_isReplaySkipEvent(_REPLAY_EVENTS[i])) result = n;
+  }
+  return result;
 }
 
 // ── stage helpers ─────────────────────────────────────────────────────────────
@@ -326,15 +360,23 @@ function _bufferIndexAfterStage(stage) {
 
 // ── replay controls ───────────────────────────────────────────────────────────
 function replayStep() {
-  const cur   = _currentStage();
   const total = _totalStages();
-  if (cur >= total) {
+  if (_currentStage() >= total) {
     if (_REPLAY_TIMER) replayToggle();
     return;
   }
-  const targetIdx = _bufferIndexAfterStage(cur + 1);
-  while (_REPLAY_INDEX < targetIdx && _REPLAY_INDEX < _REPLAY_EVENTS.length) {
-    _processEvent(_REPLAY_EVENTS[_REPLAY_INDEX++], _currentOnEvent);
+  // Advance through visible events until we land on one for the current AI.
+  // Events for other AIs are still processed (internal state stays correct)
+  // but don't count as a stop point — the user sees something every step.
+  while (_REPLAY_INDEX < _REPLAY_EVENTS.length) {
+    const cur        = _currentStage();
+    if (cur >= total) break;
+    const targetIdx  = _bufferIndexAfterStage(cur + 1);
+    const visibleEvt = _REPLAY_EVENTS[targetIdx - 1];
+    while (_REPLAY_INDEX < targetIdx && _REPLAY_INDEX < _REPLAY_EVENTS.length) {
+      _processEvent(_REPLAY_EVENTS[_REPLAY_INDEX++], _currentOnEvent);
+    }
+    if (!visibleEvt || (_isCurrentAIEvent(visibleEvt) && !_isReplaySkipEvent(visibleEvt))) break;
   }
   _replayUpdateCounter();
   if (_currentStage() >= total && _REPLAY_TIMER) replayToggle();
@@ -478,7 +520,7 @@ function replayBack() {
     if (prev) window.location = prev;
     return;
   }
-  _jumpToStage(cur - 1);
+  _jumpToStage(_prevCurrentAIStage(cur - 1));
 }
 
 // What page (= phase) are we on?
@@ -506,7 +548,7 @@ function _phaseStartStage(phase) {
   // /job opens BEFORE the AI's pick lands — at casting_summary — so the user
   // sees the full job slate first and watches the AI choose.
   if      (phase === 'job')      pred = e => e.type === 'turn_end' && e.label === 'casting_summary';
-  else if (phase === 'heist')    pred = e => e.type === 'scene_start';
+  else if (phase === 'heist')    pred = e => e.type === 'scene_done';
   else if (phase === 'epilogue') pred = e => e.type === 'game_done';
   else return 1;
   // Scan the full buffer in order; first visible event matching pred

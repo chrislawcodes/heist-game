@@ -5,6 +5,10 @@ target-version = "py310"
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "SIM"]
 
+[tool.ruff.lint.per-file-ignores]
+# Character data files contain intentionally long prose strings.
+"heist/characters/*.py" = ["E501"]
+
 [tool.mypy]
 python_version = "3.12"
 warn_unused_ignores = true

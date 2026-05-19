@@ -12,7 +12,7 @@ from heist.state import ChallengeLevel, Crew, SkillLevel
 
 def _char(name, skills, cost=0):
     from heist.state import Character
-    return Character(id=999, name=name, skills=skills, floor_cost=cost, personality="")
+    return Character(id=999, name=name, skills=skills, floor_cost=cost)
 
 
 def test_effective_skill_solo():

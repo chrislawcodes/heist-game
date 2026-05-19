@@ -10,7 +10,6 @@ from heist.state import (
     Job,
 )
 
-
 MUSEUM = Job(
     name="The Museum Gala",
     flavor="[placeholder flavor — iteration 4]",
