@@ -443,9 +443,8 @@
     if (assignedIds.length && crew && crew.members) {
       const blocks = assignedIds.map(id => {
         const c = crew.members.find(x => x.id == id);
-        // hideCost: don't show the bid $ amount inside scene cards — that
-        // belongs to the hiring view, not gameplay.
-        return c ? Shell.helpers.charCardHtml(c, { noId: true, hideCost: true }) : '';
+        // Exactly the card the hiring page renders — no overrides
+        return c ? Shell.helpers.charCardHtml(c, { noId: true }) : '';
       }).filter(Boolean).join('');
       charsContent = `<div class="h2-chars">${blocks}</div>`;
     } else if (!result) {
