@@ -119,20 +119,31 @@
 .heist-root .h2-body { padding: 0 16px; display: none; }
 .heist-root .h2-card.expanded .h2-body { display: block; padding: 16px; }
 
+/* Body splits 50/50 between two sections:
+     Left  half  → assigned characters + challenge card, side-by-side
+     Right half  → narration
+*/
 .heist-root .h2-body-grid {
   display: flex; flex-direction: row; gap: 0;
 }
-.heist-root .h2-body-left   { flex: 2 1 0; min-width: 0; display: flex; flex-direction: column; gap: 18px; }
-.heist-root .h2-body-middle { flex-shrink: 0;
+.heist-root .h2-body-left  {
+  flex: 1 1 0; min-width: 0;
+  display: flex; flex-direction: column; gap: 18px;
+}
+.heist-root .h2-body-right {
+  flex: 1 1 0; min-width: 0;
   border-left: 1px solid var(--border);
   margin-left: 20px; padding-left: 20px;
-  display: flex; flex-direction: column;
+  display: flex; flex-direction: column; gap: 10px;
 }
-.heist-root .h2-body-right  { flex: 3 1 0; min-width: 0;
-  border-left: 1px solid var(--border);
-  margin-left: 20px; padding-left: 20px;
-  display: flex; flex-direction: column; justify-content: center;
+
+/* Inner row inside the left half: chars on the left, challenge on the right. */
+.heist-root .h2-section-row {
+  display: flex; flex-direction: row; gap: 20px;
+  align-items: flex-start;
 }
+.heist-root .h2-section-chars     { flex: 1 1 0; min-width: 0; }
+.heist-root .h2-section-challenge { flex-shrink: 0; }
 
 .heist-root .h2-section-label {
   font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
@@ -235,15 +246,17 @@
   font-size: 13px; color: var(--muted); font-family: monospace;
 }
 
-/* ── narration (lives in the right column) ───────────────────────────────── */
+/* ── narration (lives in the right half) ─────────────────────────────────── */
+/* Sized for ~400-word literary passages with dialogue. Smaller + tighter
+   than scene meta text so a long passage doesn't bloat the card. */
 .heist-root .h2-narration {
-  font-size: 14px; line-height: 1.8; color: #c0bdd4;
+  font-size: 12px; line-height: 1.75; color: #c0bdd4;
   font-style: italic;
 }
-.heist-root .h2-narration p { margin-bottom: 10px; }
+.heist-root .h2-narration p { margin-bottom: 9px; }
 .heist-root .h2-narration p:last-child { margin-bottom: 0; }
 .heist-root .h2-narrating {
-  font-size: 12px; color: var(--muted); font-style: italic;
+  font-size: 11px; color: var(--muted); font-style: italic;
 }
 
 /* ── outcome card ─────────────────────────────────────────────────────────── */
@@ -428,41 +441,30 @@
 
     card.className = 'h2-card ' + cardCls + (isNew || card.classList.contains('expanded') ? ' expanded' : '');
 
-    // ── assigned characters block (uses the same card as the Hiring tab) ────
-    let charsHtml = '';
+    // ── assigned characters (just the cards — no inline reasoning, that
+    //                       goes to the Play-by-Play rail) ──
+    let charsContent = '';
     const assignedIds = (result && result.assigned_member_ids) || [];
     if (assignedIds.length && crew && crew.members) {
       const blocks = assignedIds.map(id => {
         const c = crew.members.find(x => x.id == id);
-        // Exactly the card the hiring page renders — no overrides
         return c ? Shell.helpers.charCardHtml(c, { noId: true }) : '';
       }).filter(Boolean).join('');
-      const reasoningHtml = result && result.reasoning
-        ? `<div class="h2-reasoning">"${esc(result.reasoning)}"</div>` : '';
-      charsHtml = `<div>
-        <div class="h2-section-label">Assigned</div>
-        <div class="h2-chars">${blocks}</div>
-        ${reasoningHtml}
-      </div>`;
+      charsContent = `<div class="h2-chars">${blocks}</div>`;
     } else if (!result) {
-      charsHtml = `<div>
-        <div class="h2-section-label">Assigned</div>
-        <div class="h2-escape-info" style="font-style:italic">Waiting for crew assignment…</div>
-      </div>`;
+      charsContent = `<div class="h2-escape-info" style="font-style:italic">Waiting for crew assignment…</div>`;
     }
+    const charsSection = `<div class="h2-section-chars">
+      <div class="h2-section-label">Assigned</div>
+      ${charsContent}
+    </div>`;
 
-    // ── challenge card (vertical card, mirrors the hiring char-card shape) ──
-    // Returns { html, warnHtml } so the warn can sit below the card.
+    // ── challenge card ───────────────────────────────────────────────────────
     let challengeCardHtml = '';
     let warnHtml = '';
     if (meta.scene_type === 'escape') {
-      // Escape: render as a driver-themed card; level reads "VARIES" since
-      // escape difficulty is computed from heat + escape_modifier, not a level.
       challengeCardHtml = buildChallengeCard({
-        shortSk: 'drive',
-        word:    'DRIVING',
-        level:   null,   // sublabel will read "VARIES"
-        diff:    null,   // no diff bars for escape
+        shortSk: 'drive', word: 'DRIVING', level: null, diff: null,
       });
     } else if (meta.challenge_skill) {
       const apiSkill = (meta.challenge_skill || '').toLowerCase();
@@ -479,33 +481,30 @@
         }
       }
       const level = reality || declared || expected || '';
-      challengeCardHtml = buildChallengeCard({
-        shortSk, word, level, diff: level,
-      });
+      challengeCardHtml = buildChallengeCard({ shortSk, word, level, diff: level });
       if (expected && reality && expected !== reality) {
         warnHtml = `<div class="h2-hidden-warn">⚠ Hidden depth: expected ${esc(expected)}, got ${esc(reality)}</div>`;
       }
     }
-    const challengeBlock = challengeCardHtml
-      ? `<div class="h2-body-middle">
+    const challengeSection = challengeCardHtml
+      ? `<div class="h2-section-challenge">
           <div class="h2-section-label">Challenge</div>
           ${challengeCardHtml}
           ${warnHtml}
         </div>`
       : '';
 
-    // ── decision block (stays in the left column under chars) ────────────────
+    // ── decision block (now inline-reasoning-free; reasoning goes to rail) ──
     let decisionHtml = '';
     if (meta.scene_type === 'decision' && result) {
       const pursue = result.decision === 'pursue' || result.pursue === true;
       decisionHtml = `<div>
         <div class="h2-section-label">Decision</div>
         <div class="${pursue ? 'h2-decision-note' : 'h2-decision-pass'}">${pursue ? '▶ Pursued' : '— Passed'}</div>
-        ${result.reasoning ? `<div class="h2-reasoning">"${esc(result.reasoning)}"</div>` : ''}
       </div>`;
     }
 
-    // ── narration (right column) ─────────────────────────────────────────────
+    // ── narration (right half) ───────────────────────────────────────────────
     const narrationHtml = result
       ? (narr ? `<div class="h2-narration">${Shell.helpers.renderMd(narr)}</div>`
               : '<div class="h2-narrating">Narrating…</div>')
@@ -522,11 +521,14 @@
       <div class="h2-body">
         <div class="h2-body-grid">
           <div class="h2-body-left">
-            ${charsHtml}
+            <div class="h2-section-row">
+              ${charsSection}
+              ${challengeSection}
+            </div>
             ${decisionHtml}
           </div>
-          ${challengeBlock}
           <div class="h2-body-right">
+            <div class="h2-section-label">Narration</div>
             ${narrationHtml}
           </div>
         </div>
@@ -659,6 +661,13 @@
       scenes[sNum].result = e;
       if (narrations[sNum]) scenes[sNum].narration = narrations[sNum];
       if (aiIdx === Shell.currentAI) renderSceneCard(sNum);
+
+      // Push the AI's scene reasoning to the right-rail Play-by-Play.
+      // Only for the active AI so the stream isn't a mix of two crews.
+      if (e.reasoning && aiIdx === Shell.currentAI && Shell.addCommentary) {
+        const title = `Scene ${sNum}${e.title ? ' — ' + e.title : ''}`;
+        Shell.addCommentary(title, Shell.helpers.escapeHtml(e.reasoning));
+      }
 
     } else if (e.type === 'game_done') {
       gameStateByAI[aiIdx] = e.state;
