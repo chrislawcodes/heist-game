@@ -19,14 +19,13 @@
 <style>
 /* All Hiring-tab CSS is scoped under .hiring-root */
 
-.hiring-root { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+.hiring-root { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow-y: auto; padding-bottom: 16px; }
 
 .hiring-root #draft-board {
-  flex: 1 1 45%; min-height: 0;
+  flex: 0 0 auto;
   display: flex; flex-direction: column;
-  padding: 12px 16px 10px;
+  padding: 24px 16px 10px;
   border-top: 1px solid var(--border);
-  overflow: hidden;
 }
 .hiring-root .section-header {
   display: flex; align-items: baseline; gap: 12px; margin-bottom: 8px;
@@ -45,23 +44,19 @@
 .hiring-root .legend-swatch { width: 12px; height: 4px; border-radius: 1px; }
 
 .hiring-root .board-grid {
-  flex: 1; overflow-y: auto;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  grid-template-columns: repeat(8, 1fr);
   gap: 6px;
   align-content: start;
   padding-right: 4px;
 }
 
 .hiring-root #crews-section {
-  flex: 1 1 55%; min-height: 0;
+  flex: 0 0 auto;
   background: #0a0a0c;
   padding: 12px 16px 12px;
   display: flex; flex-direction: column;
-  overflow: hidden;
 }
-.hiring-root.hiring-done #crews-section { flex: 1 1 65%; }
-.hiring-root.hiring-done #draft-board   { flex: 1 1 35%; }
 .hiring-root .hiring-banner {
   flex-shrink: 0;
   padding: 8px 16px;
@@ -73,14 +68,16 @@
 }
 .hiring-root .hiring-banner::before { content: '✓'; font-size: 14px; }
 .hiring-root .crew-columns {
-  flex: 1; min-height: 0;
-  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;
+  display: flex; gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 4px;
 }
 .hiring-root .crew-col {
+  flex: 0 0 calc(40% - 8px);
+  min-width: calc(40% - 8px);
   background: var(--panel); border: 1px solid var(--border);
   border-top: 3px solid var(--border); border-radius: 6px;
   display: flex; flex-direction: column;
-  overflow: hidden;
 }
 .hiring-root .crew-col[data-crew="A"] { border-top-color: var(--ai-a); }
 .hiring-root .crew-col[data-crew="B"] { border-top-color: var(--ai-b); }
@@ -103,7 +100,6 @@
 .hiring-root .cc-meta { font-family: monospace; font-size: 10px; color: var(--muted); }
 .hiring-root .cc-meta strong { color: var(--text); }
 .hiring-root .crew-col-body {
-  flex: 1; overflow-y: auto;
   display: flex; flex-direction: column;
   padding: 12px 14px;
   gap: 14px;
@@ -129,7 +125,7 @@
 .hiring-root .cum-val.is-zero { color: #3a3a44; }
 .hiring-root .crew-member-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  grid-template-columns: repeat(4, 1fr);
   gap: 6px;
 }
 .hiring-root .cum-empty-row { font-size: 10px; color: #3a3a44; font-style: italic; padding: 2px 4px; }
