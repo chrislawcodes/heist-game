@@ -515,17 +515,8 @@
         </div>
       </div>`;
 
-    // Click header to toggle expand. When opening, scroll the panel so the
-    // full body is visible — the chars+challenge+narration row can be tall
-    // and otherwise gets clipped below the fold.
-    card.querySelector('.h2-head').addEventListener('click', () => {
-      const opening = !card.classList.contains('expanded');
-      card.classList.toggle('expanded');
-      if (opening) {
-        // Defer a tick so the body has rendered before we measure.
-        requestAnimationFrame(() => card.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
-      }
-    });
+    // Click header to toggle expand
+    card.querySelector('.h2-head').addEventListener('click', () => card.classList.toggle('expanded'));
   }
 
   // ── challenge card markup (mockup-style, mirrors char-card layout) ────────
