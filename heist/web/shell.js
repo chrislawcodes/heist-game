@@ -352,6 +352,17 @@ function _currentPhasePath() {
   return p || 'hiring';
 }
 
+// Stage where the current page's phase ENDS (= last visible event still
+// rendered on this page). Beyond this, events affect the NEXT page only,
+// so Back here has no visible effect — that's why we cap to this.
+function _phaseEndStage(phase) {
+  const phases = ['hiring', 'job', 'heist', 'epilogue'];
+  const idx = phases.indexOf(phase);
+  if (idx < 0 || idx === phases.length - 1) return _totalStages();
+  const nextStart = _phaseStartStage(phases[idx + 1]);
+  return nextStart ? Math.max(1, nextStart - 1) : _totalStages();
+}
+
 // Stage where the current page's content begins. Each page auto-fast-forwards
 // to this stage on load so the user starts at their phase, not at the bid.
 function _phaseStartStage(phase) {
@@ -458,19 +469,23 @@ window.initShell = async function({ gameId, onEvent } = {}) {
   }
 
   const _params = new URLSearchParams(window.location.search);
+  const _phaseEnd = _phaseEndStage(_currentPhasePath());
 
   if (_params.get('review') === '1') {
-    // Review mode: fast-forward all events instantly so the page shows its
-    // full state without the user having to step through it again.
-    _jumpToStage(_totalStages());
+    // Review mode: fast-forward to the END of THIS page's phase (not the end
+    // of the whole game). Past that point, events only affect later pages
+    // and Back would have no visible effect here.
+    _jumpToStage(_phaseEnd);
     return;
   }
 
   // ?atStage=N — explicit target stage from Back navigation. Honored over the
   // default phase-start jump so "Back" can land on the exact previous event.
+  // Capped to this page's phaseEnd so we never sit on a stage with no visible
+  // effect on this page.
   const atStageParam = parseInt(_params.get('atStage') || '', 10);
   if (Number.isFinite(atStageParam) && atStageParam >= 0) {
-    _jumpToStage(Math.min(atStageParam, _totalStages()));
+    _jumpToStage(Math.min(atStageParam, _phaseEnd));
   } else {
     // Auto-fast-forward to the start of THIS page's phase so the user begins
     // at the content that's relevant here, not at the very first bid.
