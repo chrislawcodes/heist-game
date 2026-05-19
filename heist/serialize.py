@@ -41,7 +41,14 @@ def character_to_dict(c: Character) -> dict:
         "name": c.name,
         "skills": {k: v.name for k, v in c.skills.items()},
         "floor_cost": c.floor_cost,
-        "personality": c.personality,
+        "backstory": c.backstory,
+        "voice": c.voice,
+        "motivation": c.motivation,
+        "quirk": c.quirk,
+        "crew_dynamic": c.crew_dynamic,
+        "weakness": c.weakness,
+        "look": c.look,
+        "signature_line": c.signature_line,
     }
 
 
@@ -103,7 +110,14 @@ def character_from_dict(d: dict) -> Character:
         name=d["name"],
         skills={k: SkillLevel[v] for k, v in d["skills"].items()},
         floor_cost=int(d["floor_cost"]),
-        personality=d.get("personality", ""),
+        backstory=d.get("backstory", ""),
+        voice=d.get("voice", ""),
+        motivation=d.get("motivation", ""),
+        quirk=d.get("quirk", ""),
+        crew_dynamic=d.get("crew_dynamic", ""),
+        weakness=d.get("weakness", ""),
+        look=d.get("look", ""),
+        signature_line=d.get("signature_line", ""),
     )
 
 

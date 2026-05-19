@@ -1,52 +1,14 @@
-"""Roster + jobs. Personalities and location flavor are placeholders in iteration 1
-and get polished in iteration 4."""
+"""Jobs and game constants.
 
+Character roster lives in heist.characters — import from there.
+"""
+
+from heist.characters import ROSTER, ROSTER_BY_ID  # noqa: F401 — re-exported for callers
 from heist.state import (
     ChallengeLevel,
-    Character,
     HiddenDepthElement,
     Job,
-    SkillLevel,
 )
-
-H = SkillLevel.HIGH
-M = SkillLevel.MEDIUM
-L = SkillLevel.LOW
-
-ROSTER: list[Character] = [
-    Character(1, 'Marcus "Prodigy" Renault', {"hacker": H, "driver": L}, 1100,
-              "[placeholder personality — iteration 4]"),
-    Character(2, "Sasha Kuznetsova", {"hacker": M}, 200,
-              "[placeholder personality — iteration 4]"),
-    Character(3, 'Eli "Owl" Park', {"hacker": L, "inside_man": L}, 200,
-              "[placeholder personality — iteration 4]"),
-    Character(4, 'Vance "The Wall" Tobin', {"muscle": H}, 700,
-              "[placeholder personality — iteration 4]"),
-    Character(5, "Carla Reyes", {"muscle": M, "driver": L}, 400,
-              "[placeholder personality — iteration 4]"),
-    Character(6, "Big Mike Donato", {"muscle": L, "driver": L}, 200,
-              "[placeholder personality — iteration 4]"),
-    Character(7, 'Lin "Closer" Park', {"inside_man": H, "safecracker": L}, 1100,
-              "[placeholder personality — iteration 4]"),
-    Character(8, "Theo Ashland", {"inside_man": M}, 200,
-              "[placeholder personality — iteration 4]"),
-    Character(9, "Pearl Sutton", {"inside_man": M, "muscle": L}, 400,
-              "[placeholder personality — iteration 4]"),
-    Character(10, "Rook Ferreira", {"safecracker": H}, 700,
-              "[placeholder personality — iteration 4]"),
-    Character(11, 'Jolene "Jo" Hayes', {"safecracker": M, "hacker": L}, 400,
-              "[placeholder personality — iteration 4]"),
-    Character(12, "Nestor Bly", {"safecracker": L, "hacker": L}, 200,
-              "[placeholder personality — iteration 4]"),
-    Character(13, '"Slim" Adesanya', {"driver": H}, 700,
-              "[placeholder personality — iteration 4]"),
-    Character(14, "Margot Vinter", {"driver": M, "inside_man": L}, 400,
-              "[placeholder personality — iteration 4]"),
-    Character(15, "Dex Owusu", {"driver": L, "muscle": L}, 200,
-              "[placeholder personality — iteration 4]"),
-]
-
-ROSTER_BY_ID: dict[int, Character] = {c.id: c for c in ROSTER}
 
 
 MUSEUM = Job(
