@@ -1,5 +1,5 @@
 <!--
-  The Heist tab. Loaded into the page shell at boot via /tabs/heist.
+  The Heist tab. Loaded into the viewer shell at boot via /tabs/heist.
 
   Shell contract:
     1. Shell loads this fragment (style + template + script all activate).
@@ -8,283 +8,460 @@
     4. Shell calls HeistTab.reset() on replay reset
 
   Events the tab acts on:
-    job_known               → fix job, render job header
-    crew_known              → fix crew membership (used to look up assigned chars)
-    scene_start             → create scene card (in-progress state)
-    scene_done              → update scene card (success/failure, narration if any)
+    crew_known              → fix crew membership
+    job_known               → fix job theme
+    scene_start             → add / advance active scene
+    scene_done              → finalize scene state and emit reasoning to rail
     turn_end (narration)    → fill in scene narration once it lands
-    game_done               → render the heist outcome card at the bottom
+    game_done               → cache final state for replay / switching
 
-  Visual style ported from heist/mocks/game.html. Re-renders fully when the
-  shell switches AI (each AI plays the same job independently).
+  The old stacked scene cards and job header are gone. The page now shows a
+  timeline plus a single active-scene hero view.
 -->
 
 <style>
 .heist-root {
-  display: flex; flex-direction: column; flex: 1; overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
-/* ── job header ───────────────────────────────────────────────────────────── */
-.heist-root .h2-job-header {
-  flex-shrink: 0; padding: 10px 16px;
+.heist-root .h2-timeline {
+  flex-shrink: 0;
   border-bottom: 1px solid var(--border);
   background: var(--panel2);
-  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
-}
-.heist-root .h2-job-name { font-size: 15px; font-weight: 700; color: var(--text); }
-.heist-root .h2-job-profile { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.heist-root .h2-profile-chip {
-  font-size: 11px; font-weight: 700; letter-spacing: 0.8px;
-  padding: 3px 9px; border-radius: 3px;
-  background: var(--panel); border: 1px solid var(--border); color: var(--muted);
-}
-.heist-root .h2-profile-chip.med  { color: var(--accent); border-color: rgba(232,160,48,0.4); background: rgba(232,160,48,0.08); }
-.heist-root .h2-profile-chip.hard { color: var(--red);    border-color: rgba(224,80,80,0.4);  background: rgba(224,80,80,0.08); }
-.heist-root .h2-profile-chip.low  { color: var(--green);  border-color: rgba(82,196,122,0.4); background: rgba(82,196,122,0.08); }
-.heist-root .h2-job-reward { margin-left: auto; font-family: monospace; font-size: 13px; color: var(--muted); }
-.heist-root .h2-job-reward strong { color: var(--accent); font-size: 14px; }
-
-/* ── scenes panel ─────────────────────────────────────────────────────────── */
-.heist-root .h2-scenes {
-  flex: 1; overflow-y: auto; padding: 20px;
-  display: flex; flex-direction: column; gap: 16px;
-}
-.heist-root .h2-empty {
-  padding: 40px 20px; text-align: center;
-  font-size: 13px; color: var(--muted); font-style: italic;
-}
-
-/* ── scene card ───────────────────────────────────────────────────────────── */
-.heist-root .h2-card {
-  background: var(--panel); border: 1px solid var(--border);
-  border-radius: 10px; overflow: hidden;
-  animation: h2CardIn 0.4s ease;
-  /* The scenes panel is a column flex container. Without this, multiple
-     expanded cards get shrunk to fit and their bodies get clipped at the
-     bottom (cuts off the challenge card). Keep each card at its natural
-     height; the panel scrolls (overflow-y:auto) to show all. */
-  flex-shrink: 0;
-}
-@keyframes h2CardIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: none; }
-}
-.heist-root .h2-card.success { border-left: 4px solid var(--green); }
-.heist-root .h2-card.failure { border-left: 4px solid var(--red); }
-.heist-root .h2-card.neutral { border-left: 4px solid var(--border); }
-.heist-root .h2-card.active  { border-left: 4px solid var(--accent); }
-
-.heist-root .h2-head {
-  padding: 12px 16px;
-  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-  background: var(--panel2);
-  cursor: pointer; user-select: none;
-}
-.heist-root .h2-head:hover { background: #1e1e24; }
-.heist-root .h2-card.expanded .h2-head { border-bottom: 1px solid var(--border); }
-.heist-root .h2-chevron {
-  font-size: 11px; color: var(--muted); flex-shrink: 0;
-  transition: transform 0.2s ease;
-}
-.heist-root .h2-card.expanded .h2-chevron { transform: rotate(90deg); }
-.heist-root .h2-num {
-  font-size: 11px; font-weight: 700; font-family: monospace;
-  color: var(--muted); letter-spacing: 1px; flex-shrink: 0;
-}
-.heist-root .h2-title { font-size: 16px; font-weight: 700; flex: 1; color: var(--text); }
-
-.heist-root .h2-type-badge {
-  font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
-  padding: 3px 9px; border-radius: 3px; flex-shrink: 0;
-}
-.heist-root .stb-setup      { background: rgba(114,113,122,0.2); color: var(--muted); }
-.heist-root .stb-challenge  { background: rgba(88,152,224,0.15); color: var(--blue); }
-.heist-root .stb-decision   { background: rgba(232,160,48,0.15); color: var(--accent); }
-.heist-root .stb-hidden     { background: rgba(144,112,224,0.15); color: var(--purple); }
-.heist-root .stb-transition { background: rgba(114,113,122,0.1); color: var(--muted); }
-.heist-root .stb-escape     { background: rgba(82,196,122,0.15); color: var(--green); }
-
-.heist-root .h2-outcome-chip {
-  font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
-  padding: 4px 12px; border-radius: 12px; flex-shrink: 0;
-}
-.heist-root .oc-success { background: rgba(82,196,122,0.15); color: var(--green); }
-.heist-root .oc-failure { background: rgba(224,80,80,0.15);  color: var(--red); }
-.heist-root .oc-none    { background: rgba(114,113,122,0.1); color: var(--muted); }
-.heist-root .oc-pending { background: rgba(232,160,48,0.1);  color: var(--accent);
-                          animation: h2Pulse 1.6s ease-in-out infinite; }
-@keyframes h2Pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
-
-/* ── scene body (3-column layout: chars | challenge | narration) ──────────── */
-.heist-root .h2-body { padding: 0 16px; display: none; }
-.heist-root .h2-card.expanded .h2-body { display: block; padding: 16px; }
-
-/* Body splits 50/50: left half holds chars + challenge side-by-side
-   (chars-left, challenge-right). Right half holds narration. */
-.heist-root .h2-body-grid {
-  display: flex; flex-direction: row; gap: 0;
-}
-.heist-root .h2-body-left {
-  flex: 1 1 0; min-width: 0;
-  display: flex; flex-direction: column; gap: 18px;
-}
-.heist-root .h2-body-right {
-  flex: 1 1 0; min-width: 0;
-  border-left: 1px solid var(--border);
-  margin-left: 20px; padding-left: 20px;
-  display: flex; flex-direction: column; gap: 10px;
-}
-.heist-root .h2-section-row {
-  display: flex; flex-direction: row; gap: 20px;
-  align-items: flex-start;
-}
-.heist-root .h2-section-chars     { flex: 1 1 0; min-width: 0; }
-.heist-root .h2-section-challenge { flex-shrink: 0; }
-
-.heist-root .h2-section-label {
-  font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
-  color: var(--muted); margin-bottom: 10px;
-}
-
-/* ── assigned characters ─────────────────────────────────────────────────── */
-/* Same .char-card markup the hiring board renders, sized to roughly match
-   what hiring shows (~130px). We don't stretch them via 1fr because the
-   scene-card chars column is narrow — stretching would blow the portrait
-   up to ~220px and make the whole scene card taller than the visible panel. */
-.heist-root .h2-chars {
+  padding: 10px 18px;
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: flex-start;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
 }
-.heist-root .h2-chars .char-card {
-  width: 130px;
+.heist-root .h2-timeline-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-right: 12px;
   flex-shrink: 0;
 }
-
-.heist-root .h2-reasoning {
-  font-size: 12px; color: var(--muted); font-style: italic;
-  padding: 6px 10px; background: var(--panel2);
-  border-radius: 4px; margin-top: 4px;
+.heist-root .h2-timeline-empty {
+  font-size: 12px;
+  color: var(--muted);
+  font-style: italic;
+  padding: 6px 2px;
+}
+.heist-root .h2-timeline-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 14px;
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+.heist-root .h2-timeline-pill:hover {
+  border-color: var(--text);
+  color: var(--text);
+}
+.heist-root .h2-timeline-pill.pending {
+  border-color: rgba(114,113,122,0.65);
+  color: var(--muted);
+}
+.heist-root .h2-timeline-pill.success {
+  border-color: rgba(82,196,122,0.45);
+  color: var(--green);
+}
+.heist-root .h2-timeline-pill.failure {
+  border-color: rgba(224,80,80,0.45);
+  color: var(--red);
+}
+.heist-root .h2-timeline-pill.active {
+  background: var(--panel3);
+  border-color: var(--accent);
+  color: var(--text);
+}
+.heist-root .h2-timeline-pill.active.success { color: var(--green); }
+.heist-root .h2-timeline-pill.active.failure { color: var(--red); }
+.heist-root .h2-timeline-pill.active.pending { color: var(--text); }
+.heist-root .h2-timeline-num {
+  font-family: monospace;
+  font-size: 10px;
+  opacity: 0.7;
+}
+.heist-root .h2-timeline-pill.active .h2-timeline-num {
+  opacity: 1;
+  color: var(--accent);
 }
 
-/* ── challenge card (mockup-style, mirrors char-card layout) ──────────────── */
+.heist-root .h2-stage {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 22px 32px 26px;
+  background:
+    radial-gradient(900px 320px at 50% -80px, rgba(232,160,48,0.04), transparent),
+    var(--bg);
+}
+
+.heist-root .h2-empty {
+  padding: 40px 20px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.heist-root .h2-scene-head {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 14px;
+  margin-bottom: 18px;
+}
+.heist-root .h2-scene-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.01em;
+  font-family: 'Iowan Old Style', 'Georgia', serif;
+  flex: 1;
+  min-width: 0;
+}
+.heist-root .h2-scene-outcome {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 6px 16px;
+  border-radius: 14px;
+  background: rgba(114,113,122,0.12);
+  color: var(--muted);
+}
+.heist-root .h2-scene-outcome.oc-success {
+  background: rgba(82,196,122,0.15);
+  color: var(--green);
+}
+.heist-root .h2-scene-outcome.oc-failure {
+  background: rgba(224,80,80,0.15);
+  color: var(--red);
+}
+.heist-root .h2-scene-outcome.oc-pending {
+  background: rgba(232,160,48,0.12);
+  color: var(--accent);
+  animation: h2Pulse 1.6s ease-in-out infinite;
+}
+@keyframes h2Pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+.heist-root .h2-stage-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 480px;
+  gap: 28px;
+  align-items: start;
+}
+
+.heist-root .h2-narration {
+  font-family: 'Iowan Old Style', 'Georgia', serif;
+  font-size: 17px;
+  line-height: 1.75;
+  color: #ddd9eb;
+  max-width: 680px;
+}
+.heist-root .h2-narration p { margin-bottom: 14px; }
+.heist-root .h2-narration p:last-child { margin-bottom: 0; }
+.heist-root .h2-narration .dialogue { color: #efe9d2; }
+.heist-root .h2-narrating {
+  font-size: 11px;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.heist-root .h2-narration-lead {
+  float: left;
+  width: 150px;
+  aspect-ratio: 1;
+  margin: 4px 20px 8px 0;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  position: relative;
+  background: rgba(0,0,0,0.35);
+}
+.heist-root .h2-narration-lead[data-primary="hack"]  { background: linear-gradient(180deg, rgba(88,152,224,0.32) 0%, rgba(88,152,224,0.08) 100%); border-color: rgba(88,152,224,0.65); }
+.heist-root .h2-narration-lead[data-primary="safe"]  { background: linear-gradient(180deg, rgba(232,160,48,0.32) 0%, rgba(232,160,48,0.08) 100%); border-color: rgba(232,160,48,0.65); }
+.heist-root .h2-narration-lead[data-primary="musc"]  { background: linear-gradient(180deg, rgba(224,80,80,0.32) 0%, rgba(224,80,80,0.08) 100%); border-color: rgba(224,80,80,0.65); }
+.heist-root .h2-narration-lead[data-primary="soc"]   { background: linear-gradient(180deg, rgba(144,112,224,0.32) 0%, rgba(144,112,224,0.08) 100%); border-color: rgba(144,112,224,0.65); }
+.heist-root .h2-narration-lead[data-primary="drive"] { background: linear-gradient(180deg, rgba(82,196,122,0.32) 0%, rgba(82,196,122,0.08) 100%); border-color: rgba(82,196,122,0.65); }
+.heist-root .h2-narration-lead-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: monospace;
+  font-weight: 700;
+  font-size: 62px;
+  color: rgba(255,255,255,0.32);
+}
+.heist-root .h2-narration-lead img {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.heist-root .h2-narration-lead-cap {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  text-align: center;
+  z-index: 2;
+}
+.heist-root .h2-narration-lead[data-primary="hack"]  .h2-narration-lead-cap { background: var(--sk-hack);  color: #0a1428; }
+.heist-root .h2-narration-lead[data-primary="safe"]  .h2-narration-lead-cap { background: var(--sk-safe);  color: #2a1c08; }
+.heist-root .h2-narration-lead[data-primary="musc"]  .h2-narration-lead-cap { background: var(--sk-musc);  color: #2a0808; }
+.heist-root .h2-narration-lead[data-primary="soc"]   .h2-narration-lead-cap { background: var(--sk-soc);   color: #1c1030; }
+.heist-root .h2-narration-lead[data-primary="drive"] .h2-narration-lead-cap { background: var(--sk-drive); color: #0a2018; }
+
+.heist-root .h2-visual-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.heist-root .h2-vp-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+.heist-root .h2-scene-still {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background:
+    radial-gradient(circle at 30% 40%, rgba(232,160,48,0.18), transparent 60%),
+    radial-gradient(circle at 80% 80%, rgba(144,112,224,0.18), transparent 55%),
+    linear-gradient(160deg, #1a1430 0%, #251a42 60%, #121026 100%);
+}
+.heist-root .h2-scene-still::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+  background-size: 24px 24px;
+  pointer-events: none;
+}
+.heist-root .h2-scene-still-icon {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 84px;
+  opacity: 0.32;
+  filter: drop-shadow(0 4px 16px rgba(0,0,0,0.5));
+}
+.heist-root .h2-scene-still-meta {
+  position: absolute;
+  left: 14px;
+  bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 1;
+}
+.heist-root .h2-scene-still-loc {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.55);
+}
+.heist-root .h2-scene-still-title {
+  font-family: 'Iowan Old Style', 'Georgia', serif;
+  font-size: 18px;
+  color: var(--text);
+  font-weight: 700;
+}
+.heist-root .h2-scene-still-vignette {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 50%, rgba(0,0,0,0.55) 100%);
+}
+.heist-root .still-crew     { background: linear-gradient(160deg, #0e1e10 0%, #132818 60%, #091208 100%); }
+.heist-root .still-default  { background: linear-gradient(160deg, #1a1430 0%, #251a42 60%, #121026 100%); }
+.heist-root .still-armored  { background: linear-gradient(160deg, #181818 0%, #222222 60%, #111111 100%); }
+.heist-root .still-server   { background: linear-gradient(160deg, #0d2020 0%, #122c2c 60%, #091818 100%); }
+.heist-root .still-penthouse{ background: linear-gradient(160deg, #1e1230 0%, #2a1845 60%, #14102a 100%); }
+.heist-root .still-cargo    { background: linear-gradient(160deg, #201408 0%, #2e1c0a 60%, #160e04 100%); }
+.heist-root .still-diplomat { background: linear-gradient(160deg, #0a1428 0%, #0e1c38 60%, #080f1e 100%); }
+.heist-root .still-casino   { background: linear-gradient(160deg, #200a0a 0%, #300f0f 60%, #180606 100%); }
+
+.heist-root .h2-cast-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.heist-root .h2-cast-card {
+  min-width: 0;
+}
+.heist-root .h2-cast-card.standby {
+  opacity: 0.38;
+  filter: saturate(0.35);
+}
+.heist-root .h2-cast-card .char-card {
+  width: 100%;
+}
+
 .heist-root .h2-challenge-card {
-  width: 135px; flex-shrink: 0;
-  border-radius: 7px; border: 1px solid var(--border);
-  overflow: hidden; display: flex; flex-direction: column;
+  width: 100%;
+  border-radius: 7px;
+  overflow: hidden;
+  border: 1px solid var(--border);
   background: var(--panel2);
+  display: flex;
+  align-items: stretch;
 }
 .heist-root .h2-challenge-card[data-skill="hack"]  { background: linear-gradient(180deg, rgba(88,152,224,0.32) 0%, rgba(88,152,224,0.08) 100%); border-color: rgba(88,152,224,0.65); }
 .heist-root .h2-challenge-card[data-skill="safe"]  { background: linear-gradient(180deg, rgba(232,160,48,0.32) 0%, rgba(232,160,48,0.08) 100%); border-color: rgba(232,160,48,0.65); }
-.heist-root .h2-challenge-card[data-skill="musc"]  { background: linear-gradient(180deg, rgba(224,80,80,0.32) 0%, rgba(224,80,80,0.08) 100%);  border-color: rgba(224,80,80,0.65); }
+.heist-root .h2-challenge-card[data-skill="musc"]  { background: linear-gradient(180deg, rgba(224,80,80,0.32) 0%, rgba(224,80,80,0.08) 100%); border-color: rgba(224,80,80,0.65); }
 .heist-root .h2-challenge-card[data-skill="soc"]   { background: linear-gradient(180deg, rgba(144,112,224,0.32) 0%, rgba(144,112,224,0.08) 100%); border-color: rgba(144,112,224,0.65); }
 .heist-root .h2-challenge-card[data-skill="drive"] { background: linear-gradient(180deg, rgba(82,196,122,0.32) 0%, rgba(82,196,122,0.08) 100%); border-color: rgba(82,196,122,0.65); }
-
 .heist-root .h2-challenge-icon {
-  width: 100%; aspect-ratio: 1;
+  width: 84px;
+  flex-shrink: 0;
   background: rgba(0,0,0,0.4);
-  display: flex; align-items: center; justify-content: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .heist-root .h2-challenge-icon-text {
-  font-size: 26px; font-weight: 900; letter-spacing: 2px;
-  font-family: monospace; opacity: 0.6;
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  font-family: monospace;
+  opacity: 0.6;
 }
 .heist-root .h2-challenge-card[data-skill="hack"]  .h2-challenge-icon-text { color: var(--sk-hack); }
 .heist-root .h2-challenge-card[data-skill="safe"]  .h2-challenge-icon-text { color: var(--sk-safe); }
 .heist-root .h2-challenge-card[data-skill="musc"]  .h2-challenge-icon-text { color: var(--sk-musc); }
 .heist-root .h2-challenge-card[data-skill="soc"]   .h2-challenge-icon-text { color: var(--sk-soc); }
 .heist-root .h2-challenge-card[data-skill="drive"] .h2-challenge-icon-text { color: var(--sk-drive); }
-
-.heist-root .h2-challenge-card-header {
-  padding: 6px 10px; font-weight: 800; font-size: 12px; letter-spacing: 0.3px;
+.heist-root .h2-challenge-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
-.heist-root .h2-challenge-card[data-skill="hack"]  .h2-challenge-card-header { background: var(--sk-hack);  color: #0a1428; }
-.heist-root .h2-challenge-card[data-skill="safe"]  .h2-challenge-card-header { background: var(--sk-safe);  color: #2a1c08; }
-.heist-root .h2-challenge-card[data-skill="musc"]  .h2-challenge-card-header { background: var(--sk-musc);  color: #2a0808; }
-.heist-root .h2-challenge-card[data-skill="soc"]   .h2-challenge-card-header { background: var(--sk-soc);   color: #1c1030; }
-.heist-root .h2-challenge-card[data-skill="drive"] .h2-challenge-card-header { background: var(--sk-drive); color: #0a2018; }
-.heist-root .h2-cc-sub { font-size: 9px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; opacity: 0.7; }
-
-.heist-root .h2-challenge-card-info { padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }
-.heist-root .h2-cc-row { display: flex; align-items: center; gap: 8px; }
-.heist-root .h2-cc-row-label {
-  font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
-  font-family: monospace; color: var(--muted); width: 34px; flex-shrink: 0;
+.heist-root .h2-challenge-head {
+  padding: 5px 11px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
 }
-.heist-root .h2-cc-bars { display: flex; gap: 3px; }
-.heist-root .h2-cc-bars .seg {
-  width: 14px; height: 6px; border-radius: 1px; background: rgba(255,255,255,0.07);
+.heist-root .h2-challenge-card[data-skill="hack"]  .h2-challenge-head { background: var(--sk-hack);  color: #0a1428; }
+.heist-root .h2-challenge-card[data-skill="safe"]  .h2-challenge-head { background: var(--sk-safe);  color: #2a1c08; }
+.heist-root .h2-challenge-card[data-skill="musc"]  .h2-challenge-head { background: var(--sk-musc);  color: #2a0808; }
+.heist-root .h2-challenge-card[data-skill="soc"]   .h2-challenge-head { background: var(--sk-soc);   color: #1c1030; }
+.heist-root .h2-challenge-card[data-skill="drive"] .h2-challenge-head { background: var(--sk-drive); color: #0a2018; }
+.heist-root .h2-challenge-head-sub {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  opacity: 0.7;
 }
-.heist-root .h2-cc-bars .seg.f-hack  { background: var(--sk-hack); }
-.heist-root .h2-cc-bars .seg.f-safe  { background: var(--sk-safe); }
-.heist-root .h2-cc-bars .seg.f-musc  { background: var(--sk-musc); }
-.heist-root .h2-cc-bars .seg.f-soc   { background: var(--sk-soc); }
-.heist-root .h2-cc-bars .seg.f-drive { background: var(--sk-drive); }
-
+.heist-root .h2-challenge-info {
+  padding: 8px 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+.heist-root .h2-challenge-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.heist-root .h2-challenge-row-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  font-family: monospace;
+  color: var(--muted);
+  width: 34px;
+  flex-shrink: 0;
+}
+.heist-root .h2-challenge-bars {
+  display: flex;
+  gap: 3px;
+}
+.heist-root .h2-challenge-bars .seg {
+  width: 14px;
+  height: 6px;
+  border-radius: 1px;
+  background: rgba(255,255,255,0.08);
+}
+.heist-root .h2-challenge-bars .seg.f-hack  { background: var(--sk-hack); }
+.heist-root .h2-challenge-bars .seg.f-safe  { background: var(--sk-safe); }
+.heist-root .h2-challenge-bars .seg.f-musc  { background: var(--sk-musc); }
+.heist-root .h2-challenge-bars .seg.f-soc   { background: var(--sk-soc); }
+.heist-root .h2-challenge-bars .seg.f-drive { background: var(--sk-drive); }
+.heist-root .h2-challenge-level {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  color: var(--accent);
+}
 .heist-root .h2-hidden-warn {
-  font-size: 11px; color: var(--purple);
-  padding: 6px 10px; background: rgba(144,112,224,0.08);
-  border-left: 2px solid var(--purple); border-radius: 0 4px 4px 0;
+  font-size: 11px;
+  color: var(--purple);
+  padding: 6px 10px;
+  background: rgba(144,112,224,0.08);
+  border-left: 2px solid var(--purple);
+  border-radius: 0 4px 4px 0;
   margin-top: 8px;
 }
 
-/* ── decision block ───────────────────────────────────────────────────────── */
-.heist-root .h2-decision-note {
-  font-size: 13px; color: var(--accent); font-style: italic;
-}
-.heist-root .h2-decision-pass {
-  font-size: 13px; color: var(--muted); font-style: italic;
+@media (max-width: 1380px) {
+  .heist-root .h2-stage-body { grid-template-columns: 1fr; }
 }
 
-/* ── escape info ──────────────────────────────────────────────────────────── */
-.heist-root .h2-escape-info {
-  font-size: 13px; color: var(--muted); font-family: monospace;
-}
-
-/* ── narration (right half of scene card) ───────────────────────────────── */
-/* Sized for ~400-word literary passages with dialogue. Smaller + tighter
-   than scene meta text so a long passage doesn't bloat the card. */
-.heist-root .h2-narration {
-  font-size: 12px; line-height: 1.75; color: #c0bdd4;
-  font-style: italic;
-}
-.heist-root .h2-narration p { margin-bottom: 9px; }
-.heist-root .h2-narration p:last-child { margin-bottom: 0; }
-.heist-root .h2-narrating {
-  font-size: 11px; color: var(--muted); font-style: italic;
-}
-
-/* ── outcome card ─────────────────────────────────────────────────────────── */
-.heist-root .h2-outcome {
-  background: var(--panel); border: 1px solid var(--border);
-  border-radius: 10px; padding: 20px;
-  animation: h2CardIn 0.4s ease;
-}
-.heist-root .h2-outcome h3 {
-  font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
-  color: var(--muted); margin-bottom: 14px;
-}
-.heist-root .h2-outcome-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-.heist-root .h2-og-cell { display: flex; flex-direction: column; gap: 4px; }
-.heist-root .h2-og-label {
-  font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
-  color: var(--muted);
-}
-.heist-root .h2-og-value { font-size: 18px; font-weight: 700; color: var(--text); font-family: monospace; }
-.heist-root .h2-og-value.take { color: var(--accent); font-size: 26px; }
-.heist-root .h2-og-value.win  { color: var(--green); }
-.heist-root .h2-og-value.loss { color: var(--red); }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-thumb { background: #2a2a34; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #40404c; }
 </style>
 
 <template id="heist-template">
   <div class="heist-root">
-    <div class="h2-job-header" data-ht="job-header" style="display:none">
-      <span class="h2-job-name" data-ht="job-name">—</span>
-      <div class="h2-job-profile" data-ht="job-profile"></div>
-      <span class="h2-job-reward" data-ht="job-reward"></span>
+    <div class="h2-timeline" data-ht="timeline">
+      <span class="h2-timeline-label">Scenes</span>
+      <span class="h2-timeline-empty" data-ht="timeline-empty">Waiting for the heist to begin…</span>
     </div>
-    <div class="h2-scenes" data-ht="scenes">
+    <div class="h2-stage" data-ht="stage">
       <div class="h2-empty">Waiting for the heist to begin…</div>
     </div>
   </div>
@@ -294,330 +471,383 @@
 (function () {
   'use strict';
 
-  // challenge_skill → short code (used for CSS class on chips)
   const SKILL_API_TO_SHORT = {
-    hacker: 'hack', safecracker: 'safe', muscle: 'musc',
-    inside_man: 'soc', driver: 'drive',
+    hacker: 'hack',
+    safecracker: 'safe',
+    muscle: 'musc',
+    inside_man: 'soc',
+    driver: 'drive',
   };
-  // primary skill → role label
-  const ROLE_BY_PRIMARY = {
-    hack:  'HACKER',
-    safe:  'SAFECRACKER',
-    musc:  'MUSCLE',
-    soc:   'INSIDE MAN',
-    drive: 'DRIVER',
-  };
-  // challenge_skill → display word ("electronic", "social", etc.)
   const SKILL_TO_TYPE_WORD = {
-    hacker:      'ELECTRONIC',
+    hacker: 'ELECTRONIC',
     safecracker: 'PHYSICAL',
-    muscle:      'CONFRONTATION',
-    inside_man:  'SOCIAL',
-    driver:      'DRIVER',
+    muscle: 'CONFRONTATION',
+    inside_man: 'SOCIAL',
+    driver: 'DRIVING',
   };
-  // job.profile key → short code (for the header chips)
   const PROFILE_KEY_TO_SHORT = {
-    social:        'soc',
-    physical:      'safe',
-    electronic:    'hack',
+    social: 'soc',
+    physical: 'safe',
+    electronic: 'hack',
     confrontation: 'musc',
   };
-  const PROFILE_KEY_TO_LABEL = {
-    social:        'Social',
-    physical:      'Physical',
-    electronic:    'Electronic',
-    confrontation: 'Confrontation',
-  };
+
+  const STOP_WORDS = new Set([
+    'the', 'a', 'an', 'of', 'and', 'to', 'in', 'on', 'at', 'for', 'from',
+    'with', 'into', 'over', 'under', 'through', 'after', 'before', 'by',
+  ]);
+  const SUFFIX_WORDS = new Set([
+    'floor', 'room', 'hall', 'level', 'deck', 'wing', 'bay', 'basement',
+    'roof', 'lobby', 'garage', 'exit', 'entrance', 'approach', 'decision',
+    'handoff', 'hand-off', 'interior', 'exterior', 'vault',
+  ]);
+  const DIFF_SEGS = { LOW: 1, MEDIUM: 2, HARD: 3 };
+  const SKILL_ABBR = { hack: 'HCK', safe: 'SFR', musc: 'MSC', soc: 'SOC', drive: 'DRV' };
 
   let root = null;
   let Shell = null;
-  // per-AI state
-  const scenesByAI = {};       // ai_idx → { sceneNum → { meta, result, narration } }
-  const narrationsByAI = {};   // ai_idx → { sceneNum → narration } (when it arrives before scene_done)
-  const gameStateByAI = {};    // ai_idx → state from game_done
-  const heatByAI = {};         // ai_idx → current heat
-  const crewByAI = {};         // ai_idx → crew object (with .members)
-  const jobByAI = {};          // ai_idx → job object
 
-  function $$(name) { return root && root.querySelector(`[data-ht="${name}"]`); }
-  function _scenesFor(aiIdx)     { return scenesByAI[aiIdx]     ||= {}; }
-  function _narrationsFor(aiIdx) { return narrationsByAI[aiIdx] ||= {}; }
+  const scenesByAI = {};
+  const narrationsByAI = {};
+  const gameStateByAI = {};
+  const heatByAI = {};
+  const crewByAI = {};
+  const jobByAI = {};
+  const activeSceneByAI = {};
+  const reasoningEmittedByAI = {};
+  const decisionEmittedByAI = {};
 
-  // ── job header ──────────────────────────────────────────────────────────────
-  function renderJobHeader() {
-    if (!root || !Shell) return;
-    const esc = Shell.helpers.escapeHtml;
-    const job = jobByAI[Shell.currentAI];
-    const header = $$('job-header');
-    if (!job) { if (header) header.style.display = 'none'; return; }
-    if (header) header.style.display = '';
-
-    $$('job-name').textContent = job.name || '—';
-
-    const profile = job.profile || {};
-    const LEVEL_SHORT = { HARD: 'HARD', MEDIUM: 'MED', LOW: 'LOW' };
-    const chips = Object.entries(PROFILE_KEY_TO_LABEL).map(([key, label]) => {
-      const level = (profile[key] || 'NONE').toUpperCase();
-      const cls = level === 'HARD' ? 'hard' : level === 'MEDIUM' ? 'med' : level === 'LOW' ? 'low' : '';
-      const short = LEVEL_SHORT[level] || '';
-      const text = level === 'NONE' ? `${esc(label)} —` : `${esc(label)} ${esc(short)}`;
-      return `<span class="h2-profile-chip ${cls}">${text}</span>`;
-    }).join('');
-    $$('job-profile').innerHTML = chips;
-
-    const rr = job.reward_range;
-    const rewardEl = $$('job-reward');
-    if (rr) rewardEl.innerHTML =
-      `Reward <strong>$${Number(rr[0]).toLocaleString()} – $${Number(rr[1]).toLocaleString()}</strong>`;
-    else rewardEl.innerHTML = '';
+  function $$(name) {
+    return root && root.querySelector(`[data-ht="${name}"]`);
+  }
+  function _scenesFor(aiIdx) {
+    return scenesByAI[aiIdx] ||= {};
+  }
+  function _narrationsFor(aiIdx) {
+    return narrationsByAI[aiIdx] ||= {};
+  }
+  function _reasoningSet(aiIdx) {
+    return reasoningEmittedByAI[aiIdx] ||= new Set();
+  }
+  function _decisionSet(aiIdx) {
+    return decisionEmittedByAI[aiIdx] ||= new Set();
   }
 
-  // ── scene list ──────────────────────────────────────────────────────────────
-  function renderSceneList() {
-    if (!root || !Shell) return;
-    const listEl = $$('scenes');
-    if (!listEl) return;
-    listEl.innerHTML = '';
-    const scenes = scenesByAI[Shell.currentAI] || {};
-    const sceneNums = Object.keys(scenes).map(Number).sort((a, b) => a - b);
-    if (!sceneNums.length) {
-      listEl.innerHTML = '<div class="h2-empty">Waiting for the heist to begin…</div>';
-    } else {
-      sceneNums.forEach(n => renderSceneCard(n));
-    }
-    if (gameStateByAI[Shell.currentAI]) renderOutcome();
+  function esc(s) {
+    return Shell.helpers.escapeHtml(s);
   }
 
-  function renderSceneCard(sceneNum) {
-    if (!root || !Shell) return;
-    const esc = Shell.helpers.escapeHtml;
-    const scenes = scenesByAI[Shell.currentAI] || {};
-    const s = scenes[sceneNum]; if (!s) return;
-    const job = jobByAI[Shell.currentAI];
-    const crew = crewByAI[Shell.currentAI];
-    const listEl = $$('scenes');
-    listEl.querySelector('.h2-empty')?.remove();
+  function levelToCount(level) {
+    const s = String(level || '').toUpperCase();
+    return { HARD: 3, MEDIUM: 2, LOW: 1, MED: 2 }[s] || 0;
+  }
 
-    const cardId = 'h2-card-' + Shell.currentAI + '-' + sceneNum;
-    let card = document.getElementById(cardId);
-    const isNew = !card;
-    if (isNew) {
-      card = document.createElement('div');
-      card.id = cardId;
-      // newest-first: insert at the top of the scenes panel
-      listEl.insertBefore(card, listEl.firstChild);
+  function segs(n, cls) {
+    return [0, 1, 2].map(i => `<span class="seg${i < n ? ' f-' + cls : ''}"></span>`).join('');
+  }
+
+  function photoClassForJob(name) {
+    const n = String(name || '').toLowerCase();
+    if (n.includes('armored') || n.includes('armoured') || n.includes('truck') || n.includes('car')) return 'still-armored';
+    if (n.includes('server') || n.includes('data') || n.includes('tech') || n.includes('corporate')) return 'still-server';
+    if (n.includes('penthouse') || n.includes('caper') || n.includes('roof')) return 'still-penthouse';
+    if (n.includes('cargo') || n.includes('yard') || n.includes('dock') || n.includes('port')) return 'still-cargo';
+    if (n.includes('diplomat') || n.includes('embassy') || n.includes('reception')) return 'still-diplomat';
+    if (n.includes('casino') || n.includes('vault') || n.includes('hotel')) return 'still-casino';
+    return 'still-default';
+  }
+
+  function iconForJob(name) {
+    const n = String(name || '').toLowerCase();
+    if (n.includes('museum') || n.includes('gallery') || n.includes('gala')) return '🏛️';
+    if (n.includes('armored') || n.includes('armoured') || n.includes('truck')) return '🚐';
+    if (n.includes('server') || n.includes('data') || n.includes('tech')) return '🖥️';
+    if (n.includes('penthouse') || n.includes('roof')) return '🌆';
+    if (n.includes('cargo') || n.includes('dock') || n.includes('port')) return '🏗️';
+    if (n.includes('diplomat') || n.includes('embassy')) return '🎩';
+    if (n.includes('casino') || n.includes('vault')) return '🎰';
+    return '🏢';
+  }
+
+  function shortenSceneName(title, sceneNum) {
+    const raw = String(title || '').trim();
+    if (!raw) return `Scene ${sceneNum}`;
+    const cleaned = raw.replace(/[^A-Za-z0-9\s-]+/g, ' ');
+    const words = cleaned.split(/[\s-]+/).filter(Boolean);
+    const sig = words.filter(w => !STOP_WORDS.has(w.toLowerCase()));
+    let parts = sig.length >= 2 ? sig.slice(-2) : sig.slice();
+    if (!parts.length) parts = words.slice(-2);
+    if (parts.length > 1 && SUFFIX_WORDS.has(parts[parts.length - 1].toLowerCase())) {
+      parts = parts.slice(0, -1);
     }
-    const meta = s.meta || {}, result = s.result || null, narr = s.narration || null;
+    let short = parts.join(' ').trim();
+    if (!short) short = words.slice(-1)[0] || `Scene ${sceneNum}`;
+    if (short.length > 12) {
+      const last = sig.length ? sig[sig.length - 1] : words[words.length - 1];
+      if (last && last.length <= 12) short = last;
+      else short = short.slice(0, 12).trim();
+    }
+    return short || `Scene ${sceneNum}`;
+  }
 
-    // ── type classification ───────────────────────────────────────────────────
-    let typeLabel, typeCls;
-    if (meta.scene_type === 'escape')        { typeLabel = 'ESCAPE';     typeCls = 'stb-escape'; }
-    else if (meta.scene_type === 'decision') { typeLabel = 'DECISION';   typeCls = 'stb-decision'; }
-    else if (meta.scene_type === 'setup')    { typeLabel = 'SETUP';      typeCls = 'stb-setup'; }
-    else if (meta.is_core)                   { typeLabel = 'CHALLENGE';  typeCls = 'stb-challenge'; }
-    else if (meta.challenge_skill)           { typeLabel = 'CHALLENGE';  typeCls = 'stb-challenge'; }
-    else                                     { typeLabel = 'TRANSITION'; typeCls = 'stb-transition'; }
+  function currentCrew(aiIdx) {
+    const crew = crewByAI[aiIdx];
+    return crew && Array.isArray(crew.members) ? crew.members : [];
+  }
 
-    // ── outcome chip + card class ────────────────────────────────────────────
-    let chipCls, chipText, cardCls;
+  function currentJob(aiIdx) {
+    return jobByAI[aiIdx] || null;
+  }
+
+  function currentScenes(aiIdx) {
+    return _scenesFor(aiIdx);
+  }
+
+  function getActiveSceneNum(aiIdx) {
+    const scenes = currentScenes(aiIdx);
+    const active = activeSceneByAI[aiIdx];
+    if (active != null && scenes[active]) return active;
+    const nums = Object.keys(scenes).map(Number).sort((a, b) => a - b);
+    const latest = nums.length ? nums[nums.length - 1] : null;
+    if (latest != null) activeSceneByAI[aiIdx] = latest;
+    return latest;
+  }
+
+  function sceneOutcome(scene) {
+    const meta = scene.meta || {};
+    const result = scene.result || null;
     if (!result) {
-      chipCls = 'oc-pending'; chipText = '…'; cardCls = 'active';
-    } else if (result.aborted) {
-      chipCls = 'oc-failure'; chipText = 'ABORTED ✗'; cardCls = 'failure';
-    } else if (meta.scene_type === 'escape') {
-      if (result.escape_success) { chipCls = 'oc-success'; chipText = 'CLEAN EXIT ✓'; cardCls = 'success'; }
-      else                       { chipCls = 'oc-failure'; chipText = 'CAUGHT ✗';     cardCls = 'failure'; }
-    } else if (result.success === true) {
-      chipCls = 'oc-success'; chipText = 'SUCCESS ✓'; cardCls = 'success';
-    } else if (result.success === false) {
-      chipCls = 'oc-failure'; chipText = 'FAILED ✗'; cardCls = 'failure';
-    } else {
-      chipCls = 'oc-none'; chipText = '—'; cardCls = 'neutral';
+      return { cls: 'oc-pending', text: '…' };
     }
-
-    card.className = 'h2-card ' + cardCls + (isNew || card.classList.contains('expanded') ? ' expanded' : '');
-
-    // ── assigned characters (just the cards — no inline reasoning) ──
-    let charsContent = '';
-    const assignedIds = (result && result.assigned_member_ids) || [];
-    if (assignedIds.length && crew && crew.members) {
-      const blocks = assignedIds.map(id => {
-        const c = crew.members.find(x => x.id == id);
-        // hideCost: don't show the bid $ amount inside scene cards — that
-        // belongs to the hiring view, not gameplay.
-        return c ? Shell.helpers.charCardHtml(c, { noId: true, hideCost: true }) : '';
-      }).filter(Boolean).join('');
-      charsContent = `<div class="h2-chars">${blocks}</div>`;
+    if (result.aborted) {
+      return { cls: 'oc-failure', text: 'Aborted ✗' };
     }
-    const charsSection = `<div class="h2-section-chars">
-      <div class="h2-section-label">Assigned</div>
-      ${charsContent}
-    </div>`;
-
-    // ── challenge card ───────────────────────────────────────────────────────
-    let challengeCardHtml = '';
-    let warnHtml = '';
     if (meta.scene_type === 'escape') {
-      challengeCardHtml = buildChallengeCard({
-        shortSk: 'drive', word: 'DRIVING', level: null, diff: null,
-      });
-    } else if (meta.challenge_skill) {
-      const apiSkill = (meta.challenge_skill || '').toLowerCase();
-      const shortSk  = SKILL_API_TO_SHORT[apiSkill] || 'soc';
-      const word     = SKILL_TO_TYPE_WORD[apiSkill] || meta.challenge_skill;
-      const declared = meta.challenge_level ? String(meta.challenge_level).toUpperCase() : null;
-      const reality  = result && result.challenge_level ? String(result.challenge_level).toUpperCase() : null;
-      let expected = null;
-      if (job && job.profile) {
-        const profileKey = Object.entries(PROFILE_KEY_TO_SHORT).find(([, sh]) => sh === shortSk)?.[0];
-        if (profileKey) {
-          const p = (job.profile[profileKey] || '').toUpperCase();
-          if (p && p !== 'NONE') expected = p;
-        }
-      }
-      const level = reality || declared || expected || '';
-      challengeCardHtml = buildChallengeCard({ shortSk, word, level, diff: level });
-      if (expected && reality && expected !== reality) {
-        warnHtml = `<div class="h2-hidden-warn">⚠ Hidden depth: expected ${esc(expected)}, got ${esc(reality)}</div>`;
-      }
+      return result.escape_success
+        ? { cls: 'oc-success', text: 'Clean Exit ✓' }
+        : { cls: 'oc-failure', text: 'Caught ✗' };
     }
-    const challengeSection = challengeCardHtml
-      ? `<div class="h2-section-challenge">
-          <div class="h2-section-label">Challenge</div>
-          ${challengeCardHtml}
-          ${warnHtml}
-        </div>`
-      : '';
-
-    // ── decision block (now inline-reasoning-free; reasoning goes to rail) ──
-    let decisionHtml = '';
-    if (meta.scene_type === 'decision' && result) {
-      const pursue = result.decision === 'pursue' || result.pursue === true;
-      decisionHtml = `<div>
-        <div class="h2-section-label">Decision</div>
-        <div class="${pursue ? 'h2-decision-note' : 'h2-decision-pass'}">${pursue ? '▶ Pursued' : '— Passed'}</div>
-      </div>`;
+    if (result.success === false) {
+      return { cls: 'oc-failure', text: 'Failed ✗' };
     }
-
-    // Narration: literary prose for the scene. Lives in the right half of
-    // the scene card (the AI's reasoning for WHO it picked is separate and
-    // goes to the "Mind of <AI>" rail).
-    // Show as soon as narration arrives — don't gate on result.
-    const narrationHtml = narr
-      ? `<div class="h2-narration">${Shell.helpers.renderMd(narr)}</div>`
-      : '';
-
-    card.innerHTML = `
-      <div class="h2-head">
-        <span class="h2-chevron">▶</span>
-        <span class="h2-num">SCENE ${sceneNum}</span>
-        <span class="h2-title">${esc(meta.title || '')}</span>
-        <span class="h2-type-badge ${typeCls}">${typeLabel}</span>
-        <span class="h2-outcome-chip ${chipCls}">${chipText}</span>
-      </div>
-      <div class="h2-body">
-        <div class="h2-body-grid">
-          <div class="h2-body-left">
-            <div class="h2-section-row">
-              ${charsSection}
-              ${challengeSection}
-            </div>
-            ${decisionHtml}
-          </div>
-          <div class="h2-body-right">
-            <div class="h2-section-label">Narration</div>
-            ${narrationHtml}
-          </div>
-        </div>
-      </div>`;
-
-    // Click header to toggle expand
-    card.querySelector('.h2-head').addEventListener('click', () => card.classList.toggle('expanded'));
+    return { cls: 'oc-success', text: 'Success ✓' };
   }
 
-  // ── challenge card markup (mockup-style, mirrors char-card layout) ────────
-  // shortSk:  hack | safe | musc | soc | drive
-  // word:     "ELECTRONIC" / "PHYSICAL" / etc.
-  // level:    "LOW" | "MEDIUM" | "HARD" | null (null → sublabel reads "VARIES")
-  // diff:     same as level, used to fill diff bars. null → no diff row.
-  const SKILL_ABBR = { hack:'HCK', safe:'SFR', musc:'MSC', soc:'SOC', drive:'DRV' };
-  const DIFF_SEGS  = { LOW:1, MEDIUM:2, HARD:3 };
-  function buildChallengeCard({ shortSk, word, level, diff }) {
-    const esc = Shell.helpers.escapeHtml;
-    const abbr   = SKILL_ABBR[shortSk] || shortSk.toUpperCase();
-    const filled = DIFF_SEGS[diff] || 0;
-    const diffBars = [0,1,2].map(i =>
-      `<span class="seg ${i < filled ? 'f-' + shortSk : ''}"></span>`).join('');
-    // Only render the diff row if there's a level; escape (no level) skips it.
+  function sceneStatusClass(scene) {
+    const result = scene.result || null;
+    if (!result) return 'pending';
+    if (result.aborted) return 'failure';
+    if (scene.meta && scene.meta.scene_type === 'escape') {
+      return result.escape_success ? 'success' : 'failure';
+    }
+    if (result.success === false) return 'failure';
+    return 'success';
+  }
+
+  function renderTimeline() {
+    if (!root || !Shell) return;
+    const wrap = $$('timeline');
+    const empty = $$('timeline-empty');
+    if (!wrap) return;
+
+    const aiIdx = Shell.currentAI;
+    const scenes = currentScenes(aiIdx);
+    const nums = Object.keys(scenes).map(Number).sort((a, b) => a - b);
+    const pills = nums.map(sceneNum => {
+      const scene = scenes[sceneNum];
+      const meta = scene.meta || {};
+      const active = getActiveSceneNum(aiIdx) === sceneNum;
+      const short = shortenSceneName(meta.title, sceneNum);
+      const cls = ['h2-timeline-pill', sceneStatusClass(scene), active ? 'active' : '']
+        .filter(Boolean)
+        .join(' ');
+      return `<button type="button" class="${cls}" onclick="HeistTab.setActiveScene(${aiIdx}, ${sceneNum})">
+        <span class="h2-timeline-num">${String(sceneNum).padStart(2, '0')}</span>
+        <span>${esc(short)}</span>
+      </button>`;
+    }).join('');
+
+    if (empty) empty.style.display = nums.length ? 'none' : '';
+    wrap.querySelectorAll('.h2-timeline-pill').forEach(el => el.remove());
+    if (pills) {
+      if (empty) empty.insertAdjacentHTML('afterend', pills);
+      else wrap.insertAdjacentHTML('beforeend', pills);
+    }
+  }
+
+  function leadHtmlForScene(scene, aiIdx) {
+    const result = scene.result || null;
+    const narr = scene.narration || '';
+    const assignedIds = (result && result.assigned_member_ids) || [];
+    if (!result || !narr || !assignedIds.length) return '';
+    const crew = currentCrew(aiIdx);
+    const leadId = assignedIds[0];
+    const lead = crew.find(c => String(c.id) === String(leadId));
+    if (!lead) return '';
+    const initial = (lead.name || '?').slice(0, 1).toUpperCase();
+    const primary = Shell.helpers.primarySkill(lead);
+    return `<div class="h2-narration-lead" data-primary="${primary}">
+      <div class="h2-narration-lead-fallback">${esc(initial)}</div>
+      <img src="${Shell.helpers.portraitUrl(lead)}" alt="${esc(lead.name)}" loading="lazy" onerror="this.style.display='none'">
+      <div class="h2-narration-lead-cap">${esc(lead.name)}</div>
+    </div>`;
+  }
+
+  function renderChallengeCard(scene, job) {
+    const meta = scene.meta || {};
+    const result = scene.result || null;
+    if (meta.scene_type !== 'escape' && !meta.challenge_skill) return '';
+
+    const apiSkill = String(meta.challenge_skill || 'driver').toLowerCase();
+    const shortSk = SKILL_API_TO_SHORT[apiSkill] || 'drive';
+    const word = SKILL_TO_TYPE_WORD[apiSkill] || String(meta.challenge_skill || 'DRIVING').toUpperCase();
+
+    let declared = meta.challenge_level ? String(meta.challenge_level).toUpperCase() : null;
+    let reality = result && result.challenge_level ? String(result.challenge_level).toUpperCase() : null;
+    let expected = null;
+    if (job && job.profile) {
+      const profileKey = Object.entries(PROFILE_KEY_TO_SHORT).find(([, sh]) => sh === shortSk)?.[0];
+      if (profileKey) {
+        const p = String(job.profile[profileKey] || '').toUpperCase();
+        if (p && p !== 'NONE') expected = p;
+      }
+    }
+    const level = reality || declared || expected || null;
+    const filled = DIFF_SEGS[level] || 0;
     const diffRow = level
-      ? `<div class="h2-cc-row">
-           <span class="h2-cc-row-label">DIFF</span>
-           <div class="h2-cc-bars">${diffBars}</div>
-         </div>` : '';
+      ? `<div class="h2-challenge-row">
+           <span class="h2-challenge-row-label">DIFF</span>
+           <div class="h2-challenge-bars">${[0,1,2].map(i => `<span class="seg${i < filled ? ' f-' + shortSk : ''}"></span>`).join('')}</div>
+         </div>`
+      : '';
+    const warn = expected && reality && expected !== reality
+      ? `<div class="h2-hidden-warn">⚠ Hidden depth: expected ${esc(expected)}, got ${esc(reality)}</div>`
+      : '';
+    const abbr = SKILL_ABBR[shortSk] || shortSk.toUpperCase();
+
     return `<div class="h2-challenge-card" data-skill="${shortSk}">
       <div class="h2-challenge-icon">
         <span class="h2-challenge-icon-text">${esc(abbr)}</span>
       </div>
-      <div class="h2-challenge-card-header">
-        <div>${esc(word)}</div>
-        <div class="h2-cc-sub">${esc(level || 'VARIES')}</div>
+      <div class="h2-challenge-body">
+        <div class="h2-challenge-head">
+          <div>${esc(word)}</div>
+          <div class="h2-challenge-head-sub">${esc(level || 'VARIES')}</div>
+        </div>
+        <div class="h2-challenge-info">
+          ${diffRow}
+          <div class="h2-challenge-level">${esc(level || 'VARIES')}</div>
+        </div>
       </div>
-      <div class="h2-challenge-card-info">
-        ${diffRow}
-      </div>
-    </div>`;
+    </div>${warn}`;
   }
 
-  // ── outcome ─────────────────────────────────────────────────────────────────
-  function renderOutcome() {
+  function renderScene() {
     if (!root || !Shell) return;
-    const esc = Shell.helpers.escapeHtml;
-    const listEl = $$('scenes');
-    const existing = document.getElementById('h2-outcome-' + Shell.currentAI);
-    if (existing) existing.remove();
-    const gs = gameStateByAI[Shell.currentAI];
-    if (!gs) return;
-    const take = gs.final_take != null ? '$' + Number(gs.final_take).toLocaleString() : '—';
-    const card = document.createElement('div');
-    card.id = 'h2-outcome-' + Shell.currentAI;
-    card.className = 'h2-outcome';
-    const aiName = (Shell.aiList[Shell.currentAI] || {}).label || ('AI ' + Shell.currentAI);
-    card.innerHTML = `
-      <h3>Final Result — ${esc(aiName)}</h3>
-      <div class="h2-outcome-grid">
-        <div class="h2-og-cell">
-          <span class="h2-og-label">Take</span>
-          <span class="h2-og-value take">${esc(take)}</span>
+    const stage = $$('stage');
+    if (!stage) return;
+
+    const aiIdx = Shell.currentAI;
+    const scenes = currentScenes(aiIdx);
+    const sceneNum = getActiveSceneNum(aiIdx);
+    const scene = sceneNum != null ? scenes[sceneNum] : null;
+
+    if (!scene) {
+      stage.innerHTML = '<div class="h2-empty">Waiting for the heist to begin…</div>';
+      return;
+    }
+
+    const meta = scene.meta || {};
+    const result = scene.result || null;
+    const narr = scene.narration || _narrationsFor(aiIdx)[sceneNum] || '';
+    const job = currentJob(aiIdx);
+    const title = meta.title || `Scene ${sceneNum}`;
+    const outcome = sceneOutcome(scene);
+    const assignedIds = (result && result.assigned_member_ids) || [];
+    const crew = currentCrew(aiIdx);
+    const leadHtml = leadHtmlForScene({ ...scene, narration: narr }, aiIdx);
+    const narrationHtml = narr
+      ? `${leadHtml}<div class="h2-narration-prose">${Shell.helpers.renderMd(narr)}</div>`
+      : '<div class="h2-narrating">Narrating…</div>';
+
+    const castHtml = crew.length
+      ? crew.map(member => {
+          const assigned = assignedIds.some(id => String(id) === String(member.id));
+          return `<div class="h2-cast-card${assigned ? '' : ' standby'}">
+            ${Shell.helpers.charCardHtml(member, { hideCost: true, noId: true })}
+          </div>`;
+        }).join('')
+      : '';
+
+    const sceneTheme = photoClassForJob(job && job.name);
+    const sceneLabel = esc(job && job.name ? job.name : 'The Job');
+    const sceneIcon = esc(iconForJob(job && job.name));
+    const challengeHtml = renderChallengeCard(scene, job);
+    const challengeSection = challengeHtml
+      ? `<div>
+          <div class="h2-vp-label">Challenge</div>
+          ${challengeHtml}
+        </div>`
+      : '';
+
+    stage.innerHTML = `
+      <div class="h2-scene-head">
+        <div class="h2-scene-title">${esc(title)}</div>
+        <div class="h2-scene-outcome ${outcome.cls}">${esc(outcome.text)}</div>
+      </div>
+      <div class="h2-stage-body">
+        <div class="h2-narration">
+          ${narrationHtml}
         </div>
-        <div class="h2-og-cell">
-          <span class="h2-og-label">Escape</span>
-          <span class="h2-og-value ${gs.escape_success ? 'win' : 'loss'}">${gs.escape_success ? 'Clean' : 'Blown'}</span>
-        </div>
-        <div class="h2-og-cell">
-          <span class="h2-og-label">Aborted</span>
-          <span class="h2-og-value ${gs.aborted ? 'loss' : 'win'}">${gs.aborted ? 'Yes' : 'No'}</span>
+        <div class="h2-visual-panel">
+          <div>
+            <div class="h2-vp-label">Scene Still</div>
+            <div class="h2-scene-still ${sceneTheme}">
+              <div class="h2-scene-still-vignette"></div>
+              <div class="h2-scene-still-icon">${sceneIcon}</div>
+              <div class="h2-scene-still-meta">
+                <div class="h2-scene-still-loc">${sceneLabel}</div>
+                <div class="h2-scene-still-title">${esc(title)}</div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="h2-vp-label">Cast</div>
+            <div class="h2-cast-row">${castHtml}</div>
+          </div>
+          ${challengeSection}
         </div>
       </div>`;
-    // newest-first: outcome card sits at the very top
-    listEl.insertBefore(card, listEl.firstChild);
   }
 
-  // ── lifecycle ──────────────────────────────────────────────────────────────
+  function renderAll() {
+    if (!root || !Shell) return;
+    renderTimeline();
+    renderScene();
+  }
+
+  function setActiveScene(aiIdx, sceneNum) {
+    activeSceneByAI[aiIdx] = sceneNum;
+    if (aiIdx === Shell.currentAI) renderAll();
+  }
+
   function mount(container, opts) {
     Shell = (opts && opts.shell) || window.Shell;
     const tpl = document.getElementById('heist-template');
-    if (!tpl) { console.error('HeistTab: #heist-template not in DOM'); return; }
+    if (!tpl) {
+      console.error('HeistTab: #heist-template not in DOM');
+      return;
+    }
     container.innerHTML = '';
     container.appendChild(tpl.content.cloneNode(true));
     root = container.querySelector('.heist-root');
-    renderJobHeader();
-    renderSceneList();
-    if (Shell.onAISelected) Shell.onAISelected(() => {
-      renderJobHeader();
-      renderSceneList();
-      // Sync topbar heat with the newly-selected AI's last-known heat
-      if (Shell.setHeat) Shell.setHeat(heatByAI[Shell.currentAI] || 0);
-    });
+    renderAll();
+    if (Shell.onAISelected) {
+      Shell.onAISelected(() => {
+        renderAll();
+        if (Shell.setHeat) Shell.setHeat(heatByAI[Shell.currentAI] || 0);
+      });
+    }
   }
 
   function handleEvent(e) {
@@ -628,20 +858,19 @@
 
     if (e.type === 'crew_known') {
       crewByAI[aiIdx] = e.crew;
+      if (aiIdx === Shell.currentAI) renderAll();
 
     } else if (e.type === 'job_known') {
       jobByAI[aiIdx] = e.job;
-      if (aiIdx === Shell.currentAI) renderJobHeader();
+      if (aiIdx === Shell.currentAI) renderAll();
 
     } else if (e.type === 'turn_end') {
       const m = e.label && e.label.match(/^scene_(\d+)_(?:escape_)?narrate$/);
       if (m && e.parsed && e.parsed.narration) {
         const sNum = parseInt(m[1], 10);
         narrations[sNum] = e.parsed.narration;
-        if (scenes[sNum]) {
-          scenes[sNum].narration = e.parsed.narration;
-          if (aiIdx === Shell.currentAI) renderSceneCard(sNum);
-        }
+        if (scenes[sNum]) scenes[sNum].narration = e.parsed.narration;
+        if (aiIdx === Shell.currentAI) renderAll();
       }
 
     } else if (e.type === 'scene_start') {
@@ -649,7 +878,8 @@
       if (!scenes[sNum]) scenes[sNum] = {};
       scenes[sNum].meta = e;
       if (narrations[sNum]) scenes[sNum].narration = narrations[sNum];
-      if (aiIdx === Shell.currentAI) renderSceneCard(sNum);
+      activeSceneByAI[aiIdx] = sNum;
+      if (aiIdx === Shell.currentAI) renderAll();
 
     } else if (e.type === 'scene_done') {
       heatByAI[aiIdx] = e.heat;
@@ -657,46 +887,61 @@
       if (!scenes[sNum]) scenes[sNum] = {};
       scenes[sNum].result = e;
       if (narrations[sNum]) scenes[sNum].narration = narrations[sNum];
-      if (aiIdx === Shell.currentAI) renderSceneCard(sNum);
+      if (!activeSceneByAI[aiIdx] || !scenes[activeSceneByAI[aiIdx]]) activeSceneByAI[aiIdx] = sNum;
 
-      // Push the AI's reasoning (why it picked these crew members / chose
-      // pursue/pass) to the "Mind of <AI>" rail. This is distinct from the
-      // scene narration — that's the literary prose, this is the tactics.
-      // The {id} dedupes if the same scene_done arrives twice (replay).
-      if (e.reasoning) {
-        const sceneTitle = (scenes[sNum] && scenes[sNum].meta && scenes[sNum].meta.title)
-                            || e.title || '';
-        const title = `Scene ${sNum}${sceneTitle ? ' — ' + sceneTitle : ''}`;
-        Shell.addThought(aiIdx, 'scene', title,
-          Shell.helpers.escapeHtml(e.reasoning),
-          { id: 'scene-reasoning-' + sNum });
+      const reasoningSet = _reasoningSet(aiIdx);
+      const decisionSet = _decisionSet(aiIdx);
+      if (e.reasoning && !reasoningSet.has(sNum)) {
+        reasoningSet.add(sNum);
+        Shell.addThought(
+          aiIdx,
+          'scene',
+          `Scene ${sNum} · Why these`,
+          Shell.helpers.escapeHtml(e.reasoning)
+        );
       }
+      if (e.decision && !decisionSet.has(sNum)) {
+        decisionSet.add(sNum);
+        const decisionReasoning = e.decision.reasoning || e.reasoning || '—';
+        Shell.addThought(
+          aiIdx,
+          'scene',
+          `Scene ${sNum} · Decision`,
+          `<strong>${e.decision.pursue ? 'Pursued' : 'Passed'}</strong> — ${Shell.helpers.escapeHtml(decisionReasoning)}`
+        );
+      }
+      if (aiIdx === Shell.currentAI) renderAll();
+      if (Shell.setHeat) Shell.setHeat(heatByAI[Shell.currentAI] || 0);
 
     } else if (e.type === 'game_done') {
       gameStateByAI[aiIdx] = e.state;
-      if (e.state.crew) crewByAI[aiIdx] = e.state.crew;
-      if (e.state.job)  jobByAI[aiIdx]  = e.state.job;
-      heatByAI[aiIdx] = e.state.heat;
+      if (e.state && e.state.crew) crewByAI[aiIdx] = e.state.crew;
+      if (e.state && e.state.job) jobByAI[aiIdx] = e.state.job;
+      if (e.state && e.state.heat != null) heatByAI[aiIdx] = e.state.heat;
       if (aiIdx === Shell.currentAI) {
-        renderJobHeader();
-        renderOutcome();
+        renderAll();
+        if (Shell.setHeat) Shell.setHeat(heatByAI[aiIdx] || 0);
       }
     }
   }
 
   function reset() {
-    for (const k of Object.keys(scenesByAI))    delete scenesByAI[k];
-    for (const k of Object.keys(narrationsByAI))delete narrationsByAI[k];
+    for (const k of Object.keys(scenesByAI)) delete scenesByAI[k];
+    for (const k of Object.keys(narrationsByAI)) delete narrationsByAI[k];
     for (const k of Object.keys(gameStateByAI)) delete gameStateByAI[k];
-    for (const k of Object.keys(heatByAI))      delete heatByAI[k];
-    for (const k of Object.keys(crewByAI))      delete crewByAI[k];
-    for (const k of Object.keys(jobByAI))       delete jobByAI[k];
-    renderJobHeader();
-    renderSceneList();
+    for (const k of Object.keys(heatByAI)) delete heatByAI[k];
+    for (const k of Object.keys(crewByAI)) delete crewByAI[k];
+    for (const k of Object.keys(jobByAI)) delete jobByAI[k];
+    for (const k of Object.keys(activeSceneByAI)) delete activeSceneByAI[k];
+    for (const k of Object.keys(reasoningEmittedByAI)) delete reasoningEmittedByAI[k];
+    for (const k of Object.keys(decisionEmittedByAI)) delete decisionEmittedByAI[k];
+    renderAll();
   }
 
-  function unmount() { root = null; }
+  function unmount() {
+    root = null;
+  }
 
-  window.HeistTab = { mount, handleEvent, reset, unmount };
+  window.HeistTab = { mount, handleEvent, reset, unmount, setActiveScene };
 })();
 </script>

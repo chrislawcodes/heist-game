@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Heist — Redesign Mock (Heist tab, v4)</title>
+<style>
+:root {
+  --bg: #0c0c0e;
+  --panel: #131316;
+  --panel2: #18181c;
+  --panel3: #1e1e24;
+  --border: #26262c;
+  --text: #e0dfe8;
+  --muted: #72717a;
+  --accent: #e8a030;
+  --green: #52c47a;
+  --red: #e05050;
+  --blue: #5898e0;
+  --purple: #9070e0;
+  --ai-a: #e8a030;
+  --sk-hack:  #5898e0;
+  --sk-safe:  #e8a030;
+  --sk-musc:  #e05050;
+  --sk-soc:   #9070e0;
+  --sk-drive: #52c47a;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+}
+
+/* ── topbar ── */
+#topbar {
+  height: 44px; padding: 0 16px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 14px; flex-shrink: 0;
+}
+#topbar-title { font-size: 12px; font-weight: 700; letter-spacing: 3px; color: var(--accent); }
+#job-display  { font-size: 13px; color: var(--text); }
+#heat-display { font-size: 12px; font-family: monospace; color: var(--red); letter-spacing: 1px; }
+#topbar-spacer { flex: 1; }
+/* original replay controls (matches existing pages) */
+.replay-btn {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.5px;
+  padding: 4px 10px; margin-right: 4px;
+  background: var(--panel2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 4px; cursor: pointer;
+}
+.replay-btn:hover { border-color: var(--accent); color: var(--accent); }
+#replay-controls { display: inline-flex; align-items: center; gap: 2px; }
+#replay-counter { font-family: monospace; font-size: 11px; color: var(--muted); margin-left: 6px; }
+#status-badge {
+  font-size: 11px; font-weight: 700; letter-spacing: 1px;
+  padding: 3px 10px; border-radius: 3px;
+  background: #0c1a2e; color: var(--blue);
+}
+
+/* ── phasenav ── */
+#phasenav {
+  height: 38px; padding: 0 16px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+  background: var(--panel);
+}
+.phase-item {
+  font-size: 12px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase;
+  color: #3a3a44;
+}
+.phase-item.phase-active { color: var(--accent); }
+.phase-item.phase-done   { color: var(--muted); }
+.phase-sep { font-size: 11px; color: #2a2a34; }
+
+/* ── content layout ── */
+#content { flex: 1; display: flex; overflow: hidden; }
+#main { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+
+/* scenes timeline now lives at the top — see .timeline below */
+
+/* ── STAGE ── */
+.stage {
+  flex: 1; min-height: 0;
+  overflow-y: auto;
+  padding: 22px 32px 26px;
+  background:
+    radial-gradient(900px 320px at 50% -80px, rgba(232,160,48,0.04), transparent),
+    var(--bg);
+}
+
+/* scene header */
+.scene-head {
+  display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 14px; margin-bottom: 18px;
+}
+.scene-title-row {
+  display: flex; align-items: baseline; gap: 10px;
+  flex: 1; min-width: 0;
+}
+.scene-num {
+  font-size: 12px; font-family: monospace;
+  color: var(--muted); letter-spacing: 1.5px;
+  white-space: nowrap;
+}
+.scene-title {
+  font-size: 28px; font-weight: 700; color: var(--text);
+  letter-spacing: -0.01em;
+  font-family: 'Iowan Old Style', 'Georgia', serif;
+  flex: 1; min-width: 0;
+}
+.scene-outcome {
+  font-size: 12px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+  padding: 6px 16px; border-radius: 14px;
+}
+.oc-success { background: rgba(82,196,122,0.15); color: var(--green); }
+.oc-failure { background: rgba(224,80,80,0.15); color: var(--red); }
+.oc-pending { background: rgba(232,160,48,0.12); color: var(--accent); animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+/* ── two-column stage body — narration LEFT, visual panel RIGHT ── */
+.stage-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 480px;
+  gap: 28px;
+  align-items: start;
+}
+
+/* LEFT — narration hero */
+.narration {
+  font-family: 'Iowan Old Style', 'Georgia', serif;
+  font-size: 17px; line-height: 1.75;
+  color: #ddd9eb;
+  max-width: 680px;
+}
+.narration p { margin-bottom: 14px; }
+.narration p:last-child { margin-bottom: 0; }
+.narration .dialogue { color: #efe9d2; }
+
+/* floated portrait of the scene's lead character; text wraps around it */
+.narration-lead {
+  float: left;
+  width: 150px; aspect-ratio: 1;
+  margin: 4px 20px 8px 0;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  position: relative;
+  background: rgba(0,0,0,0.35);
+}
+.narration-lead[data-primary="hack"]  { background: linear-gradient(180deg, rgba(88,152,224,0.32) 0%, rgba(88,152,224,0.08) 100%); border-color: rgba(88,152,224,0.65); }
+.narration-lead[data-primary="safe"]  { background: linear-gradient(180deg, rgba(232,160,48,0.32) 0%, rgba(232,160,48,0.08) 100%); border-color: rgba(232,160,48,0.65); }
+.narration-lead[data-primary="musc"]  { background: linear-gradient(180deg, rgba(224,80,80,0.32) 0%, rgba(224,80,80,0.08) 100%);  border-color: rgba(224,80,80,0.65); }
+.narration-lead[data-primary="soc"]   { background: linear-gradient(180deg, rgba(144,112,224,0.32) 0%, rgba(144,112,224,0.08) 100%); border-color: rgba(144,112,224,0.65); }
+.narration-lead[data-primary="drive"] { background: linear-gradient(180deg, rgba(82,196,122,0.32) 0%, rgba(82,196,122,0.08) 100%); border-color: rgba(82,196,122,0.65); }
+.narration-lead-portrait {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: monospace; font-weight: 700;
+  font-size: 62px; color: rgba(255,255,255,0.32);
+}
+.narration-lead-cap {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  padding: 4px 8px;
+  font-size: 11px; font-weight: 800; letter-spacing: 0.3px;
+  text-align: center;
+}
+.narration-lead[data-primary="hack"]  .narration-lead-cap { background: var(--sk-hack);  color: #0a1428; }
+.narration-lead[data-primary="safe"]  .narration-lead-cap { background: var(--sk-safe);  color: #2a1c08; }
+.narration-lead[data-primary="musc"]  .narration-lead-cap { background: var(--sk-musc);  color: #2a0808; }
+.narration-lead[data-primary="soc"]   .narration-lead-cap { background: var(--sk-soc);   color: #1c1030; }
+.narration-lead[data-primary="drive"] .narration-lead-cap { background: var(--sk-drive); color: #0a2018; }
+
+/* RIGHT — visual panel */
+.visual-panel { display: flex; flex-direction: column; gap: 18px; }
+
+.vp-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 10px;
+}
+
+/* scene still */
+.scene-still {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background:
+    radial-gradient(circle at 30% 40%, rgba(232,160,48,0.18), transparent 60%),
+    radial-gradient(circle at 80% 80%, rgba(144,112,224,0.18), transparent 55%),
+    linear-gradient(160deg, #1a1430 0%, #251a42 60%, #121026 100%);
+}
+.scene-still::after {
+  content: '';
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+  background-size: 24px 24px;
+  pointer-events: none;
+}
+.scene-still-icon {
+  position: absolute;
+  right: 16px; top: 50%; transform: translateY(-50%);
+  font-size: 84px; opacity: 0.32;
+  filter: drop-shadow(0 4px 16px rgba(0,0,0,0.5));
+}
+.scene-still-meta {
+  position: absolute; left: 14px; bottom: 12px;
+  display: flex; flex-direction: column; gap: 4px; z-index: 1;
+}
+.scene-still-loc {
+  font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+  color: rgba(255,255,255,0.55);
+}
+.scene-still-title {
+  font-family: 'Iowan Old Style', 'Georgia', serif;
+  font-size: 18px; color: var(--text); font-weight: 700;
+}
+.scene-still-vignette {
+  position: absolute; inset: 0;
+  background: linear-gradient(180deg, transparent 50%, rgba(0,0,0,0.55) 100%);
+}
+
+/* ── CAST ROW (in right column) — 4 cards at hiring-page size ── */
+.cast-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+/* hiring-page char-card sizing */
+.cast-card {
+  position: relative;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  display: flex; flex-direction: column;
+  background: var(--panel2);
+  transition: opacity 0.2s, filter 0.2s;
+}
+.cast-card[data-primary="hack"]  { background: linear-gradient(180deg, rgba(88,152,224,0.32) 0%, rgba(88,152,224,0.08) 100%); border-color: rgba(88,152,224,0.65); }
+.cast-card[data-primary="safe"]  { background: linear-gradient(180deg, rgba(232,160,48,0.32) 0%, rgba(232,160,48,0.08) 100%); border-color: rgba(232,160,48,0.65); }
+.cast-card[data-primary="musc"]  { background: linear-gradient(180deg, rgba(224,80,80,0.32) 0%, rgba(224,80,80,0.08) 100%);  border-color: rgba(224,80,80,0.65); }
+.cast-card[data-primary="soc"]   { background: linear-gradient(180deg, rgba(144,112,224,0.32) 0%, rgba(144,112,224,0.08) 100%); border-color: rgba(144,112,224,0.65); }
+.cast-card[data-primary="drive"] { background: linear-gradient(180deg, rgba(82,196,122,0.32) 0%, rgba(82,196,122,0.08) 100%); border-color: rgba(82,196,122,0.65); }
+
+/* off-scene crew: dimmed, no loud pill */
+.cast-card.standby { opacity: 0.38; filter: saturate(0.35); }
+
+.cc-portrait {
+  width: 100%; aspect-ratio: 1;
+  background: rgba(0,0,0,0.35);
+  display: flex; align-items: center; justify-content: center;
+  font-family: monospace; font-weight: 700;
+  font-size: 36px; color: rgba(255,255,255,0.25);
+}
+.cc-header {
+  padding: 4px 8px;
+  font-size: 12px; font-weight: 800; letter-spacing: 0.2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cast-card[data-primary="hack"]  .cc-header { background: var(--sk-hack);  color: #0a1428; }
+.cast-card[data-primary="safe"]  .cc-header { background: var(--sk-safe);  color: #2a1c08; }
+.cast-card[data-primary="musc"]  .cc-header { background: var(--sk-musc);  color: #2a0808; }
+.cast-card[data-primary="soc"]   .cc-header { background: var(--sk-soc);   color: #1c1030; }
+.cast-card[data-primary="drive"] .cc-header { background: var(--sk-drive); color: #0a2018; }
+
+.cc-info { padding: 6px 8px 7px; display: flex; flex-direction: column; gap: 2px; }
+.cc-skill { display: flex; align-items: center; gap: 6px; }
+.cc-skill-label {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.6px;
+  color: var(--muted); width: 30px; flex-shrink: 0;
+  font-family: monospace;
+}
+.cc-skill-bars { display: flex; gap: 2px; }
+.cc-seg { width: 10px; height: 4px; border-radius: 1px; background: rgba(255,255,255,0.08); }
+.cc-seg.f-hack  { background: var(--sk-hack); }
+.cc-seg.f-safe  { background: var(--sk-safe); }
+.cc-seg.f-musc  { background: var(--sk-musc); }
+.cc-seg.f-soc   { background: var(--sk-soc); }
+.cc-seg.f-drive { background: var(--sk-drive); }
+
+/* CHALLENGE card */
+.challenge-card {
+  width: 100%;
+  border-radius: 7px; overflow: hidden;
+  border: 1px solid rgba(232,160,48,0.65);
+  background: linear-gradient(180deg, rgba(232,160,48,0.32) 0%, rgba(232,160,48,0.08) 100%);
+  display: flex;
+}
+.challenge-icon {
+  width: 84px; aspect-ratio: 1; flex-shrink: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex; align-items: center; justify-content: center;
+  font-family: monospace; font-weight: 900; font-size: 26px;
+  color: var(--sk-safe); letter-spacing: 1px;
+}
+.challenge-body { flex: 1; display: flex; flex-direction: column; }
+.challenge-head {
+  padding: 5px 11px;
+  background: var(--sk-safe); color: #2a1c08;
+  font-size: 12px; font-weight: 800; letter-spacing: 0.3px;
+}
+.challenge-info {
+  padding: 8px 11px;
+  display: flex; flex-direction: column; gap: 6px; flex: 1;
+}
+.challenge-row { display: flex; align-items: center; gap: 8px; }
+.cr-label {
+  font-family: monospace; font-size: 10px; font-weight: 700;
+  color: var(--muted); width: 32px;
+}
+.cr-bars { display: flex; gap: 2px; }
+.cr-seg { width: 14px; height: 6px; border-radius: 1px; background: rgba(255,255,255,0.08); }
+.cr-seg.f-safe { background: var(--sk-safe); }
+.cr-level {
+  font-size: 13px; font-weight: 800; letter-spacing: 0.4px;
+  color: var(--accent);
+}
+
+/* ── timeline (sits at the top, below the phase breadcrumb) ── */
+.timeline {
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel2);
+  padding: 10px 20px;
+  display: flex; align-items: center; gap: 8px;
+  overflow-x: auto;
+}
+.tl-label {
+  font-size: 9px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--muted); margin-right: 12px; flex-shrink: 0;
+}
+.tl-dot {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 10px; border-radius: 14px;
+  font-size: 11px; font-weight: 700;
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  cursor: pointer; white-space: nowrap; flex-shrink: 0;
+  transition: all 0.15s;
+}
+.tl-dot:hover { border-color: var(--text); color: var(--text); }
+.tl-dot.active { background: var(--panel3); border-color: var(--accent); color: var(--text); }
+.tl-dot.success { color: var(--green); border-color: rgba(82,196,122,0.45); }
+.tl-dot.failure { color: var(--red); border-color: rgba(224,80,80,0.45); }
+.tl-dot .tl-num { font-family: monospace; font-size: 10px; opacity: 0.6; }
+.tl-dot.active .tl-num { opacity: 1; color: var(--accent); }
+.tl-sep { color: #2a2a34; font-size: 10px; flex-shrink: 0; }
+
+/* ── side rail (decision log — the AI's thinking) ── */
+#rail {
+  width: 380px; flex-shrink: 0;
+  border-left: 1px solid var(--border);
+  background: var(--panel);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.rail-head {
+  flex-shrink: 0; padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px;
+}
+.rail-title {
+  font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--text);
+}
+.rail-private {
+  margin-left: auto;
+  font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  color: var(--muted); background: #1e1e22; padding: 2px 6px; border-radius: 3px;
+}
+.rail-list {
+  flex: 1; overflow-y: auto;
+  padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.log-card {
+  font-size: 13px; line-height: 1.6;
+  padding: 12px 14px; border-radius: 5px;
+  background: var(--panel2);
+  border-left: 3px solid var(--border);
+}
+.log-card .log-kind {
+  font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 5px;
+}
+.log-card .log-body { color: #c8c6d8; }
+.log-card.lk-strategy { border-left-color: var(--accent); }
+.log-card.lk-strategy .log-kind { color: var(--accent); }
+.log-card.lk-job { border-left-color: var(--purple); }
+.log-card.lk-job .log-kind { color: var(--purple); }
+.log-card.lk-bid { border-left-color: var(--blue); }
+.log-card.lk-bid .log-kind { color: var(--blue); }
+.log-card.lk-scene { border-left-color: var(--green); }
+.log-card.lk-scene .log-kind { color: var(--green); }
+.log-card.current {
+  background: var(--panel3);
+  box-shadow: inset 0 0 0 1px rgba(232,160,48,0.3);
+}
+
+/* mock annotation */
+.mock-note {
+  position: fixed; right: 14px; bottom: 14px;
+  background: rgba(232,160,48,0.95); color: #000;
+  padding: 8px 14px; border-radius: 4px;
+  font-size: 12px; font-weight: 600; max-width: 360px; line-height: 1.4;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  z-index: 99;
+}
+.mock-note small { display: block; font-weight: 400; opacity: 0.75; }
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-thumb { background: #2a2a34; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #40404c; }
+
+/* responsive */
+@media (max-width: 1380px) {
+  .stage-body { grid-template-columns: 1fr; }
+  .visual-panel { order: 0; }
+}
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <a id="topbar-title" href="/">HEIST</a>
+  <span id="job-display">Museum Gala</span>
+  <span id="heat-display">● ●  heat 2</span>
+  <span id="topbar-spacer"></span>
+  <span id="replay-controls">
+    <button class="replay-btn">▶ Play</button>
+    <button class="replay-btn">← Back</button>
+    <button class="replay-btn">Step →</button>
+    <button class="replay-btn">⟲ Reset</button>
+    <span id="replay-counter">14 / 32</span>
+  </span>
+  <span id="status-badge">ON THE WIRE</span>
+</div>
+
+<div id="phasenav">
+  <span class="phase-item phase-done">Hiring</span>
+  <span class="phase-sep">→</span>
+  <span class="phase-item phase-done">Job</span>
+  <span class="phase-sep">→</span>
+  <span class="phase-item phase-active">Heist</span>
+  <span class="phase-sep">→</span>
+  <span class="phase-item">Epilogue</span>
+</div>
+
+<div id="content">
+  <div id="main">
+
+    <div class="timeline">
+      <span class="tl-label">Scenes</span>
+      <span class="tl-dot success"><span class="tl-num">01</span>Approach</span>
+      <span class="tl-sep">·</span>
+      <span class="tl-dot success"><span class="tl-num">02</span>Floor</span>
+      <span class="tl-sep">·</span>
+      <span class="tl-dot active success"><span class="tl-num">03</span>Vault</span>
+      <span class="tl-sep">·</span>
+      <span class="tl-dot"><span class="tl-num">04</span>Decision</span>
+      <span class="tl-sep">·</span>
+      <span class="tl-dot"><span class="tl-num">05</span>Hand-off</span>
+      <span class="tl-sep">·</span>
+      <span class="tl-dot"><span class="tl-num">06</span>Escape</span>
+    </div>
+
+    <div class="stage">
+
+      <div class="scene-head">
+        <span class="scene-title">The Vault Floor</span>
+        <span class="scene-outcome oc-success">Success ✓</span>
+      </div>
+
+      <!-- two-column body: narration LEFT, visual panel RIGHT -->
+      <div class="stage-body">
+
+        <!-- LEFT: narration -->
+        <div class="narration">
+
+          <div class="narration-lead" data-primary="safe">
+            <div class="narration-lead-portrait">S</div>
+            <div class="narration-lead-cap">Sasha</div>
+          </div>
+
+          <p>Sasha knelt by the cold steel face of the vault, the dial cool under her
+          fingertips. The room smelled of dust and old paper. Somewhere far above her,
+          a string quartet eased into the second movement of a Brahms.</p>
+
+          <p class="dialogue">"You're at thirty-eight," Mara murmured in her ear.
+          "Curator just walked into the east hall. You've got maybe four minutes."</p>
+
+          <p>Sasha didn't answer. She didn't need to. The first wheel had already
+          whispered into place; she could feel it, more than hear it. She turned the
+          dial back, slower this time, her breath shallow and even.</p>
+
+          <p>A click. Then another. The third tumbler was always the one that gave
+          people away — they got greedy, leaned in, and the dial caught. Sasha let it
+          breathe. The room held its silence around her like an old, patient friend.</p>
+
+          <p>The handle gave under her palm with a small, dignified sigh. Inside, the
+          coin glass case sat exactly where the schematic said it would: matte black,
+          unremarkable, worth every dollar of the take.</p>
+        </div>
+
+        <!-- RIGHT: visual panel -->
+        <div class="visual-panel">
+
+          <div class="scene-still">
+            <div class="scene-still-vignette"></div>
+            <div class="scene-still-icon">🏛️</div>
+            <div class="scene-still-meta">
+              <div class="scene-still-loc">Museum Gala · Sub-basement</div>
+              <div class="scene-still-title">The Vault Floor</div>
+            </div>
+          </div>
+
+          <!-- cast (4 cards, hiring size) -->
+          <div>
+            <div class="vp-label">Cast</div>
+            <div class="cast-row">
+
+              <div class="cast-card" data-primary="safe">
+                <div class="cc-portrait">S</div>
+                <div class="cc-header">Sasha</div>
+                <div class="cc-info">
+                  <div class="cc-skill"><span class="cc-skill-label">HACK</span>
+                    <div class="cc-skill-bars"><span class="cc-seg f-hack"></span><span class="cc-seg"></span><span class="cc-seg"></span></div>
+                  </div>
+                  <div class="cc-skill"><span class="cc-skill-label">SAFE</span>
+                    <div class="cc-skill-bars"><span class="cc-seg f-safe"></span><span class="cc-seg f-safe"></span><span class="cc-seg f-safe"></span></div>
+                  </div>
+                  <div class="cc-skill"><span class="cc-skill-label">MUSC</span>
+                    <div class="cc-skill-bars"><span class="cc-seg"></span><span class="cc-seg"></span><span class="cc-seg"></span></div>
+                  </div>
+                  <div class="cc-skill"><span class="cc-skill-label">SOC</span>
+                    <div class="cc-skill-bars"><span class="cc-seg"></span><span class="cc-seg"></span><span class="cc-seg"></span></div>
+                  </div>
+                  <div class="cc-skill"><span class="cc-skill-label">DRIVE</span>
+                    <div class="cc-skill-bars"><span class="cc-seg"></span><span class="cc-seg"></span><span class="cc-seg"></span></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="cast-card" data-primary="soc">
+                <div class="cc-portrait">M</div>
+                <div class="cc-header">Mara</div>
+                <div class="cc-info">
+                  <div class="cc-skill"><span class="cc-skill-label">HACK</span>
+                    <div class="cc-skill-bars"><span class="cc-seg f-hack"></span><span class="cc-seg f-hack"></span><span class="cc-seg"></span></div>
+                  </div>
+                  <div class="cc-skill"><span class="cc-skill-label">SAFE</span>
+                    <div class="cc-skill-bars"><span class="cc-seg"></span><span class="cc-seg"></span><span class="cc-seg"></span></div>
+                  </div>
+                  <div class="cc-skill"><span class="cc-skill-label">MUSC</span>
+                    <div class="cc-skill-bars"><span class="cc-seg"></span><span class="cc-seg"></span><span class="cc-seg"></span></div>
+                  </div>
+                  <div class="cc-skill"><span class="cc-skill-label">SOC</span>
+                    <div class="cc-skill-bars"><span class="cc-seg f-soc"></span><span class="cc-seg f-soc"></span><span class="cc-seg f-soc"></span></div>
+                  </div>
+                  <div class="cc-skill"><span class="cc-skill-label">DRIVE</span>
+                    <div class="cc-skill-bars"><span class="cc-seg"></span><span class="cc-seg"></span><span class="cc-seg"></span></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="cast-card" data-primary="drive">
+                <div class="cc-portrait">N</div>
+                <div class="cc-header">Nikola</div>
+                <div class="cc-info">
+                  <div class="cc-skill"><span class="cc-skill-label">HACK</span>
+                    <div class="cc-skill-bars"><span class="cc-seg"></span><span class="cc-seg"></span><span class="cc-seg"></span></div>
+                  </div>
+                  <div class="cc-skill"><span class="cc-skill-label">SAFE</span>
+                    <div class="cc-skill-bars"><span class="cc-seg"></span><span class="cc-seg"></span><span class="cc-seg"></span></div>
+                  </div>
+                  <div class="cc-skill"><span class="cc-skill-label">MUSC</span>
+                    <div class="cc-skill-bars"><span class="cc-seg f-musc"></span><span class="cc-seg"></span><span class="cc-seg"></span></div>
+                  </div>
+                  <div class="cc-skill"><span class="cc-skill-label">SOC</span>
+                    <div class="cc-skill-bars"><span class="cc-seg"></span><span class="cc-seg"></span><span class="cc-seg"></span></div>
+                  </div>
+                  <div class="cc-skill"><span class="cc-skill-label">DRIVE</span>
+                    <div class="cc-skill-bars"><span class="cc-seg f-drive"></span><span class="cc-seg f-drive"></span><span class="cc-seg"></span></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Off-scene: dimmed, no pill -->
+              <div class="cast-card standby" data-primary="hack">
+                <div class="cc-portrait">D</div>
+                <div class="cc-header">Devi</div>
+                <div class="cc-info">
+                  <div class="cc-skill"><span class="cc-skill-label">HACK</span>
+                    <div class="cc-skill-bars"><span class="cc-seg f-hack"></span><span class="cc-seg f-hack"></span><span class="cc-seg f-hack"></span></div>
+                  </div>
+                  <div class="cc-skill"><span class="cc-skill-label">SAFE</span>
+                    <div class="cc-skill-bars"><span class="cc-seg"></span><span class="cc-seg"></span><span class="cc-seg"></span></div>
+                  </div>
+                  <div class="cc-skill"><span class="cc-skill-label">MUSC</span>
+                    <div class="cc-skill-bars"><span class="cc-seg"></span><span class="cc-seg"></span><span class="cc-seg"></span></div>
+                  </div>
+                  <div class="cc-skill"><span class="cc-skill-label">SOC</span>
+                    <div class="cc-skill-bars"><span class="cc-seg f-soc"></span><span class="cc-seg"></span><span class="cc-seg"></span></div>
+                  </div>
+                  <div class="cc-skill"><span class="cc-skill-label">DRIVE</span>
+                    <div class="cc-skill-bars"><span class="cc-seg"></span><span class="cc-seg"></span><span class="cc-seg"></span></div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- challenge -->
+          <div>
+            <div class="vp-label">Challenge</div>
+            <div class="challenge-card">
+              <div class="challenge-icon">SAF</div>
+              <div class="challenge-body">
+                <div class="challenge-head">PHYSICAL</div>
+                <div class="challenge-info">
+                  <div class="challenge-row">
+                    <span class="cr-label">DIFF</span>
+                    <div class="cr-bars">
+                      <span class="cr-seg f-safe"></span>
+                      <span class="cr-seg f-safe"></span>
+                      <span class="cr-seg f-safe"></span>
+                    </div>
+                  </div>
+                  <div class="cr-level">HARD</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="rail">
+    <div class="rail-head">
+      <span class="rail-title">Decision Log</span>
+      <span class="rail-private">Private</span>
+    </div>
+    <div class="rail-list">
+      <div class="log-card lk-scene current">
+        <div class="log-kind">Scene 3 · Why these three</div>
+        <div class="log-body">Sasha takes the dial — only one with the touch for an old Diebold. Mara covers the floor upstairs. Nikola idles the van around the corner so we're not exposed.</div>
+      </div>
+      <div class="log-card lk-scene">
+        <div class="log-kind">Scene 2 · Assigned</div>
+        <div class="log-body">Mara solo — clean walk-through of the patron list.</div>
+      </div>
+      <div class="log-card lk-scene">
+        <div class="log-kind">Scene 1 · Assigned</div>
+        <div class="log-body">Whole crew on the curb. Nikola covers the route in.</div>
+      </div>
+      <div class="log-card lk-job">
+        <div class="log-kind">Job Pick</div>
+        <div class="log-body">Museum Gala — modest reward, low confrontation, plays to our Safecracker strength.</div>
+      </div>
+      <div class="log-card lk-bid">
+        <div class="log-kind">Hired · Sasha</div>
+        <div class="log-body">Only High Safecracker in the roster at our price point. Anchor of the plan.</div>
+      </div>
+      <div class="log-card lk-bid">
+        <div class="log-kind">Hired · Mara</div>
+        <div class="log-body">High Inside Man — needed for the gala social cover.</div>
+      </div>
+      <div class="log-card lk-bid">
+        <div class="log-kind">Hired · Nikola</div>
+        <div class="log-body">Medium Driver, cheap. Gets us out without burning bankroll on a star.</div>
+      </div>
+      <div class="log-card lk-bid">
+        <div class="log-kind">Hired · Devi</div>
+        <div class="log-body">High Hacker for the electronic scenes. Sits this one out — no electronics in play.</div>
+      </div>
+      <div class="log-card lk-strategy">
+        <div class="log-kind">Casting Strategy</div>
+        <div class="log-body">Balanced crew. One Safecracker anchor; cover the social angle; keep a driver for clean exits.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="mock-note">
+  <strong>Mock v4: cast back in the right column, 4 cards at hiring size</strong>
+  <small>Right column widened to 480px so 4 cards fit at the v2/hiring card size. Off-scene member dimmed; no loud pills.</small>
+</div>
+
+</body>
+</html>

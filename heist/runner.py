@@ -258,8 +258,10 @@ def _scene_decision_prompt(scene: Scene) -> str:
 
 def _scene_narrate_prompt(scene: Scene, outcome_summary: str) -> str:
     return (
-        f"Narrate scene {scene.number} ({scene.title}) in 200-400 words. Use the "
-        "characters' voices. The mechanical outcome:\n"
+        f"Narrate scene {scene.number} ({scene.title}) in 100-150 words. "
+        "Keep it tight: short paragraphs, terse dialogue with minimal tags, "
+        "concrete sensory detail over flowery prose. Use the characters' voices. "
+        "The mechanical outcome:\n"
         f"  {outcome_summary}\n\n"
         "Reply with ONLY JSON:\n"
         '{"narration": "<the prose, in markdown, no heading>"}'
