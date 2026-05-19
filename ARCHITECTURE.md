@@ -113,7 +113,7 @@ Net effect: Back is always exactly one stage back, even across phase boundaries 
 
 ### Mockups
 
-`heist/mocks/*.html` are static design references served at `/mocks/<name>`. The heist tab's visual style is ported from `mocks/game.html`.
+`heist/mocks/*.html` are static design references served at `/mocks/<name>`.
 
 ---
 
