@@ -448,8 +448,6 @@
         return c ? Shell.helpers.charCardHtml(c, { noId: true, hideCost: true }) : '';
       }).filter(Boolean).join('');
       charsContent = `<div class="h2-chars">${blocks}</div>`;
-    } else if (!result) {
-      charsContent = `<div class="h2-escape-info" style="font-style:italic">Waiting for crew assignment…</div>`;
     }
     const charsSection = `<div class="h2-section-chars">
       <div class="h2-section-label">Assigned</div>
@@ -504,10 +502,10 @@
     // Narration: literary prose for the scene. Lives in the right half of
     // the scene card (the AI's reasoning for WHO it picked is separate and
     // goes to the "Mind of <AI>" rail).
-    const narrationHtml = result
-      ? (narr ? `<div class="h2-narration">${Shell.helpers.renderMd(narr)}</div>`
-              : '<div class="h2-narrating">Narrating…</div>')
-      : '<div class="h2-narrating">—</div>';
+    // Show as soon as narration arrives — don't gate on result.
+    const narrationHtml = narr
+      ? `<div class="h2-narration">${Shell.helpers.renderMd(narr)}</div>`
+      : '';
 
     card.innerHTML = `
       <div class="h2-head">
