@@ -3,11 +3,11 @@ from heist.state import SkillLevel
 
 
 def test_roster_size_and_uniqueness():
-    assert len(ROSTER) == 15
+    assert len(ROSTER) == 16
     ids = [c.id for c in ROSTER]
-    assert len(set(ids)) == 15
+    assert len(set(ids)) == 16
     names = [c.name for c in ROSTER]
-    assert len(set(names)) == 15
+    assert len(set(names)) == 16
 
 
 def test_roster_by_id_matches():
@@ -29,8 +29,9 @@ def test_total_skill_points_in_range():
         assert 2 <= total <= 4, f"{c.name} has {total} skill points"
 
 
-def test_each_primary_skill_has_three_specialists():
-    """Design note: 3 primaries per skill (15 total)."""
+def test_each_primary_skill_has_at_least_three_specialists():
+    """Each skill needs at least 3 primaries for 2-player collaboration math to work.
+    Roster is 16 chars; muscle has 4 primaries (Vance H, Carla M, Val Cruz M, Big Mike L)."""
     primaries: dict[str, int] = {}
     for c in ROSTER:
         if not c.skills:
@@ -39,7 +40,7 @@ def test_each_primary_skill_has_three_specialists():
         top_skill = max(c.skills.items(), key=lambda kv: int(kv[1]))[0]
         primaries[top_skill] = primaries.get(top_skill, 0) + 1
     for skill in ("hacker", "muscle", "inside_man", "safecracker", "driver"):
-        assert primaries.get(skill, 0) == 3, f"{skill}: {primaries.get(skill, 0)} primaries"
+        assert primaries.get(skill, 0) >= 3, f"{skill}: {primaries.get(skill, 0)} primaries"
 
 
 def test_seven_jobs_present():
@@ -81,13 +82,13 @@ def test_job_slate_has_difficulty_spread():
 
 
 # Note: the design doc's "Inside Man has no Low option — premium skill" comment
-# contradicts the roster table itself, which lists Low Inside Man on Eli "Owl" Park
-# (id 3) and Margot Vinter (id 14) as a secondary skill. We preserve the table as
-# authoritative; this test pins the contradiction so it surfaces if the doc gets
-# reconciled later.
-def test_low_inside_man_only_on_eli_and_margot():
+# contradicts the roster table itself, which lists Low Inside Man on several characters
+# as a secondary skill. We preserve the table as authoritative; this test pins the
+# current set so it surfaces if membership changes unexpectedly.
+# Current LOW inside_man holders: Eli (3), Big Mike (6), Margot (14), Val Cruz (16).
+def test_low_inside_man_holders():
     low_inside_ids = sorted(
         c.id for c in ROSTER
         if c.skills.get("inside_man", SkillLevel.NONE) == SkillLevel.LOW
     )
-    assert low_inside_ids == [3, 6, 14]
+    assert low_inside_ids == [3, 6, 14, 16]

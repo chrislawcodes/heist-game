@@ -390,8 +390,8 @@ ROSTER: list[Character] = [
     Character(
         id=12,
         name="Nestor Bly",
-        skills={"safecracker": L, "hacker": L},
-        floor_cost=200,
+        skills={"safecracker": M, "hacker": L},
+        floor_cost=400,
         backstory=(
             "Career safecracker out of Philadelphia who never quite made it to first chair, "
             "did time in '03 for a botched mall job, picked up enough hacking in the federal "
@@ -493,8 +493,8 @@ ROSTER: list[Character] = [
     Character(
         id=15,
         name="Dex Owusu",
-        skills={"driver": L, "muscle": L},
-        floor_cost=200,
+        skills={"driver": M, "muscle": L},
+        floor_cost=400,
         backstory=(
             "Grew up in the Bronx, son of Ghanaian immigrants. Worked maintenance at a city "
             "bus depot for six years; learned mechanical work and pulled a couple of side gigs "
@@ -521,6 +521,46 @@ ROSTER: list[Character] = [
             "Work gloves tucked into a back pocket. Neutral expression, slight nod."
         ),
         signature_line='"Lord have mercy. Where do you want it?"',
+    ),
+    Character(
+        id=16,
+        name='Valentina "Val" Cruz',
+        skills={"muscle": M, "inside_man": L},
+        floor_cost=400,
+        backstory=(
+            "Eight years as a Cook County corrections officer in Chicago — knew every shift "
+            "pattern, every blind spot, every guard who'd look the other way for the right "
+            "story. Left after a use-of-force review that went nowhere. Does asset recovery "
+            "now, which is a polite way of saying she takes things back from people who "
+            "don't want to give them."
+        ),
+        voice=(
+            "Flat Chicago working-class. Short sentences. Doesn't explain herself twice. "
+            "When she laughs it surprises people — loud and genuine, gone in a second."
+        ),
+        motivation=(
+            "Supporting her mother and two younger sisters after her father's deportation. "
+            "The repo work pays well. She doesn't think too hard about the rest."
+        ),
+        quirk=(
+            "Scopes every room for the two exits and the one person who looks like trouble. "
+            "Ranks them in her head before she's taken her coat off."
+        ),
+        crew_dynamic=(
+            "Calm under pressure in a way that unnerves people who don't know her. "
+            "The crew trusts her immediately. She takes longer to trust the crew."
+        ),
+        weakness=(
+            "Corrections background means she reads people in authority as a known quantity "
+            "— and occasionally underestimates the ones who don't fit the profile."
+        ),
+        look=(
+            "Puerto Rican-American woman in her mid-thirties: dark hair pulled back tight, "
+            "strong build, a small scar on her chin. Plain dark jacket over a fitted "
+            "turtleneck. Arms at her sides, weight slightly forward. Still in the way "
+            "that means she's about to move."
+        ),
+        signature_line='"I\'ve been on the other side of this door. Trust me."',
     ),
 ]
 
