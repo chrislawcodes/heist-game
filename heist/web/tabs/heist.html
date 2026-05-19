@@ -59,6 +59,11 @@
   background: var(--panel); border: 1px solid var(--border);
   border-radius: 10px; overflow: hidden;
   animation: h2CardIn 0.4s ease;
+  /* The scenes panel is a column flex container. Without this, multiple
+     expanded cards get shrunk to fit and their bodies get clipped at the
+     bottom (cuts off the challenge card). Keep each card at its natural
+     height; the panel scrolls (overflow-y:auto) to show all. */
+  flex-shrink: 0;
 }
 @keyframes h2CardIn {
   from { opacity: 0; transform: translateY(8px); }
