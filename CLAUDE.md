@@ -25,24 +25,68 @@ A single-player (Phase 1) → multiplayer (Phase 2+) AI heist game. The player w
 
 **Phase 1** — single player, single job. See `heist_game_design.md` § "Phase 1" for full spec.
 
-## Server — One Canonical Instance
+## Production vs Staging Servers
 
-**Do not start a server from a worktree.** One server runs from `main` on port 8000.
-Worktrees exist to edit code, not to run servers.
+Two long-running servers, mapped to two git branches:
+
+| Port | Branch  | Source on disk                                | Purpose |
+|------|---------|-----------------------------------------------|---------|
+| 8000 | `main`  | `/Users/chrislaw/heist-game`                  | Production — what's shipped. Updates on `git pull`. |
+| 8001 | `staging` | `.claude/worktrees/staging/`                | Staging — `main` + every in-flight feature merged together. |
+
+### Hard rule
+
+**The main repo directory (`/Users/chrislaw/heist-game`) stays on `main`
+forever.** Never `git checkout -b feat/whatever` there. All feature work
+happens in worktrees under `.claude/worktrees/<name>/`.
+
+### Production (port 8000)
 
 ```bash
-# Start once from main, leave running
-python -m heist serve
+cd /Users/chrislaw/heist-game
+python -m heist serve            # leave running
 
-# Preview a worktree's frontend changes against the running server
-python -m heist serve --web-dir .claude/worktrees/WORKTREE_NAME/heist
-
-# Test backend (Python) changes from a worktree on a separate port
-python -m heist serve --port 8001 --web-dir .claude/worktrees/WORKTREE_NAME/heist
+# When a PR merges, refresh:
+git pull                         # server reads HTML fresh on every request
 ```
 
-`--web-dir` points at the `heist/` subdirectory of any worktree. Game state in
-`state/games/` is shared across all instances regardless of `--web-dir`.
+### Feature work
+
+```bash
+# Start a new feature
+cd /Users/chrislaw/heist-game
+git worktree add .claude/worktrees/<name> -b feat/<name>
+
+# Then cd into the worktree to edit
+cd .claude/worktrees/<name>
+# ...edit, commit, push, PR
+```
+
+### Staging (port 8001)
+
+The `staging` branch is **disposable** — never PR from it. It's regenerated
+on demand from `main` + each branch listed in `.claude/staging-branches.txt`.
+
+```bash
+# Start the staging server (once)
+cd /Users/chrislaw/heist-game
+python -m heist serve --port 8001 --web-dir .claude/worktrees/staging/heist
+
+# Refresh staging whenever you want 8001 to reflect your latest feature work
+.claude/scripts/refresh-staging.sh
+```
+
+`refresh-staging.sh` resets the staging worktree to `origin/main`, then merges
+every branch in `.claude/staging-branches.txt`. Stops on the first conflict so
+you can resolve it in the staging worktree without polluting any feature
+branch. When a feature ships to `main`, delete its line from
+`.claude/staging-branches.txt`.
+
+### Game state is shared
+
+All servers (production, staging, any `--web-dir` previews) read/write
+`state/games/` from the same place. A game launched on 8001 shows up in 8000's
+lobby and vice versa.
 
 ## UI Mockups
 
