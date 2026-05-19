@@ -149,10 +149,13 @@ function _isVisibleEvent(e) {
 }
 
 // ── stage helpers ─────────────────────────────────────────────────────────────
-// A "stage" is the Nth visible event in each AI's stream. Stages are common
-// across AIs: pressing Step advances every AI by one event. An AI that's
-// shorter than the global total stays frozen at its final state.
+// A "stage" is one visible event in the buffer, counted globally (not per-AI).
+// Step advances by 1 visible event; Back rewinds by 1. Multi-AI events
+// interleave in the buffer in the order the runner emitted them, so each
+// stage = exactly one DOM-affecting thing happens.
 function _computeVisibleByAI() {
+  // Kept for backwards compat (the AI picker uses it indirectly via stage
+  // helpers below); rebuilt now as a simple index→AI lookup.
   _visibleByAI = {};
   _REPLAY_EVENTS.forEach((evt, i) => {
     if (!_isVisibleEvent(evt)) return;
@@ -162,31 +165,32 @@ function _computeVisibleByAI() {
   });
 }
 function _totalStages() {
-  let max = 0;
-  for (const arr of Object.values(_visibleByAI)) {
-    if (arr.length > max) max = arr.length;
+  let n = 0;
+  for (let i = 0; i < _REPLAY_EVENTS.length; i++) {
+    if (_isVisibleEvent(_REPLAY_EVENTS[i])) n++;
   }
-  return max;
+  return n;
 }
 function _currentStage() {
-  // How many visible events of the slowest-progressing AI are already processed
-  let max = 0;
-  for (const arr of Object.values(_visibleByAI)) {
-    let n = 0;
-    for (const idx of arr) { if (idx >= _REPLAY_INDEX) break; n++; }
-    if (n > max) max = n;
+  let n = 0;
+  const cap = Math.min(_REPLAY_INDEX, _REPLAY_EVENTS.length);
+  for (let i = 0; i < cap; i++) {
+    if (_isVisibleEvent(_REPLAY_EVENTS[i])) n++;
   }
-  return max;
+  return n;
 }
+// Buffer index right after the Nth visible event in the whole buffer.
+// Used by Step/Back/_jumpToStage to set _REPLAY_INDEX precisely.
 function _bufferIndexAfterStage(stage) {
-  // Buffer index right after stage `stage`'s events for every AI
-  let max = 0;
-  for (const arr of Object.values(_visibleByAI)) {
-    if (arr.length === 0) continue;
-    const i = arr[Math.min(stage - 1, arr.length - 1)];
-    if (i + 1 > max) max = i + 1;
+  if (stage <= 0) return 0;
+  let n = 0;
+  for (let i = 0; i < _REPLAY_EVENTS.length; i++) {
+    if (_isVisibleEvent(_REPLAY_EVENTS[i])) {
+      n++;
+      if (n === stage) return i + 1;
+    }
   }
-  return max;
+  return _REPLAY_EVENTS.length;
 }
 
 // ── replay controls ───────────────────────────────────────────────────────────
@@ -367,7 +371,6 @@ function _phaseEndStage(phase) {
 // to this stage on load so the user starts at their phase, not at the bid.
 function _phaseStartStage(phase) {
   if (phase === 'hiring') return 1;
-  const arr0 = _visibleByAI[0] || [];
   let pred;
   // /job opens BEFORE the AI's pick lands — at casting_summary — so the user
   // sees the full job slate first and watches the AI choose.
@@ -375,8 +378,13 @@ function _phaseStartStage(phase) {
   else if (phase === 'heist')    pred = e => e.type === 'scene_start';
   else if (phase === 'epilogue') pred = e => e.type === 'game_done';
   else return 1;
-  for (let i = 0; i < arr0.length; i++) {
-    if (pred(_REPLAY_EVENTS[arr0[i]])) return i + 1;
+  // Scan the full buffer in order; first visible event matching pred
+  // (across any AI) is the phase boundary.
+  let n = 0;
+  for (let i = 0; i < _REPLAY_EVENTS.length; i++) {
+    if (!_isVisibleEvent(_REPLAY_EVENTS[i])) continue;
+    n++;
+    if (pred(_REPLAY_EVENTS[i])) return n;
   }
   return null;
 }
