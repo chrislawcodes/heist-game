@@ -675,19 +675,21 @@
     const ghost = sourceEl.cloneNode(true);
     ghost.classList.add('hr-fly-ghost');
     ghost.classList.remove('is-leaving', 'is-entering');
-    ghost.style.visibility = 'visible';   // source was hidden; the clone must show
-    ghost.style.cssText +=
+    // Start the clone exactly over the source, with transform:none committed.
+    ghost.style.cssText =
       `position:fixed;left:${fromRect.left}px;top:${fromRect.top}px;` +
       `width:${fromRect.width}px;height:${fromRect.height}px;margin:0;` +
-      `z-index:9999;pointer-events:none;` +
+      `z-index:9999;pointer-events:none;visibility:visible;` +
+      `transform:translate(0px,0px);` +
       `transition:transform ${MOVE_MS}ms cubic-bezier(0.34,0.8,0.3,1);`;
     document.body.appendChild(ghost);
     _ghosts.push(ghost);
     const dx = toRect.left - fromRect.left;
     const dy = toRect.top - fromRect.top;
-    requestAnimationFrame(() => {
-      ghost.style.transform = `translate(${dx}px, ${dy}px)`;
-    });
+    // Force the browser to commit the start frame BEFORE changing transform,
+    // otherwise both states coalesce into one paint and the card just jumps.
+    void ghost.offsetWidth;
+    ghost.style.transform = `translate(${dx}px, ${dy}px)`;
     setTimeout(() => {
       if (onLand) onLand();          // real card renders into the slot
       ghost.remove();                // swap out the clone
