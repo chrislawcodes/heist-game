@@ -317,23 +317,6 @@
   text-transform: uppercase;
   flex-shrink: 0;
 }
-.hiring-root .hr-bankroll {
-  width: 100%;
-  height: 8px;
-  border-radius: 999px;
-  overflow: hidden;
-  background: rgba(255,255,255,0.06);
-}
-.hiring-root .hr-bankroll-fill {
-  height: 100%;
-  width: 0%;
-  border-radius: 999px;
-  background: var(--crew-color);
-  transition: width 0.35s ease, opacity 0.35s ease;
-}
-.hiring-root .hr-bankroll-fill.is-reserved {
-  opacity: 0.42;
-}
 
 .hiring-root .hr-crew-slots {
   display: grid;
@@ -761,7 +744,6 @@
     const spent = (spentByAI[ai.idx] != null)
       ? meterSpend(ai.idx)
       : crewKnownByAI.has(ai.idx) ? finalSpend(ai.idx) : reservedSpend(ai.idx);
-    const pct = Math.max(0, Math.min(100, Math.round((spent / BANKROLL) * 100)));
     const slots = [];
 
     members.forEach(member => {
@@ -781,11 +763,8 @@
           <span class="hr-crew-name">${Shell.helpers.escapeHtml(ai.label)}</span>
         </div>
         <div class="hr-crew-meta">
-          <span class="hr-bankroll-text">$${Number(spent).toLocaleString()} / $${BANKROLL.toLocaleString()}</span>
+          <span class="hr-bankroll-text">$${Number(spent).toLocaleString()} bid of $${BANKROLL.toLocaleString()} total</span>
           ${done ? '<span class="hr-done-pill">DONE</span>' : ''}
-        </div>
-        <div class="hr-bankroll" aria-label="Bankroll meter">
-          <div class="hr-bankroll-fill${crewKnownByAI.has(ai.idx) ? '' : ' is-reserved'}" style="width:${pct}%;"></div>
         </div>
       </div>
       <div class="hr-crew-slots">${slots.join('')}</div>
