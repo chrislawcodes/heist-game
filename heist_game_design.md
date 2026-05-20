@@ -71,6 +71,10 @@ The crew's effective level in a category is the highest skill level any crew mem
 
 **Hard challenges require High skill.** Medium and below cannot beat Hard.
 
+*(Phases 1-3. **Phase 4 replaces this binary bucket comparison with a true-score
+contest under hidden information** — a published "High" can lose to a "Hard"
+depending on the fogged 1-10 scores. See Phase 4.)*
+
 ### Collaboration
 
 Two characters with skill in the same category act at one level higher than the higher of them, capped at High.
@@ -439,48 +443,227 @@ helper functions that are unit-tested independently.
 
 ## Phase 3 — Multi-job campaigns
 
-**Goal:** Turn the game into a heist saga.
+**Goal:** Turn the game into a heist saga — a sequence of jobs where the crew
+you build, the money you bank, and the heat you draw all carry forward.
 
-- Larger crews (6-8 drafted, 4 per job)
-- Heist AI selects which 4 go on each job
-- 3-5 jobs per game
-- Character persistence between jobs
-- Bankroll persists; loot accumulates
-- Heat-as-campaign mechanic
+**Status:** Designed, not built. Implementation is planned but deferred (see
+"Phasing" below). The hidden-information / scouting layer that pairs with the
+heat mechanic lands in **Phase 4**.
+
+### The campaign loop
+
+A campaign is **10 rounds**. Each round is one heist. Between rounds, state
+persists:
+
+- **Standing crew.** You draft a crew **once**, at the start of the campaign,
+  and keep it across all 10 rounds. Crew are lost to capture (below) and
+  re-hired from accumulated loot. This is what makes 10 rounds a *saga* and not
+  10 disconnected heists. (Chose this over "re-draft fresh each round.")
+- **Bankroll & loot.** Bankroll persists; successful takes accumulate. Loot
+  funds re-hiring and, campaign-permitting, upgrading the crew between rounds.
+- **Notoriety (campaign heat).** A slow-burn track, distinct from in-heist
+  heat — see "Heat across a campaign" below.
+
+**Player intent (MVP):** one campaign-level strategy prompt up front. The Heist
+AI auto-pilots all 10 rounds — picking the job, assigning crew, making in-scene
+calls — against that single prompt. A per-round "adjust orders" step is a
+post-MVP option.
+
+**Win condition:** survive 10 rounds; score by total loot banked. The campaign
+can **end early** on a full crew wipe or bankruptcy (can't afford to field a
+crew).
+
+### Standing crew & attrition
+
+The standing-crew model needs a crew-loss mechanic, which falls out of the
+existing escape resolution — no new system required:
+
+- **Failed escape → capture.** A failed escape (the per-heist knife edge —
+  below) means the crew on the getaway are caught and removed from the standing
+  crew. This finally gives a blown escape *lasting* teeth.
+- **Re-hire from loot.** Between rounds, accumulated loot backfills losses and
+  replaces specialists.
+- The chain: messy job → notoriety ↑ and/or failed escape → crew captured →
+  re-hire from loot → next round.
+
+### Heat across a campaign
+
+In-heist heat is a knife edge and must stay one. The escape math
+(`escape difficulty = escape_modifier + heat`, against a Driver skill that caps
+at 3) leaves almost no headroom:
+
+| Best driver | Job mod 1 | Job mod 2 |
+|---|---|---|
+| High (3)       | survives heat ≤ 2 | survives heat ≤ 1 |
+| Medium (2)     | survives heat ≤ 1 | only heat 0 |
+| Low / none (1) | only heat 0 | fails even at heat 0 |
+
+So **persistent heat must never touch the escape roll** — carrying even 1 heat
+into the next round as a flat escape tax would death-spiral the campaign. (Do
+not re-propose an escape tax; this table is why.)
+
+Instead, campaign heat is **notoriety** — a threshold track that pressures the
+*world around* the next heist, never the escape dice:
+
+| Notoriety | Effect (none of it touches escape math) |
+|---|---|
+| Low (0-2)     | Normal. Full slate, normal crew prices. |
+| Medium (3-5)  | High-value jobs pulled from the slate; crew floor costs rise. |
+| High (6-8)    | Between rounds, a crew member is picked up — a second attrition source. |
+| Critical (9+) | A raid: forced lie-low round or campaign over. |
+
+- **Generation:** a round's in-heist heat (how loud the job was) rolls up into
+  notoriety.
+- **Bleed:** notoriety decays each quiet round. A clean job cools you off; a
+  messy one spikes you.
+- **Why it works with one prompt:** the Heist AI picks the job each round. Feed
+  it current notoriety and a hot campaign naturally steers it toward quieter,
+  lower-value jobs to cool down — the strategic loop emerges from per-round
+  picks even though the player prompted once.
+
+In-heist heat is unchanged from Phases 1-2 (accumulates from non-core failures,
+affects only that heist's escape). Notoriety sits above it; the two tracks are
+distinct.
+
+Open tuning knobs (settle against a stub campaign): threshold boundaries
+(3/6/9?), decay rate (−1 to −2 per quiet round?), and whether a *successful*
+high-value heist also raises notoriety.
+
+### Job slate over a campaign
+
+Locked principle: jobs don't repeat once attempted. 10 rounds therefore needs a
+**pool larger than the slate** (~12-15 jobs). Each round shows a rolling slate
+(e.g. 3) drawn from the pool minus anything already attempted — so fresh jobs
+"come up" each round. Notoriety gates the slate (high notoriety pulls the
+high-value jobs). Job **tiers** (low-tier early, high-tier unlocked later) keep
+round 10 from feeling like round 1 — tiers are a post-MVP polish.
+
+### Forward-compatibility seam for Phase 4
+
+When the campaign is built, **store a 1-10 score for every skill and challenge
+in the data model and derive the Low/Med/High buckets from it.** Resolution in
+Phases 1-3 keeps using the bucket (identical behavior today). This makes Phase
+4's hidden-score / scouting layer a *reveal* feature on existing data rather
+than a schema migration plus re-authoring of all 16 characters and the job
+pool. Cheap now, saves real pain later. (See Phase 4.)
+
+### Phasing (when we build it)
+
+| Phase | Ships | Verified by |
+|---|---|---|
+| **3a — Campaign core** | `Campaign` state; settle-round (bank loot, notoriety gen/decay, capture, re-hire, early-end); split `run_heist` into draft-once + run-one-job; `run_campaign` loop; CLI `run-campaign --agent stub` | Unit tests + a full 10-round stub campaign in the terminal |
+| **3b — Job pool** | Expand pool to ~12-15; per-round rolling slate; notoriety-gated availability | Stub campaign: no attempted-job repeats, real choice each round |
+| **3c — Persistence/resume** | Round-aware snapshots; campaign-level game record; mid-campaign recovery | Kill server mid-round, restart, campaign continues |
+| **3d — UI** | Persistent campaign HUD (round X/10, bankroll, loot, crew, notoriety); loop job→heist→round-summary ×10; round-aware nav/replay; round-summary + campaign-epilogue pages | Watch/replay a full campaign in the browser |
+| **3e — Escalation (post-MVP)** | Job tiers; between-round re-prompt; notoriety-threshold polish; richer capture flavor | — |
+
+Ordering de-risks the architecture before the UI/content spend: 3a is the
+keystone (the campaign state object + the draft-once/run-many split). 3b can run
+alongside 3a (content vs. plumbing). 3c precedes 3d because the UI consumes the
+round-tagged event stream 3c finalizes. A 10-round run is ~30-90 min of wall
+clock (15-20 sequential AI calls per round at ~10s pacing), so 3c (resume) and
+the replay model are load-bearing, not optional.
 
 ---
 
 ## Phase 4 — Hidden location info & scouting
 
-**Goal:** Give the player real intelligence work to do before the heist. Today
-the full job slate is laid bare — profile, escape modifier, reward range,
-hidden depth pool. That's a lot of free signal. In Phase 4 the player starts
-each location knowing **one** piece of information; everything else is fogged
-until they pay to learn it.
+**Goal:** Give the player real intelligence work, and make the heat mechanic
+bite. Today the whole slate is laid bare — profile, escape modifier, reward
+range, hidden-depth pool. Phase 4 fogs the precise numbers and lets the player
+pay to learn them. This is the planned counterweight to the steep heat cascade
+(MEMORY): scouting is how a smart player de-risks before committing.
 
-This is also the planned counterweight to the heat cascade (which is
-intentionally steep at +1 difficulty per suspicion — see MEMORY). Scouting
-is how a smart player de-risks before they commit.
+**Status:** Designed, not built. Ships *after* Phase 3. Score-based resolution
+and scouting are a **single package** — see "Why they ship together."
 
-**Sketch (details TBD):**
+### Hidden scores under public buckets
 
-- Each location surfaces a single seed fact on the slate (e.g. just the
-  reward range, or just one challenge type). The rest of the profile, the
-  escape modifier, and the hidden-depth pool are hidden until scouted.
-- Scouting is a pre-heist action: the player picks which locations to scout
-  and which dimensions to probe. Each scout has a cost (money, time, or
-  crew action) and may itself be risky (heat, exposure, false reads).
-- The Heist AI's job-pick prompt operates on the *known* slice plus
-  whatever was scouted — so picking the right thing to scout is itself a
-  strategic decision.
+Every skill and every challenge has a true **1-10 score**; only its **bucket**
+is published:
 
-To be designed:
+- Skills: `0 = None, 1-3 = Low, 4-6 = Med, 7-10 = High` (boundaries tunable).
+- Challenges: `0 = None, 1-3 = Low, 4-6 = Medium, 7-10 = Hard`.
 
-- Cost model for scouting (flat fee? per-dimension? crew-skill-gated?)
-- Reliability (do scouts ever return wrong info?)
-- How heat from scouting interacts with the main heist's heat track
-- UI affordances on the lobby / setup screen for browsing the partially-
-  known slate and queuing scouts
+So a published "High" safecracker could be a 7 or a 10; a "Hard" vault could be
+a 7 or a 9. **The bucket becomes an estimate, not a contract.**
+
+### Resolution (option A — true scores decide)
+
+Resolution reads the true scores and stays **fully deterministic**:
+
+> `effective_skill_score ≥ challenge_score → success`
+
+All the uncertainty is in the *inputs*, not in dice. The outcome is fixed the
+moment scores are set; the player simply doesn't *know* it until they scout or
+attempt. This preserves "the system owns deterministic mechanics" while
+delivering the fog, and makes scouting a clean act of **buying down uncertainty
+about a fixed answer**.
+
+Consequence: a published "High" (true 7) can *lose* to a "Hard" (true 9), and a
+"High" (10) beats a "Hard" (7). This **supersedes two Phase 1-3 locked rules** —
+"Skill ≥ Challenge → Success" (now score-vs-score) and "Hard requires High"
+(now depends on the true numbers). Recorded here deliberately; the locked list
+in "Core mechanics" remains true for Phases 1-3.
+
+Balancing lever: a fully-scouted player has perfect information, so scouting
+must cost enough (money / time / heat) that buying perfect info is rarely worth
+it.
+
+### The reveal ladder ("the more you scout, the more you get")
+
+Scouting is a dial, not a switch:
+
+| Tier | What you learn | Cost |
+|---|---|---|
+| **0 — published** | The bucket | free |
+| **1 — light scout** | Narrowed range ("this Hard is 7-8") | cheap |
+| **2 — deep scout** | The exact number | dear |
+| **(optional)** | Which hidden-depth complication is loaded; the true reward amount | per-dimension |
+
+The player chooses *which dimension* to probe and *how deep* — that choice is
+itself the strategic act Phase 4 is built around.
+
+### Why scoring & scouting ship together
+
+The moment buckets can lie (option A), the player **must** have a way to buy
+down the uncertainty, or failures feel arbitrary — violating the locked
+"adversity must feel fair" principle. So score-based resolution cannot ship
+without scouting, and scouting is pointless without scores that matter. One
+package.
+
+### Scouting as heat insurance
+
+This is the loop that makes scouting worth paying for, and the reason the heat
+mechanic and the hidden-info layer belong together:
+
+```
+scout → learn true scores → take jobs/crew with comfortable margins →
+clean runs → low heat/notoriety → safe campaign
+
+fly blind → trust the buckets → your "High" was a 7 → thin/failed run →
+heat spike → notoriety climbs
+```
+
+Given in-heist heat is a knife edge (~1-2 points of escape headroom), scouting
+is the disciplined player's edge: pay to find out *before* committing which
+"doable" jobs are actually quiet and which buckets hide a bad matchup.
+
+### To (re)define when Phase 4 is built
+
+- **Collaboration on 1-10** (today: best bucket +1, capped High). Needs a
+  points rule — e.g. best score + a fixed bonus, capped at 10 — so two Mediums
+  *might* clear a Hard depending on the true numbers.
+- **Viability heuristic** (`job_is_viable`): stays bucket-based as a "this looks
+  attemptable" hint for the AI's job pick; true resolution uses scores.
+- **When challenge scores roll:** character skill scores are fixed traits (a
+  character *is* a Med-5 hacker); challenge scores roll per job-play, like
+  hidden depth — fresh fog each attempt.
+- **Scout cost model** (flat fee? per-dimension? crew-skill-gated?),
+  **reliability** (do scouts ever return wrong info?), and how a scout's own
+  heat interacts with the notoriety track.
+- **UI affordances** on the lobby / setup screen for browsing the partially-
+  known slate and queuing scouts.
 
 ---
 
@@ -559,8 +742,13 @@ Phase 1 is feature-complete. Every previously-open item is built and shipped:
 ### Later phases
 
 - Phase 2 player count, contention specifics
-- Phase 3 crew size, jobs per game, heat mechanic
-- Phase 4 cop budget, investigation mechanics
+- Phase 3 campaign — **designed** (standing crew, notoriety, rolling slate, 10
+  rounds; see Phase 3). Open tuning: notoriety thresholds/decay, slate size,
+  whether a successful high-value heist also raises notoriety, job tiers.
+- Phase 4 scouting — **designed** (1-10 scores under buckets, true-score
+  resolution, reveal ladder; see Phase 4). Open: collaboration math on 1-10,
+  scout cost model & reliability, scouting's heat interaction.
+- Phase 5 cop budget, investigation mechanics
 
 ---
 
@@ -600,7 +788,22 @@ Build small, build fast, run many times. Tune the prompt across many runs.
 
 ## Change history
 
-**Current revision** — Single Heist AI agent handles all creative decisions (drafting, job selection, scene assignments, in-scene decisions, narration). System owns all deterministic logic (bid validation, skill resolution, hidden depth rolls, scene order, state tracking, reward calc). Scene loop architecture: system presents each scene; Heist AI assigns and narrates; system resolves. Player input simplified to strategy prompt only — no bid allocation.
+**Current revision** — Documented Phase 3 (multi-round campaign) and expanded
+Phase 4 (scouting / hidden info). Design only — not built. Phase 3: a 10-round
+saga with a standing crew (drafted once, lost to capture, re-hired from loot),
+accumulating bankroll/loot, and **notoriety** — a campaign-heat track that
+pressures the world (job slate, crew prices, between-round attrition) and never
+touches the knife-edge escape roll. Rolling job slate from a larger pool; one
+upfront strategy prompt for MVP; win = survive 10 rounds, score by loot banked.
+Includes a 3a-3e phasing plan and the forward-compat seam (store 1-10 skill/
+challenge scores in Phase 3, resolve on buckets). Phase 4: hidden 1-10 scores
+under public Low/Med/High buckets, deterministic true-score resolution (option
+A — buckets become estimates, not contracts), a graduated scouting reveal
+ladder, scoring+scouting shipping as one package, and the scouting-as-heat-
+insurance loop. Phase 4 supersedes the Phase 1-3 "Hard requires High" /
+"Skill ≥ Challenge → Success" rules.
+
+**Earlier revision** — Single Heist AI agent handles all creative decisions (drafting, job selection, scene assignments, in-scene decisions, narration). System owns all deterministic logic (bid validation, skill resolution, hidden depth rolls, scene order, state tracking, reward calc). Scene loop architecture: system presents each scene; Heist AI assigns and narrates; system resolves. Player input simplified to strategy prompt only — no bid allocation.
 
 **Earlier revision** — Two-AI architecture (casting + planning + execution). Player submitted prompt and bids.
 
