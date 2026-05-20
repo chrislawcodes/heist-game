@@ -18,7 +18,7 @@ MUSEUM = Job(
         "confrontation": ChallengeLevel.LOW,
         "social": ChallengeLevel.HARD,
     },
-    escape_modifier=0,
+    escape_modifier=1,
     hidden_depth=[
         HiddenDepthElement(
             "museum_display_case",
@@ -82,7 +82,7 @@ ARMORED_CAR = Job(
         "confrontation": ChallengeLevel.HARD,
         "social": ChallengeLevel.NONE,
     },
-    escape_modifier=0,
+    escape_modifier=2,
     hidden_depth=[
         HiddenDepthElement(
             "armored_third_guard",
@@ -145,7 +145,7 @@ SERVER_FARM = Job(
         "confrontation": ChallengeLevel.LOW,
         "social": ChallengeLevel.MEDIUM,
     },
-    escape_modifier=0,
+    escape_modifier=1,
     hidden_depth=[
         HiddenDepthElement(
             "server_late_team",
@@ -209,7 +209,7 @@ PENTHOUSE = Job(
         "confrontation": ChallengeLevel.NONE,
         "social": ChallengeLevel.LOW,
     },
-    escape_modifier=0,
+    escape_modifier=0,  # residential building, walk out the lobby
     hidden_depth=[
         HiddenDepthElement(
             "penthouse_cleaning_crew",
@@ -268,7 +268,7 @@ CARGO_YARD = Job(
         "confrontation": ChallengeLevel.MEDIUM,
         "social": ChallengeLevel.NONE,
     },
-    escape_modifier=0,
+    escape_modifier=0,  # open industrial yard, dark, multiple vehicle routes
     hidden_depth=[
         HiddenDepthElement(
             "cargo_customs_inspector",
@@ -327,7 +327,7 @@ DIPLOMATIC_RECEPTION = Job(
         "confrontation": ChallengeLevel.LOW,
         "social": ChallengeLevel.HARD,
     },
-    escape_modifier=0,
+    escape_modifier=1,
     hidden_depth=[
         HiddenDepthElement(
             "diplomatic_dummy_diamond",
@@ -386,7 +386,7 @@ CASINO_VAULT = Job(
         "confrontation": ChallengeLevel.MEDIUM,
         "social": ChallengeLevel.MEDIUM,
     },
-    escape_modifier=0,
+    escape_modifier=2,
     hidden_depth=[
         HiddenDepthElement(
             "casino_floor_distraction",

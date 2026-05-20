@@ -240,7 +240,7 @@ With $2000 budget and the pricing:
 
 **Reward:** $1.5M – $4M
 **Profile:** Electronic Medium | Physical Hard | Confrontation Low | Social Hard
-**Escape modifier:** None
+**Escape modifier:** 1 — event venue with cameras and security; 300 guests provide cover but exits are watched
 
 A black-tie charity gala at the city's biggest art museum. The Renaissance wing is being feted with a one-night exhibition, and the centerpiece is a diamond on loan from a Saudi prince. The vault is state-of-the-art. The gala is packed with guests, photographers, and event security — blending in is the whole challenge.
 
@@ -263,7 +263,7 @@ A black-tie charity gala at the city's biggest art museum. The Renaissance wing 
 
 **Reward:** $800K – $2M
 **Profile:** Electronic Low | Physical Medium | Confrontation Hard | Social None
-**Escape modifier:** None
+**Escape modifier:** 2 — police pursuit is essentially guaranteed before the job is done
 
 Weekly cash transfer between bank branches. Two armed guards in the cab, one in back. The truck is a moving vault. No cameras, no witnesses on the right stretch of road. Guards are trained, armed, and expect trouble.
 
@@ -286,7 +286,7 @@ Weekly cash transfer between bank branches. Two armed guards in the cab, one in 
 
 **Reward:** $3M – $8M (industrial espionage)
 **Profile:** Electronic Hard | Physical Medium | Confrontation Low | Social Medium
-**Escape modifier:** None
+**Escape modifier:** 1 — corporate campus can lock down exits on alarm
 
 A pharmaceutical company's research server room. The target is the formula on the servers. Building layered with electronic security: biometric locks, face recognition, network intrusion detection. The server room has a significant physical lock. Two perimeter guards.
 
