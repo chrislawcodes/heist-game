@@ -263,6 +263,11 @@ const Shell = {
   unlockTab()         { /* no-op in multi-page architecture */ },
   addThought(aiIdx, kind, title, bodyHtml, opts) { _addThought(aiIdx, kind, title, bodyHtml, opts); },
   markHired(aiIdx, charId) { _markHired(aiIdx, charId); },
+  // Called by HiringTab when each bid chip starts flying (stagger is owned by the
+  // hiring tab; shell renders the card at that exact moment for sync).
+  bidChipFired(aiIdx, charId, amount, rationale) { _bidChipFired(aiIdx, charId, amount, rationale); },
+  // Called by HiringTab when auction_round_resolved marks a bid won/failed.
+  markBidResult(aiIdx, charId, result) { _markBidResult(aiIdx, charId, result); },
   onAISelected(cb) { _aiSubscribers.push(cb); },
 
 };
@@ -279,7 +284,6 @@ let _REPLAY_INDEX  = 0;
 let _REPLAY_TIMER  = null;
 let _reviewMode    = false;  // true → fast-forward all events instantly, no animation
 let _visibleByAI   = {};     // ai_idx → [buffer indices of visible events for that AI]
-let _wonBids       = { won: new Set(), resolvedRounds: new Set() }; // built from auction_round_resolved
 
 const _THOUGHT_CARD_DELAY_MS = (() => {
   const p = new URLSearchParams(window.location.search);
@@ -290,21 +294,6 @@ const _thoughtQueue = [];
 let   _thoughtTimer  = null;
 
 let _currentOnEvent = null;  // set by initShell; used by replayStep
-
-// ── _buildWonBids ─────────────────────────────────────────────────────────────
-// Scans all auction_round_resolved events and builds a lookup of which bids won.
-// Only rounds that have a resolution event are considered settled; bids in
-// unresolved rounds are not marked failed (handles mid-stream / in-progress games).
-function _buildWonBids(events) {
-  const won = new Set();
-  const resolvedRounds = new Set();
-  events.forEach(e => {
-    if (e.type !== 'auction_round_resolved') return;
-    resolvedRounds.add(e.round);
-    (e.winners || []).forEach(w => won.add(`${w.ai_idx}:${w.char_id}`));
-  });
-  return { won, resolvedRounds };
-}
 
 // ── _attachStrategyToStarts ───────────────────────────────────────────────────
 // For each turn_start bid_round_N event, peek ahead to find the matching
@@ -716,7 +705,6 @@ window.initShell = async function({ gameId, onEvent } = {}) {
       const data = await fetch(`/api/games/${targetGame.id}/events`).then(r => r.json());
       _REPLAY_EVENTS = data.events || [];
       _attachStrategyToStarts(_REPLAY_EVENTS);
-      _wonBids = _buildWonBids(_REPLAY_EVENTS);
       Shell.replayEvents = _REPLAY_EVENTS;
       _computeVisibleByAI();
       _replayUpdateCounter();
@@ -803,18 +791,18 @@ function _railFromTurnEnd(e) {
     if (e.label === 'bid' && e.parsed.casting_strategy) {
       _addThought(aiIdx, 'strategy', 'Strategy', esc(e.parsed.casting_strategy));
     }
-    // Determine which round this is so we only mark bids failed once resolved.
-    const roundNum = parseInt((e.label || '').match(/\d+/)?.[0] || '0', 10);
-    const roundResolved = _wonBids.resolvedRounds.has(roundNum);
-    (e.parsed.bids || []).forEach(b => {
-      // _flashCard is now called when the thought card renders (chip + card sync)
-      const c = Shell.charById.get(b.character_id);
-      if (!c) return;
-      const failed = roundResolved && !_wonBids.won.has(`${aiIdx}:${b.character_id}`);
-      const amount = b.bid != null ? ' · $' + Number(b.bid).toLocaleString() : '';
-      _addThought(aiIdx, 'bid', 'Bid · ' + c.name + amount, esc(b.rationale || '—'),
-        { id: 'bid-' + aiIdx + '-' + b.character_id, charId: b.character_id, failed });
-    });
+    // Bid cards for bid_round_N are driven by HiringTab via Shell.bidChipFired,
+    // called when each chip starts flying (one card per chip, staggered in sync).
+    // Only add bid cards here for the legacy 'bid' label (pre-auction backend).
+    if (e.label === 'bid') {
+      (e.parsed.bids || []).forEach(b => {
+        const c = Shell.charById.get(b.character_id);
+        if (!c) return;
+        const amount = b.bid != null ? ' · $' + Number(b.bid).toLocaleString() : '';
+        _addThought(aiIdx, 'bid', 'Bid · ' + c.name + amount, esc(b.rationale || '—'),
+          { id: 'bid-' + aiIdx + '-' + b.character_id, charId: b.character_id });
+      });
+    }
   } else if (e.label === 'casting_summary' && e.parsed && e.parsed.summary) {
     const s = e.parsed.summary;
     _addThought(aiIdx, 'strategy', 'Casting summary',
@@ -983,6 +971,44 @@ function _markHired(aiIdx, charId) {
     const i = arr.findIndex(x => x.kind === 'bid' && x.charId === charId);
     if (i > 0) { const [item] = arr.splice(i, 1); arr.unshift(item); }
   }
+}
+
+// Called by HiringTab._flyBidToPortrait / flushPlaceQueue when a bid chip starts
+// flying. Renders the bid thought card immediately (no queue delay) so it syncs
+// with the chip animation. Idempotent — skips if a card for this bid already exists.
+function _bidChipFired(aiIdx, charId, amount, rationale) {
+  while (_aiStreams.length <= aiIdx) _aiStreams.push([]);
+  // Idempotent check: skip if this bid was already recorded
+  const tId = 'bid-' + aiIdx + '-' + charId;
+  if (_aiStreams[aiIdx].some(t => t.id === tId)) return;
+  const c = Shell.charById.get(charId) || Shell.charById.get(Number(charId));
+  if (!c) return;
+  const esc = Shell.helpers.escapeHtml;
+  const amountStr = amount != null ? ' · $' + Number(amount).toLocaleString() : '';
+  const t = {
+    aiIdx, kind: 'bid',
+    title: 'Bid · ' + c.name + amountStr,
+    body: esc(rationale || '—'),
+    id: tId, charId,
+  };
+  _aiStreams[aiIdx].unshift(t);
+  if (aiIdx === Shell.currentAI) _prependThought(t);
+  _flashCard(charId);
+}
+
+// Called by HiringTab.handleAuctionResolved when a bid's result is known.
+// Adds a ✗ Failed badge to the card. Won bids get their badge later via _markHired.
+function _markBidResult(aiIdx, charId, result) {
+  if (result !== 'failed') return;  // 'won' is handled by _markHired on crew_known
+  const arr = _aiStreams[aiIdx] || [];
+  for (const t of arr) {
+    if (t.kind === 'bid' && t.charId === charId) { t.failed = true; break; }
+  }
+  if (aiIdx !== Shell.currentAI) return;
+  const card = document.getElementById('thought-bid-' + aiIdx + '-' + charId);
+  if (!card) return;
+  if (!card.querySelector('.thought-failed-badge'))
+    card.insertAdjacentHTML('beforeend', '<div class="thought-failed-badge">✗ Failed</div>');
 }
 
 function _renderThinking() {
