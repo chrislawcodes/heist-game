@@ -866,11 +866,17 @@
 
     } else if (e.type === 'turn_end') {
       const m = e.label && e.label.match(/^scene_(\d+)_(?:escape_)?narrate$/);
-      if (m && e.parsed && e.parsed.narration) {
-        const sNum = parseInt(m[1], 10);
-        narrations[sNum] = e.parsed.narration;
-        if (scenes[sNum]) scenes[sNum].narration = e.parsed.narration;
-        if (aiIdx === Shell.currentAI) renderAll();
+      if (m) {
+        // Narration is plain text in e.response (after the prose-call change).
+        // Fall back to e.parsed.narration for replaying older game records that
+        // used the JSON-wrapped format {"narration": "..."}.
+        const narr = e.response || (e.parsed && e.parsed.narration) || '';
+        if (narr) {
+          const sNum = parseInt(m[1], 10);
+          narrations[sNum] = narr;
+          if (scenes[sNum]) scenes[sNum].narration = narr;
+          if (aiIdx === Shell.currentAI) renderAll();
+        }
       }
 
     } else if (e.type === 'scene_start') {
