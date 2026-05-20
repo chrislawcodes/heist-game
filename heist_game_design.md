@@ -107,17 +107,17 @@ Each character is a unique person. In multi-player phases, each character is on 
 
 | Total Points | Base Cost |
 |--------------|-----------|
-| 2 | $200 |
-| 3 | $400 |
-| 4 | $800 |
+| 2 | $200,000 |
+| 3 | $400,000 |
+| 4 | $800,000 |
 
-**High skill premium:** +$300 for each High skill on the character.
+**High skill premium:** +$300,000 for each High skill on the character.
 
 Examples:
-- 2-point character: $200
-- 3-point character without a High: $400
-- 3-point pure High specialist: $700
-- 4-point character with one High: $1100
+- 2-point character: $200,000
+- 3-point character without a High: $400,000
+- 3-point pure High specialist: $700,000
+- 4-point character with one High: $1,100,000
 
 ### Locations (jobs)
 
@@ -193,7 +193,7 @@ If the heist body fails or aborts, or the escape fails: zero reward.
 ### Phase 1 setup
 
 - One human player
-- Bankroll: **$2000**
+- Bankroll: **$2,000,000**
 - A slate of 3 jobs
 - A roster of 16 characters
 - Player submits only a strategy prompt
@@ -203,25 +203,25 @@ If the heist body fails or aborts, or the escape fails: zero reward.
 
 | # | Name | Skills | Pts | Floor |
 |---|------|--------|-----|-------|
-| 1 | Marcus "Prodigy" Renault | Hacker H, Driver L | 4 | $1100 |
-| 2 | Sasha Kuznetsova | Hacker M | 2 | $200 |
-| 3 | Eli "Owl" Park | Hacker L, Inside Man L | 2 | $200 |
-| 4 | Vance "The Wall" Tobin | Muscle H | 3 | $700 |
-| 5 | Carla Reyes | Muscle M, Driver L | 3 | $400 |
-| 6 | Big Mike Donato | Muscle L, Driver L, Inside Man L | 3 | $400 |
-| 7 | Lin "Closer" Chen | Inside Man H, Safecracker L | 4 | $1100 |
-| 8 | Theo Kapoor | Inside Man M | 2 | $200 |
-| 9 | Pearl Sutton | Inside Man M, Muscle L | 3 | $400 |
-| 10 | Rook Ferreira | Safecracker H | 3 | $700 |
-| 11 | Jolene "Jo" Hayes | Safecracker M, Hacker L | 3 | $400 |
-| 12 | Nestor Bly | Safecracker M, Hacker L | 3 | $400 |
-| 13 | "Slim" Adesanya | Driver H | 3 | $700 |
-| 14 | Margot Vinter | Driver M, Inside Man L | 3 | $400 |
-| 15 | Dex Owusu | Driver M, Muscle L | 3 | $400 |
-| 16 | Valentina "Val" Cruz | Muscle M, Inside Man L | 3 | $400 |
+| 1 | Marcus "Prodigy" Renault | Hacker H, Driver L | 4 | $1,100,000 |
+| 2 | Sasha Kuznetsova | Hacker M | 2 | $200,000 |
+| 3 | Eli "Owl" Park | Hacker L, Inside Man L | 2 | $200,000 |
+| 4 | Vance "The Wall" Tobin | Muscle H | 3 | $700,000 |
+| 5 | Carla Reyes | Muscle M, Driver L | 3 | $400,000 |
+| 6 | Big Mike Donato | Muscle L, Driver L, Inside Man L | 3 | $400,000 |
+| 7 | Lin "Closer" Chen | Inside Man H, Safecracker L | 4 | $1,100,000 |
+| 8 | Theo Kapoor | Inside Man M | 2 | $200,000 |
+| 9 | Pearl Sutton | Inside Man M, Muscle L | 3 | $400,000 |
+| 10 | Rook Ferreira | Safecracker H | 3 | $700,000 |
+| 11 | Jolene "Jo" Hayes | Safecracker M, Hacker L | 3 | $400,000 |
+| 12 | Nestor Bly | Safecracker M, Hacker L | 3 | $400,000 |
+| 13 | "Slim" Adesanya | Driver H | 3 | $700,000 |
+| 14 | Margot Vinter | Driver M, Inside Man L | 3 | $400,000 |
+| 15 | Dex Owusu | Driver M, Muscle L | 3 | $400,000 |
+| 16 | Valentina "Val" Cruz | Muscle M, Inside Man L | 3 | $400,000 |
 
 **Roster design notes:**
-- One High specialist per skill: Marcus (Hacker), Vance (Muscle), Lin (Inside Man), Rook (Safecracker), Slim (Driver). Marcus and Lin are the two 4-point premiums at $1100; Vance, Rook, and Slim are pure single-High hires at $700.
+- One High specialist per skill: Marcus (Hacker), Vance (Muscle), Lin (Inside Man), Rook (Safecracker), Slim (Driver). Marcus and Lin are the two 4-point premiums at $1,100,000; Vance, Rook, and Slim are pure single-High hires at $700,000.
 - The other eleven characters are Medium/Low generalists, so most crews pair one premium specialist with cheaper support.
 - Two Medium Inside Men (Theo + Pearl) enable the collaboration substitution that makes the Museum doable.
 - Inside Man is the deepest skill on the bench (7 characters across all levels); Safecracker the thinnest (4).
@@ -229,10 +229,10 @@ If the heist body fails or aborts, or the escape fails: zero reward.
 
 ### Phase 1 strategic landscape
 
-With $2000 budget and the pricing:
+With $2,000,000 budget and the pricing:
 - Maximum 2 Highs per crew
-- Two premium 4-point Highs (Marcus + Lin) = $2200 base, impossible
-- Standard premium crew is two pure-specialist Highs ($1400) + supports
+- Two premium 4-point Highs (Marcus + Lin) = $2,200,000 base, impossible
+- Standard premium crew is two pure-specialist Highs ($1,400,000) + supports
 
 ### Phase 1 job slate (locked)
 
@@ -244,7 +244,7 @@ With $2000 budget and the pricing:
 
 A black-tie charity gala at the city's biggest art museum. The Renaissance wing is being feted with a one-night exhibition, and the centerpiece is a diamond on loan from a Saudi prince. The vault is state-of-the-art. The gala is packed with guests, photographers, and event security — blending in is the whole challenge.
 
-**Strategic puzzle:** Requires High Safecracker AND High Inside Man. Lin + Rook + 2 supports = $2200 (over budget). The Museum is doable through **collaboration**: Theo + Pearl (Medium + Medium = High effective Inside Man, $600) + Rook ($700) + 1 support = $1500-$1700. The Heist AI must recognize the collaboration substitute or fail to attempt the job.
+**Strategic puzzle:** Requires High Safecracker AND High Inside Man. Lin + Rook + 2 supports = $2,200,000 (over budget). The Museum is doable through **collaboration**: Theo + Pearl (Medium + Medium = High effective Inside Man, $600K) + Rook ($700K) + 1 support = $1.5M–$1.7M. The Heist AI must recognize the collaboration substitute or fail to attempt the job.
 
 **Hidden depth — complications/opportunities:**
 1. Diamond in a temporary display case with backup proximity alarm. Physical drops to Medium, new Low Electronic challenge. *(Opportunity-with-cost.)*
@@ -267,7 +267,7 @@ A black-tie charity gala at the city's biggest art museum. The Renaissance wing 
 
 Weekly cash transfer between bank branches. Two armed guards in the cab, one in back. The truck is a moving vault. No cameras, no witnesses on the right stretch of road. Guards are trained, armed, and expect trouble.
 
-**Strategic profile:** Requires High Muscle. Vance ($700) is the only High Muscle option.
+**Strategic profile:** Requires High Muscle. Vance ($700,000) is the only High Muscle option.
 
 **Hidden depth — complications/opportunities:**
 1. Third guard in cargo compartment. *(Complication.)*
@@ -290,7 +290,7 @@ Weekly cash transfer between bank branches. Two armed guards in the cab, one in 
 
 A pharmaceutical company's research server room. The target is the formula on the servers. Building layered with electronic security: biometric locks, face recognition, network intrusion detection. The server room has a significant physical lock. Two perimeter guards.
 
-**Strategic profile:** Requires High Hacker. Marcus ($1100) is the only High Hacker.
+**Strategic profile:** Requires High Hacker. Marcus ($1,100,000) is the only High Hacker.
 
 **Hidden depth — complications/opportunities:**
 1. Late-night research team in adjacent lab. Social jumps to Hard. *(Complication.)*
@@ -321,7 +321,7 @@ Only the strategy prompt. Free-form text, target 250-500 words, covering crew pr
 
 The Heist AI is a single agent serving multiple roles:
 
-1. **Drafting:** Read the prompt and the roster. Produce a priority-ordered bid allocation totaling ≤ $2000. Bids must be at or above floor costs.
+1. **Drafting:** Read the prompt and the roster. Produce a priority-ordered bid allocation totaling ≤ $2,000,000. Bids must be at or above floor costs.
 2. **Job selection:** Read the prompt and the assembled crew. Pick the most appropriate job from the slate. Justify the choice.
 3. **Casting summary:** Write a transparent summary explaining the bid logic, the crew assembled, and the job selected.
 4. **In-scene decisions during execution:** As the system presents each scene, decide which crew member(s) act, and at decision points, decide what to do (e.g., pursue a bonus or skip).
@@ -381,79 +381,59 @@ Does the core loop — write strategy, Heist AI handles everything, watch heist 
 
 **Goal:** Validate the blind-bid draft with real contention.
 
-- 2-5 human players (2-player is the launching configuration)
-- Shared roster — each character on at most one crew per game
-- Bids contested
-- Casting reveal shows the contests
-- Heists run in parallel; scores compared
+- 2 players is the launching configuration (the auction supports more)
+- "Players" are realized as competing strategy prompts, each driven by its own
+  Heist AI. A **real multi-human lobby** (people joining a shared game) is **not**
+  needed here — it's deferred to **Phase 8**.
+- Shared roster — each character ends up on at most one crew
+- Bids are contested; the casting reveal shows who fought over whom (the
+  auction-floor UI)
+- Each crew runs its heist in parallel (a different seed per crew). A formal
+  "who won" score comparison is **not yet built** — takes are shown per crew.
 
-### Phase 2 bid resolution
+### Phase 2 bid resolution (as built)
 
-The auction runs in **two blind rounds plus a random fill**, all using the same
-$2000-per-player bankroll as Phase 1. Only **winning** bids cost money; losing
-bids are fully refunded so the loser can bid again in round 2 with their full
-remaining budget.
+> Implemented in `heist/auction.py` (`run_auction`). This supersedes an earlier
+> "two blind rounds + random fill" draft — the shipped design is iterative.
 
-**Round 1 (blind submission, parallel):**
+The auction runs up to **8 blind rounds**, all on the same **$2,000,000-per-player**
+bankroll and a **crew size of 4**, drawing from one shared roster pool. Only
+**winning** bids cost money; losing and tied bids are free.
 
-Each player's Heist AI submits a bid list `[{character_id, bid, rationale}]`
-where each bid ≥ that character's floor cost and the per-player total ≤ $2000.
-A player may bid on at most `crew_size - already_won` characters in any round
-(in round 1 this is 4).
+**Each round**, every still-active player either submits a bid list
+`[{character_id, bid, rationale}]` or **passes**. A bid must be ≥ the
+character's floor cost, a player's bids must total ≤ their remaining bankroll,
+and a player may bid on at most `4 − (characters already won)` characters.
 
-**Round 1 resolution:**
-- For each character anyone bid on, find the highest bid amount.
-- If a **single** player bid that highest amount, that player wins the
-  character. The bid amount is deducted from their bankroll. The character
-  enters their crew.
-- If **two or more** players are tied at the highest amount, **no one** gets
-  the character. The character remains in the pool. No money is deducted from
-  any tying player.
-- All non-winning bids (including ties) are refunded — money stays in the
-  bidder's bankroll for round 2.
+**Resolution (per round):**
+- For each character anyone bid on, take the highest bid.
+- **Highest unique bid wins** — the winner pays that amount, the character joins
+  their crew and leaves the pool.
+- **Ties** (two or more players at the top amount) → no one wins the character,
+  all tied bids are refunded, and the character **stays in the pool**, biddable
+  again in later rounds.
+- Outbid players who didn't pass stay active and may bid again next round.
 
-**Round 2 (blind submission, parallel):**
+**A player goes inactive** when their crew is full (4), they pass, their
+bankroll falls below the cheapest floor cost, or the pool empties. The auction
+ends when no active players remain.
 
-Any player with fewer than `crew_size` crew enters round 2. Each AI sees:
-- Round 1's complete outcome (whose crew is what)
-- The unwon characters available
-- Their own crew so far and their own remaining bankroll
-- Their own original strategy prompt
+**No random fill.** A player who never fills all four slots simply runs a
+smaller crew (more gaps in the heist). Each round's outcome — winners, ties,
+bankrolls, crews — is emitted as it resolves; that stream is the data behind the
+casting reveal / auction-floor animation.
 
-The AI does **not** see other players' losing bid amounts from round 1 — those
-stay sealed.
-
-**Round 2 resolution** is identical to round 1. Ties in round 2 mean the
-character is **gone from contention for the rest of the game** — it does not
-fall through to the random fill phase.
-
-**Random fill phase:**
-
-After round 2, any player still short of `crew_size` crew with budget remaining
-gets filled by uniform random selection from characters they can still afford
-(unbid + un-won in both rounds, excluding round-2 tied characters). The system
-draws until the crew is full or no affordable character remains. This step does
-**not** consult the Heist AI — it adds deliberate chaos to the tail of a
-contested draft.
-
-**Edge cases:**
-- Player wins enough in round 1 to fill all 4 slots → skip round 2 entirely.
-- Player won nothing in round 1 → enters round 2 with full $2000 budget.
-- Tied character in round 1 is bid-able again in round 2.
-- Same character tied in both rounds → removed from contention permanently.
-- Player still short of `crew_size` after random fill (no affordable chars
-  remain) → run the heist with fewer than 4 crew. Smaller crew = more gaps.
-
-**Why no `priority` field in bids:** earlier drafts kept a priority field for
-tie-breaking; the refundable-loser + neither-wins-on-tie rules above remove its
-job. Bid order is now decided by amount alone, so the schema drops the field.
+**Why no `priority` field in bids:** tie-breaking is handled by the
+refund-on-tie + nobody-wins-on-tie rules, so bids are ordered by amount alone.
 
 ### Phase 2 algorithmic core lives in `heist/auction.py`
 
-The auction is intentionally a pure-Python module that the runner calls. It
-takes `list[PlayerBid]` and returns a `RoundResult`; it does not know anything
-about AIs, sessions, or markdown. This makes it exhaustively unit-testable
-and lets Phase 2's runner orchestrate the AI dance separately.
+`run_auction(ais, strategies, …) → AuctionResult` orchestrates the round-by-round
+bidding loop and returns each player's final crew, spend, and a per-round record
+(`AuctionRoundRecord`). It drives the Heist AIs' bid turns directly and emits
+per-AI and broadcast events so the UI can animate the auction floor. The pure
+mechanics — validating bids, resolving winners/ties — are split into small
+helper functions that are unit-tested independently.
 
 ---
 
@@ -516,10 +496,27 @@ To be designed:
 
 ---
 
+## Phase 8 — Real multi-human lobby
+
+**Goal:** Let separate people join one shared game, rather than competing
+strategy prompts run as AIs in a single process.
+
+Through Phase 2+, "multiplayer" means several strategy prompts, each played by
+its own Heist AI. A genuine lobby — distinct humans connecting, claiming a seat,
+submitting their own prompt, and watching the shared auction and their crew's
+heist live — is deliberately deferred to here. (Phases 6–7 are left open for
+other work.)
+
+- Multiple humans join a session: seats, identity, ready-up
+- Each submits their own strategy prompt
+- The Phase 2 shared auction + parallel heists run across real players
+
+---
+
 ## High-level flow (Phase 1)
 
 1. Player submits a strategy prompt. (Just the prompt — nothing else.)
-2. Heist AI reads the prompt and the roster, produces a priority-ordered bid allocation totaling ≤ $2000.
+2. Heist AI reads the prompt and the roster, produces a priority-ordered bid allocation totaling ≤ $2,000,000.
 3. System validates and processes bids, hires the crew. If incomplete, Heist AI fills remaining slots from unbid roster.
 4. Heist AI selects a job from the slate (system validates skill viability).
 5. Heist AI writes the casting summary.
@@ -537,7 +534,7 @@ To be designed:
 
 - ✓ Roster: 16 characters, locked
 - ✓ Skills, levels, challenge levels, interaction
-- ✓ Pricing and bankroll ($2000)
+- ✓ Pricing and bankroll ($2,000,000)
 - ✓ Driver mechanic with no-Driver option
 - ✓ Three Phase 1 locations with hidden depth
 - ✓ Bonus-with-cost principle
@@ -547,15 +544,17 @@ To be designed:
 - ✓ System does all mechanical resolution, scene order, state tracking, calculations
 - ✓ Scene loop architecture
 
-### Phase 1 — still open
+### Phase 1 — complete
 
-- Scene generation triggers and order details (which exact scene order rules)
-- Output format specifics (how the narrative is structured for display)
-- Failure consequence specifics (which kinds of failure produce which outcomes)
-- Escape mechanic in concrete terms (accumulated failures table)
-- Character roster content authoring (16 personality paragraphs)
-- Location flavor text polish
-- What the player sees during execution (streaming vs. final output)
+Phase 1 is feature-complete. Every previously-open item is built and shipped:
+
+- ✓ Scene generation triggers and order details
+- ✓ Output format / how the narrative is structured for display
+- ✓ Failure consequence specifics
+- ✓ Escape mechanic (accumulated-failures resolution)
+- ✓ Character roster content (16 personality paragraphs)
+- ✓ Location flavor text (all 7 jobs authored)
+- ✓ What the player sees during execution (replay-driven event stream)
 
 ### Later phases
 
