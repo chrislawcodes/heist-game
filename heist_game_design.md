@@ -62,16 +62,19 @@ Each active challenge at a location: **None / Low / Medium / Hard**.
 
 ### Skill vs. challenge interaction (computed by the system)
 
-The crew's effective level in a category is the highest skill level any crew member has in it.
+The crew's effective level in a category is the highest skill level any assigned crew member has in it (collaboration can raise it — see below). The system **grades** each challenge by how the crew's effective skill compares to the challenge level:
 
-| Crew's skill | Outcome |
-|--------------|---------|
-| Skill ≥ Challenge | Success |
-| Skill < Challenge or no skill | Failure |
+| Effective skill vs. challenge | Outcome |
+|-------------------------------|---------|
+| No challenge (None) | Pass — clean |
+| Skill **>** challenge | Pass — clean |
+| Skill **=** challenge | Pass — but **+1 heat** (a squeak-through) |
+| Skill **1 level below** | **Fail** — objective missed, **+1 heat** |
+| Skill **2+ levels below** | **Fail** — objective missed, **+1 heat**, and a crew member is **caught** |
 
-**Hard challenges require High skill.** Medium and below cannot beat Hard.
+Heat rises by 1 on anything that isn't a clean beat. **A Hard challenge (level 3) tops out at a squeak-through even with a High specialist**, so clearing a Hard always costs at least +1 heat. A 2+-level shortfall catches the member who led the attempt (the one whose skill matched the challenge; otherwise the lowest-cost assigned member), and they're out for the rest of the run.
 
-*(Phases 1-3. **Phase 4 replaces this binary bucket comparison with a true-score
+*(Phases 1-3. **Phase 4 replaces this bucketed comparison with a true-score
 contest under hidden information** — a published "High" can lose to a "Hard"
 depending on the fogged 1-10 scores. See Phase 4.)*
 
@@ -80,7 +83,7 @@ depending on the fogged 1-10 scores. See Phase 4.)*
 Two characters with skill in the same category act at one level higher than the higher of them, capped at High.
 
 - Low + Low = Medium
-- Low + Medium = Medium
+- Low + Medium = High
 - Medium + Medium = High
 - Medium + High = High
 - High + High = High
@@ -89,11 +92,11 @@ Two Medium specialists can beat a Hard challenge through collaboration.
 
 ### Failure consequences
 
-When a challenge fails during the heist body, the system determines the consequence based on the failed scene's context: abort the heist, reduce the reward, or increase escape difficulty.
+Failure is graded into the table above — there's no separate "core scene aborts the heist" rule. A challenge that isn't cleanly beaten always adds **+1 heat**; a 2+-level shortfall also **catches a crew member** (out for the rest of the run, weakening later scenes). Heat raises the escape difficulty (see below). After any failure — and in fact at **any scene** — the Heist AI may choose to **abort** and head straight for the escape rather than push on for the rest of the loot.
 
 ### The escape
 
-Every heist ends with an escape scene. The crew's escape capability is set by their best Driver skill. A crew can also escape **without any Driver** — significantly harder, but viable for low-risk heists.
+Every heist ends with an escape scene. Escape difficulty = the job's escape modifier **+ accumulated heat**; the crew's best Driver skill (no Driver = treated as Low, so a driverless escape is viable only at low heat) must be **≥** that difficulty. A clean getaway means everyone still free leaves with the secured take. **If the escape fails, one random free crew member is caught** — the rest still get away with what they secured. The take is lost entirely only if the whole crew ends up caught.
 
 ### Characters
 
@@ -138,9 +141,9 @@ Each location has:
 Each location has:
 
 - **Complications and opportunities** (4-6 per location): surprises that surface during the heist. Per the "every bonus comes with a test" principle, opportunities are never pure upside.
-- **Reward amounts** (2-3 per location): specific dollar values within the public range.
+- **Loot per scene:** loot is distributed across the heist's scenes — each loot-bearing scene banks its value when the crew clears it. The published reward range is the rough total on offer.
 
-At the start of each play, the system rolls one complication-or-opportunity and one reward amount.
+At the start of each play, the system rolls one complication-or-opportunity. Loot is then secured scene by scene as the heist plays out (see Reward calculation).
 
 ### The draft (Heist AI bidding)
 
@@ -182,11 +185,9 @@ This produces approximately 8 scenes for most jobs.
 
 ### Reward calculation
 
-If the crew completes the heist AND escapes successfully:
-- They earn the reward amount the system rolled
-- Plus any bonus pursuits the Heist AI chose and the system resolved successfully
+The take is the **loot the crew secured** during the run. Loot is spread across scenes, and each loot-bearing scene banks its value when the crew clears it (clean or squeak); pursued bonuses add their value too. The take is **realized only if at least one crew member escapes** — if the whole crew is caught, it's lost.
 
-If the heist body fails or aborts, or the escape fails: zero reward.
+Because loot can sit mid-heist, the AI's choice to push on for more or **bail with what it's grabbed** is a real risk/reward decision: a clean partial run can beat a greedy bust that piles on heat and loses people at the escape.
 
 ---
 
@@ -601,10 +602,10 @@ delivering the fog, and makes scouting a clean act of **buying down uncertainty
 about a fixed answer**.
 
 Consequence: a published "High" (true 7) can *lose* to a "Hard" (true 9), and a
-"High" (10) beats a "Hard" (7). This **supersedes two Phase 1-3 locked rules** —
-"Skill ≥ Challenge → Success" (now score-vs-score) and "Hard requires High"
-(now depends on the true numbers). Recorded here deliberately; the locked list
-in "Core mechanics" remains true for Phases 1-3.
+"High" (10) beats a "Hard" (7). This **supersedes the Phase 1-3 model** — the
+graded bucket comparison (clean / squeak / fail / caught) becomes a score-vs-score
+contest, and "Hard requires High" now depends on the true numbers. Recorded here
+deliberately; the locked list in "Core mechanics" remains true for Phases 1-3.
 
 Balancing lever: a fully-scouted player has perfect information, so scouting
 must cost enough (money / time / heat) that buying perfect info is rarely worth
@@ -703,11 +704,11 @@ other work.)
 3. System validates and processes bids, hires the crew. If incomplete, Heist AI fills remaining slots from unbid roster.
 4. Heist AI selects a job from the slate (system validates skill viability).
 5. Heist AI writes the casting summary.
-6. System rolls hidden depth (one complication/opportunity + one reward amount).
+6. System rolls hidden depth (one complication/opportunity); loot is secured scene by scene during the run.
 7. System determines scene order based on job profile and hidden depth.
 8. For each scene: system presents the scene to the Heist AI; Heist AI assigns character; system resolves outcome; Heist AI narrates. Decision points are surfaced by the system and answered by the Heist AI.
 9. System resolves the escape from accumulated state; Heist AI narrates.
-10. System calculates final reward; Heist AI writes the epilogue.
+10. System tallies the secured take (realized only if at least one crew member escaped); Heist AI writes the epilogue.
 
 ---
 
@@ -800,8 +801,8 @@ challenge scores in Phase 3, resolve on buckets). Phase 4: hidden 1-10 scores
 under public Low/Med/High buckets, deterministic true-score resolution (option
 A — buckets become estimates, not contracts), a graduated scouting reveal
 ladder, scoring+scouting shipping as one package, and the scouting-as-heat-
-insurance loop. Phase 4 supersedes the Phase 1-3 "Hard requires High" /
-"Skill ≥ Challenge → Success" rules.
+insurance loop. Phase 4 supersedes the Phase 1-3 graded
+bucket model (clean / squeak / fail / caught) and "Hard requires High".
 
 **Earlier revision** — Single Heist AI agent handles all creative decisions (drafting, job selection, scene assignments, in-scene decisions, narration). System owns all deterministic logic (bid validation, skill resolution, hidden depth rolls, scene order, state tracking, reward calc). Scene loop architecture: system presents each scene; Heist AI assigns and narrates; system resolves. Player input simplified to strategy prompt only — no bid allocation.
 
