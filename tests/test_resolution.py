@@ -90,29 +90,54 @@ def test_resolve_outcome_table(skill, challenge, outcome):
     [
         (1, ChallengeLevel.LOW, 0, True, 123_000, []),
         (2, ChallengeLevel.MEDIUM, 1, True, 123_000, []),
-        (3, ChallengeLevel.MEDIUM, 1, False, 0, []),
-        (3, ChallengeLevel.HARD, 1, False, 0, [3]),
     ],
 )
-def test_scene_resolution_applies_heat_for_non_clean(
+def test_scene_resolution_passing(
     member_id, challenge_level, expected_heat, expected_success, expected_take, expected_caught
 ):
+    """Passing scenes (CLEAN / SQUEAK): no abort prompt fired."""
     crew = Crew([ROSTER_BY_ID[member_id]])
     job = _job({"electronic": 123_000})
     state = _state(crew=crew, job=job)
     scene = Scene(
-        number=1,
-        type="challenge",
-        title="Test",
-        challenge_skill="hacker",
-        challenge_level=challenge_level,
-        is_core=False,
-        context="",
-        category="electronic",
+        number=1, type="challenge", title="Test",
+        challenge_skill="hacker", challenge_level=challenge_level,
+        is_core=False, context="", category="electronic",
     )
     ai = StubHeistAI([
-        f'{{"assigned_member_ids": [{member_id}], "abort": false, "reasoning": "assign"}}',
-        '{"narration": "ok"}',
+        f'{{"assigned_member_ids": [{member_id}], "reasoning": "assign"}}',
+        "stub narration",
+    ])
+    result = _execute_scene(scene, state, ai, [], None, random.Random(1))
+    assert result.success is expected_success
+    assert state.heat == expected_heat
+    assert state.secured_take == expected_take
+    assert state.caught_member_ids == expected_caught
+
+
+@pytest.mark.parametrize(
+    "member_id,challenge_level,expected_heat,expected_success,expected_take,expected_caught",
+    [
+        (3, ChallengeLevel.MEDIUM, 1, False, 0, []),
+        (3, ChallengeLevel.HARD, 1, False, 0, [3]),
+    ],
+)
+def test_scene_resolution_failing(
+    member_id, challenge_level, expected_heat, expected_success, expected_take, expected_caught
+):
+    """Failing scenes (FAIL / CAUGHT): abort prompt fires; stub pushes on."""
+    crew = Crew([ROSTER_BY_ID[member_id]])
+    job = _job({"electronic": 123_000})
+    state = _state(crew=crew, job=job)
+    scene = Scene(
+        number=1, type="challenge", title="Test",
+        challenge_skill="hacker", challenge_level=challenge_level,
+        is_core=False, context="", category="electronic",
+    )
+    ai = StubHeistAI([
+        f'{{"assigned_member_ids": [{member_id}], "reasoning": "assign"}}',
+        '{"abort": false, "reasoning": "push on"}',
+        "stub narration",
     ])
     result = _execute_scene(scene, state, ai, [], None, random.Random(1))
     assert result.success is expected_success

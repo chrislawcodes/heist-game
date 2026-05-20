@@ -308,6 +308,18 @@ def _scene_decision_prompt(scene: Scene) -> str:
     )
 
 
+def _abort_decision_prompt(scene: Scene, outcome_summary: str) -> str:
+    core_note = " This was a core scene." if scene.is_core else ""
+    return (
+        f"Scene {scene.number} ({scene.title}) just failed.{core_note}\n"
+        f"Outcome: {outcome_summary}\n"
+        "Heat has already increased. Do you abort now — take the escape with "
+        "whatever's secured — or push on to the next scene?\n"
+        'Reply with ONLY JSON: {"abort": <true|false>, "reasoning": "<why, '
+        'referencing your strategy and the crew\'s situation>"}'
+    )
+
+
 def _crew_brief(assigned: list) -> str:
     """One-paragraph brief per assigned character: voice, quirk, look."""
     lines = []
@@ -450,7 +462,6 @@ def _scene_category(scene: Scene) -> str | None:
     if scene.challenge_skill is not None:
         return _SKILL_TO_CATEGORY.get(scene.challenge_skill)
     return None
-
 
 def _snapshot(
     snapshot_fn: SnapshotFn,
@@ -1011,6 +1022,17 @@ def _execute_scene(
                 lo, hi = el.effect["bonus_amount_range"]
                 state.bonus_amount = (lo + hi) // 2
                 state.secured_take += state.bonus_amount
+            elif not success:
+                state.heat += 1
+                _, abort_parsed = _call_json(
+                    ai, _abort_decision_prompt(scene, outcome_summary),
+                    f"scene_{scene.number}_abort", logs, emit,
+                )
+                if abort_parsed.get("abort", False):
+                    state.aborted = True
+                    outcome_summary += " Crew decided to abort."
+                else:
+                    outcome_summary += " Crew is pushing on."
         else:
             outcome_summary = "Crew declined the bonus opportunity."
     elif scene.type in ("challenge", "hidden_depth"):
@@ -1026,6 +1048,16 @@ def _execute_scene(
             category = _scene_category(scene)
             if category is not None and category in state.job.scene_loot:
                 state.secured_take += state.job.scene_loot[category]
+        else:
+            _, abort_parsed = _call_json(
+                ai, _abort_decision_prompt(scene, outcome_summary),
+                f"scene_{scene.number}_abort", logs, emit,
+            )
+            if abort_parsed.get("abort", False):
+                state.aborted = True
+                outcome_summary += " Crew decided to abort."
+            else:
+                outcome_summary += " Crew is pushing on."
     elif scene.type in ("setup", "transition"):
         outcome_summary = f"{scene.title}: no mechanical resolution."
     else:

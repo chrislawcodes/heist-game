@@ -12,7 +12,7 @@ from heist.logs import log
 from heist.runner import (
     EmitFn,
     TurnLog,
-    _call_json,
+    _call,
     _draft_crew,
     _summary_prompt,
     run_one_job,
@@ -81,8 +81,8 @@ def run_campaign(
 
     draft_extras: dict[str, Any] = {}
     crew = _draft_crew(strategy, ai, logs, extras=draft_extras, emit=emit)
-    _, summary_parsed = _call_json(ai, _summary_prompt(), "casting_summary", logs, emit)
-    casting_summary = summary_parsed.get("summary", "")
+    summary_turn = _call(ai, _summary_prompt(), "casting_summary", logs, emit)
+    casting_summary = summary_turn.text
 
     campaign = Campaign(
         rounds_total=rounds,

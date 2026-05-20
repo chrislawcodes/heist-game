@@ -132,11 +132,7 @@ def _job_response(job_name: str) -> str:
 
 
 def _casting_summary_response(job_name: str) -> str:
-    return json.dumps({
-        "summary": (
-            f"_(stub casting summary for {job_name} — replaced with real model output in iter 3)_"
-        )
-    })
+    return f"_(stub casting summary for {job_name} — replaced with real model output in iter 3)_"
 
 
 def _assign_response(member_ids: list[int], reasoning: str) -> str:
@@ -151,19 +147,21 @@ def _decision_response(pursue: bool, reasoning: str) -> str:
 
 
 def _narrate_response(text: str) -> str:
-    return json.dumps({"narration": text})
+    return text
 
 
 def _epilogue_response() -> str:
-    return json.dumps({
-        "epilogue": (
-            "By morning the diamond is gone and the gala's footage shows only a "
-            "well-dressed couple and their guests, leaving with the rest of the crowd. "
-            "The crew splits the take three ways: the bid that bought them in, the "
-            "boss's cut, and a clean envelope each. Rook lays low. Theo and Pearl "
-            "drift back to their day jobs. Slim is already eyeing the next car."
-        )
-    })
+    return (
+        "By morning the diamond is gone and the gala's footage shows only a "
+        "well-dressed couple and their guests, leaving with the rest of the crowd. "
+        "The crew splits the take three ways: the bid that bought them in, the "
+        "boss's cut, and a clean envelope each. Rook lays low. Theo and Pearl "
+        "drift back to their day jobs. Slim is already eyeing the next car."
+    )
+
+
+def _abort_response(abort: bool, reasoning: str) -> str:
+    return json.dumps({"abort": abort, "reasoning": reasoning})
 
 
 class _GenericStub(StubHeistAI):
@@ -195,6 +193,9 @@ class _GenericStub(StubHeistAI):
         if "Decision point" in prompt:
             # Default: decline bonus (conservative).
             return _decision_response(False, "Risk outweighs the bonus given the player's prompt.")
+        if "Do you abort now" in prompt:
+            # Default: push on (lets tests run all scenes).
+            return _abort_response(False, "Pushing on — the job isn't lost yet.")
         if "Assign one or more crew" in prompt:
             # Try to pick a sensible default: prefer the crew member with the requested skill.
             return self._auto_assign(prompt)
