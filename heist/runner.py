@@ -960,6 +960,8 @@ def _execute_scene(
         success, outcome_summary = _resolve_challenge_scene(scene, assigned)
         if not success:
             _apply_failure_cascade(state, scene)
+            if state.aborted:
+                outcome_summary += " Core failure — crew is aborting the job."
     elif scene.type in ("setup", "transition"):
         outcome_summary = f"{scene.title}: no mechanical resolution."
     else:
