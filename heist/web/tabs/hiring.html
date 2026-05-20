@@ -212,17 +212,17 @@
   flex-direction: column;
   gap: 0;
   flex: 0 0 auto;
-  width: 192px;
+  width: calc(192px * 2 + 12px);
 }
 .hiring-root .hr-crew-list {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 12px;
   min-height: 0;
+  align-content: start;
 }
 .hiring-root .hr-crew-col {
-  flex: 0 0 auto;
-  width: 192px;
+  width: 100%;
   min-height: 0;
   background: var(--panel);
   border: 1px solid var(--border);
