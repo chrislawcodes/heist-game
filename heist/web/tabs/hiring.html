@@ -212,17 +212,17 @@
   flex-direction: column;
   gap: 0;
   flex: 0 0 auto;
-  width: calc(192px * 2 + 12px);
+  width: 192px;
 }
 .hiring-root .hr-crew-list {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 12px;
   min-height: 0;
-  align-content: start;
 }
 .hiring-root .hr-crew-col {
-  width: 100%;
+  flex: 0 0 auto;
+  width: 192px;
   min-height: 0;
   background: var(--panel);
   border: 1px solid var(--border);
@@ -319,19 +319,17 @@
 }
 
 .hiring-root .hr-crew-slots {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 6px;
   padding: 10px;
 }
 .hiring-root .hr-slot {
   width: 100%;
-  min-height: 154px;
 }
 .hiring-root .hr-slot .hr-card,
 .hiring-root .hr-slot-empty {
   width: 100%;
-  min-height: 154px;
 }
 .hiring-root .hr-slot-empty {
   display: flex;
