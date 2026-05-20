@@ -748,7 +748,7 @@ function _processEvent(e, onEvent) {
 function _railFromTurnEnd(e) {
   const aiIdx = e.ai_idx ?? 0;
   const esc = Shell.helpers.escapeHtml;
-  if (e.label === 'bid' && e.parsed) {
+  if ((e.label === 'bid' || /^bid_round_\d+$/.test(e.label || '')) && e.parsed) {
     if (e.parsed.casting_strategy) {
       _addThought(aiIdx, 'strategy', 'Strategy', esc(e.parsed.casting_strategy));
     }
