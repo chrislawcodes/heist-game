@@ -1,126 +1,500 @@
-"""Phase 2 bid resolution as a pure module.
-
-Two functions: `resolve_round` runs one blind-bid round; `random_fill` does the
-post-round-2 chaos fill. Neither knows anything about AIs, sessions, or the
-runner — they just take data and return data. The Phase 2 runner (when it
-lands) will orchestrate: collect AI bid submissions, call resolve_round,
-update player state, repeat for round 2, call random_fill, hand crews to the
-scene loop.
-
-See the "Phase 2 bid resolution" section of heist_game_design.md for the rules.
-"""
+"""Round-based cross-AI hiring auction."""
 
 from __future__ import annotations
 
-import random
-from dataclasses import dataclass, field
+import contextlib
+import os
+import sys
+import time
+import traceback
+from collections import defaultdict
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Any
 
-from heist.state import Character
+from heist.ai import AgentTurn, HeistAI, parse_json_block
+from heist.content import BANKROLL, ROSTER, ROSTER_BY_ID
+from heist.logs import log
+from heist.serialize import crew_to_dict
+from heist.state import Character, Crew, TurnLog
+
+EmitPerAIFn = Callable[[int, dict], None]
+EmitBroadcastFn = Callable[[dict], None]
+SnapshotFn = Callable[[dict], None] | None
+
+TURN_DELAY_SECONDS = float(os.environ.get("HEIST_TURN_DELAY", "10"))
+_last_turn_end_at: float | None = None
+
+_TRADECRAFT = """\
+What you know about this work:
+
+  • Every job is a profile of four challenge types — Electronic (cameras,
+    networks, electronic locks), Physical (vaults, safes, structural),
+    Confrontation (guards, armed response), and Social (blending in, talking
+    your way through). Each one rates None, Low, Medium, or Hard.
+
+  • Crew members have skill ratings in those areas — Low, Medium, or High.
+    A specialist hits their level. A Hard challenge needs a High to clear
+    alone, no exceptions.
+
+  • Two crew members with skill in the same area work above the sum of their
+    parts: pair them and you act at one level higher than the higher one,
+    capped at High. Two Mediums together hit High. Two Lows together hit
+    Medium. This is the move that makes a tight budget work — and it's how
+    you cover a Hard area without paying for a $1,100 High specialist.
+
+  • The exit always matters. A High Driver covers any escape; no driver
+    means running on foot, and that limits which jobs you'll survive.
+
+  • A Hard challenge with no High coverage and no two Mediums to pair on it
+    is a walk into a wall. Plan around them or don't take the job."""
 
 
-@dataclass(frozen=True)
-class PlayerBid:
-    """One bid: player P offers $A for character C."""
-    player_id: str
-    character_id: int
-    amount: int
+def _format_char_for_bid(c: Character) -> str:
+    skills = ", ".join(f"{s} {lvl.name}" for s, lvl in c.skills.items())
+    return f"  - id={c.id}, name={c.name!r}, skills=({skills}), floor=${c.floor_cost}"
 
 
-@dataclass(frozen=True)
-class BidWin:
-    """A character won by a player in one round, at the bid amount."""
-    player_id: str
-    character_id: int
-    amount_paid: int
-
-
-@dataclass
-class RoundResult:
-    """Outcome of one auction round.
-
-    - `wins`: per-player list of BidWins (player → characters they took).
-    - `tied_characters`: character ids that had ≥2 top-bidders → no winner.
-    - `uncontested_characters`: ids with exactly one bidder (subset of wins'
-      character ids, surfaced for casting-reveal narration).
-    """
-    wins: dict[str, list[BidWin]] = field(default_factory=dict)
-    tied_characters: list[int] = field(default_factory=list)
-    uncontested_characters: list[int] = field(default_factory=list)
-
-    def winnings_for(self, player_id: str) -> int:
-        return sum(w.amount_paid for w in self.wins.get(player_id, []))
-
-    def characters_won(self) -> set[int]:
-        return {w.character_id for wins in self.wins.values() for w in wins}
-
-
-def resolve_round(bids: list[PlayerBid]) -> RoundResult:
-    """One blind-bid round. Highest unique bid wins each character; ties at
-    the top mean no one wins that character (it stays in the pool).
-
-    The function does not validate per-player bankroll constraints — the caller
-    must enforce `sum(bids per player) ≤ bankroll` before calling. Doing so
-    here would couple the auction to game-wide state it doesn't need.
-    """
-    by_char: dict[int, list[PlayerBid]] = {}
-    for b in bids:
-        by_char.setdefault(b.character_id, []).append(b)
-
-    wins: dict[str, list[BidWin]] = {}
-    tied: list[int] = []
-    uncontested: list[int] = []
-
-    for char_id, char_bids in by_char.items():
-        max_amount = max(b.amount for b in char_bids)
-        top = [b for b in char_bids if b.amount == max_amount]
-        if len(top) == 1:
-            w = top[0]
-            wins.setdefault(w.player_id, []).append(
-                BidWin(
-                    player_id=w.player_id,
-                    character_id=char_id,
-                    amount_paid=w.amount,
-                )
-            )
-            if len(char_bids) == 1:
-                uncontested.append(char_id)
-        else:
-            tied.append(char_id)
-
-    return RoundResult(
-        wins=wins,
-        tied_characters=sorted(tied),
-        uncontested_characters=sorted(uncontested),
+def _round_bid_prompt(
+    strategy: str,
+    pool: list[Character],
+    crew_so_far: list[Character],
+    bankroll: int,
+    round_num: int,
+    last_result: dict[str, list[str]] | None,
+) -> str:
+    have = [f"{c.name} (cost ${c.floor_cost})" for c in crew_so_far]
+    pool_lines = [_format_char_for_bid(c) for c in pool]
+    last_section = ""
+    if last_result is not None:
+        last_section = (
+            "\nLast round results (yours):\n"
+            f"  Won:  {last_result.get('won', [])}\n"
+            f"  Lost: {last_result.get('lost', [])}\n"
+            f"  Tied: {last_result.get('tied', [])}\n"
+        )
+    return (
+        f"You are the Heist AI, round {round_num} of crew bidding.\n\n"
+        f"{_TRADECRAFT}\n\n"
+        f"Player's strategy:\n---\n{strategy}\n---\n\n"
+        f"Your crew so far ({len(crew_so_far)}/4):\n  {have or '(none yet)'}\n"
+        f"Your bankroll: ${bankroll}\n"
+        f"{last_section}\n"
+        f"Available characters (these are the ones still in the pool):\n"
+        + "\n".join(pool_lines)
+        + "\n\nBid on any subset of available characters, or pass. "
+        "Highest unique bid wins; ties refund all bidders and the character "
+        "returns next round. You can save money for later rounds. "
+        "Reply with ONLY JSON:\n"
+        "{\n"
+        '  "bids": [{"character_id": <int>, "bid": <int>>=floor, '
+        '"rationale": "<why>"}],\n'
+        '  "pass": <bool>,\n'
+        '  "reasoning": "<short summary of your round-level strategy>"\n'
+        "}"
     )
 
 
-def random_fill(
-    current_crew: list[Character],
-    remaining_budget: int,
-    candidate_pool: list[Character],
-    crew_size: int,
-    rng: random.Random,
-) -> list[Character]:
-    """Post-round-2 random fill. Draws uniformly from `candidate_pool`,
-    skipping characters the player already owns and those they can't afford,
-    until the crew hits `crew_size` or the affordable pool is exhausted.
+def _call(
+    ai: HeistAI,
+    prompt: str,
+    label: str,
+    logs: list[TurnLog],
+    ai_idx: int,
+    emit_per_ai: EmitPerAIFn | None = None,
+) -> AgentTurn:
+    global _last_turn_end_at
+    if emit_per_ai and TURN_DELAY_SECONDS > 0 and _last_turn_end_at is not None:
+        remaining = TURN_DELAY_SECONDS - (time.monotonic() - _last_turn_end_at)
+        if remaining > 0:
+            time.sleep(remaining)
+    if emit_per_ai:
+        emit_per_ai(ai_idx, {
+            "type": "turn_start",
+            "label": label,
+            "prompt": prompt,
+            "ai_idx": ai_idx,
+        })
+    t0 = time.monotonic()
+    try:
+        turn = ai.ask(prompt)
+    except Exception as exc:
+        elapsed = time.monotonic() - t0
+        log.error(
+            "ai_call_error",
+            label=label,
+            elapsed_ms=int(elapsed * 1000),
+            prompt_len=len(prompt),
+            error=str(exc),
+            traceback=traceback.format_exc(),
+        )
+        raise
+    elapsed = time.monotonic() - t0
+    logs.append(TurnLog(label=label, seconds=elapsed))
+    print(f"  [round {label}: {elapsed:.1f}s]", file=sys.stderr)
+    parsed_ok = False
+    with contextlib.suppress(Exception):
+        parse_json_block(turn.text)
+        parsed_ok = True
+    log.info(
+        "ai_call",
+        label=label,
+        elapsed_ms=int(elapsed * 1000),
+        prompt_len=len(prompt),
+        response_len=len(turn.text),
+        parsed_ok=parsed_ok,
+    )
+    return turn
 
-    The Heist AI is intentionally NOT consulted here. The fill phase exists to
-    inject randomness at the tail of a contested draft — it's a feature, not a
-    fallback the AI should reason about.
-    """
-    crew = list(current_crew)
-    budget = remaining_budget
-    owned_ids = {c.id for c in crew}
-    pool = [c for c in candidate_pool if c.id not in owned_ids]
 
-    while len(crew) < crew_size:
-        affordable = [c for c in pool if c.floor_cost <= budget]
-        if not affordable:
+def _validate_round_bids(
+    parsed: dict,
+    pool: list[Character],
+    crew_so_far: list[Character],
+    bankroll: int,
+) -> tuple[list[tuple[Character, int]], bool]:
+    if parsed.get("pass") is True:
+        return ([], True)
+
+    pool_ids = {c.id for c in pool}
+    owned_ids = {c.id for c in crew_so_far}
+    bids: list[tuple[Character, int]] = []
+    seen: set[int] = set()
+    total = 0
+
+    try:
+        raw_bids = parsed.get("bids", [])
+        if not isinstance(raw_bids, list):
+            raise ValueError("bids must be a list")
+        for raw in raw_bids:
+            cid = int(raw["character_id"])
+            if cid in seen:
+                raise ValueError(f"Duplicate character id in bid list: {cid}")
+            if cid not in pool_ids:
+                raise ValueError(f"Bid on character not in pool: {cid}")
+            if cid in owned_ids:
+                raise ValueError(f"Bid on already-owned character: {cid}")
+            char = ROSTER_BY_ID[cid]
+            bid = int(raw["bid"])
+            if bid < char.floor_cost:
+                raise ValueError(
+                    f"Bid {bid} for {char.name} below floor {char.floor_cost}"
+                )
+            bids.append((char, bid))
+            seen.add(cid)
+            total += bid
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValueError(str(exc)) from exc
+
+    if total > bankroll:
+        raise ValueError(f"Total bids ${total} exceed bankroll ${bankroll}")
+    return (bids, False)
+
+
+def _resolve_round(
+    bids_by_ai: dict[int, list[tuple[Character, int]]],
+) -> tuple[list[tuple[int, Character, int]], list[tuple[list[int], Character, int]]]:
+    bids_per_char: dict[int, list[tuple[int, int]]] = defaultdict(list)
+    chars_by_id: dict[int, Character] = {}
+    for ai_idx, bids in bids_by_ai.items():
+        for char, bid in bids:
+            bids_per_char[char.id].append((ai_idx, bid))
+            chars_by_id[char.id] = char
+
+    winners: list[tuple[int, Character, int]] = []
+    ties: list[tuple[list[int], Character, int]] = []
+    for char_id in sorted(chars_by_id):
+        char = chars_by_id[char_id]
+        entries = sorted(
+            bids_per_char[char_id],
+            key=lambda item: (-item[1], item[0]),
+        )
+        top_bid = entries[0][1]
+        top_bidders = [ai_idx for ai_idx, bid in entries if bid == top_bid]
+        if len(top_bidders) == 1:
+            winners.append((top_bidders[0], char, top_bid))
+        else:
+            ties.append((top_bidders, char, top_bid))
+    return winners, ties
+
+
+def _extract_round_result_for(
+    ai_idx: int,
+    winners: list[tuple[int, Character, int]],
+    ties: list[tuple[list[int], Character, int]],
+    bids_for_ai: list[tuple[Character, int]],
+) -> dict[str, list[str]]:
+    won_ids = {char.id for winner_ai, char, _ in winners if winner_ai == ai_idx}
+    tied_ids = {char.id for tied_ai_idxs, char, _ in ties if ai_idx in tied_ai_idxs}
+    won = [f"{char.name} (${bid})" for winner_ai, char, bid in winners if winner_ai == ai_idx]
+    tied = [f"{char.name} (${bid})" for tied_ai_idxs, char, bid in ties if ai_idx in tied_ai_idxs]
+    lost = [
+        f"{char.name} (${bid})"
+        for char, bid in bids_for_ai
+        if char.id not in won_ids and char.id not in tied_ids
+    ]
+    return {"won": won, "lost": lost, "tied": tied}
+
+
+@dataclass
+class AuctionRoundRecord:
+    round_num: int
+    bids_by_ai: dict[int, list[tuple[int, int]]]
+    winners: list[tuple[int, int, int]]
+    ties: list[tuple[list[int], int, int]]
+    bankrolls_after: dict[int, int]
+    crews_after: dict[int, list[int]]
+    done_ais: list[int]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "round_num": self.round_num,
+            "bids_by_ai": self.bids_by_ai,
+            "winners": self.winners,
+            "ties": self.ties,
+            "bankrolls_after": self.bankrolls_after,
+            "crews_after": self.crews_after,
+            "done_ais": self.done_ais,
+        }
+
+
+@dataclass
+class AuctionResult:
+    crews: dict[int, Crew]
+    bankrolls_spent: dict[int, int]
+    rounds: list[AuctionRoundRecord]
+    logs_per_ai: dict[int, list[TurnLog]]
+
+
+def _snapshot_auction(
+    snapshot_fn: SnapshotFn,
+    *,
+    stage: str,
+    round_num: int,
+    pool: list[Character],
+    crews: dict[int, list[Character]],
+    bankrolls: dict[int, int],
+    passed: set[int],
+    rounds_log: list[AuctionRoundRecord],
+) -> None:
+    if snapshot_fn is None:
+        return
+    payload: dict[str, Any] = {
+        "stage": stage,
+        "round": round_num,
+        "scene_idx": 0,
+        "strategy": "",
+        "session_id": None,
+        "rng_state": None,
+        "extras": {
+            "auction_state": {
+                "pool": [c.id for c in pool],
+                "crews_by_ai": {i: [c.id for c in crew] for i, crew in crews.items()},
+                "bankrolls": dict(bankrolls),
+                "passed": sorted(passed),
+                "rounds_log": [r.to_dict() for r in rounds_log],
+            }
+        },
+    }
+    try:
+        snapshot_fn(payload)
+    except Exception as exc:
+        log.warn("auction_snapshot_failed", stage=stage, error=str(exc))
+
+
+def run_auction(
+    ais: list[HeistAI],
+    strategies: list[str],
+    logs_per_ai: dict[int, list[TurnLog]],
+    emit_per_ai: EmitPerAIFn,
+    emit_broadcast: EmitBroadcastFn,
+    snapshot_fn: SnapshotFn = None,
+    max_rounds: int = 8,
+) -> AuctionResult:
+    global _last_turn_end_at
+    pool: list[Character] = list(ROSTER)
+    crews: dict[int, list[Character]] = {i: [] for i in range(len(ais))}
+    bankrolls: dict[int, int] = {i: BANKROLL for i in range(len(ais))}
+    passed: set[int] = set()
+    rounds_log: list[AuctionRoundRecord] = []
+    last_result_per_ai: dict[int, dict[str, list[str]]] = {}
+    min_floor = min(c.floor_cost for c in ROSTER)
+
+    for ai_idx in range(len(ais)):
+        logs_per_ai.setdefault(ai_idx, [])
+
+    for round_num in range(1, max_rounds + 1):
+        active = [
+            i for i in range(len(ais))
+            if len(crews[i]) < 4
+            and i not in passed
+            and bankrolls[i] >= min_floor
+            and pool
+        ]
+        if not active:
             break
-        pick = rng.choice(affordable)
-        crew.append(pick)
-        budget -= pick.floor_cost
-        pool = [c for c in pool if c.id != pick.id]
 
-    return crew
+        bids_by_ai: dict[int, list[tuple[Character, int]]] = {}
+        for ai_idx in active:
+            prompt = _round_bid_prompt(
+                strategies[ai_idx],
+                pool,
+                crews[ai_idx],
+                bankrolls[ai_idx],
+                round_num,
+                last_result_per_ai.get(ai_idx),
+            )
+            turn = _call(
+                ais[ai_idx],
+                prompt,
+                f"bid_round_{round_num}",
+                logs_per_ai[ai_idx],
+                ai_idx,
+                emit_per_ai,
+            )
+            valid_bids: list[tuple[Character, int]]
+            did_pass: bool
+            try:
+                parsed = parse_json_block(turn.text)
+            except Exception as exc:
+                log.warn(
+                    "invalid_round_json",
+                    ai_idx=ai_idx,
+                    round_num=round_num,
+                    error=str(exc),
+                )
+                parsed = {"bids": [], "pass": True, "reasoning": ""}
+                valid_bids, did_pass = [], True
+            else:
+                try:
+                    valid_bids, did_pass = _validate_round_bids(
+                        parsed, pool, crews[ai_idx], bankrolls[ai_idx]
+                    )
+                except ValueError as exc:
+                    log.warn(
+                        "invalid_round_bids",
+                        ai_idx=ai_idx,
+                        round_num=round_num,
+                        error=str(exc),
+                    )
+                    valid_bids, did_pass = [], True
+            parsed_bids = parsed.get("bids", [])
+            if not isinstance(parsed_bids, list):
+                parsed_bids = []
+            if did_pass or not valid_bids:
+                passed.add(ai_idx)
+            else:
+                bids_by_ai[ai_idx] = valid_bids
+            emit_per_ai(ai_idx, {
+                "type": "turn_end",
+                "label": f"bid_round_{round_num}",
+                "seconds": logs_per_ai[ai_idx][-1].seconds,
+                "parsed": {
+                    "round": round_num,
+                    "bids": [
+                        {
+                            "character_id": char.id,
+                            "bid": bid,
+                            "rationale": parsed_bids[idx].get("rationale", ""),
+                        }
+                        for idx, (char, bid) in enumerate(valid_bids)
+                    ],
+                    "pass": bool(parsed.get("pass", False)) or not valid_bids,
+                    "reasoning": parsed.get("reasoning", ""),
+                    "remaining_roster": [c.id for c in pool],
+                    "your_crew_so_far": [c.id for c in crews[ai_idx]],
+                    "your_bankroll": bankrolls[ai_idx],
+                },
+                "response": turn.text,
+                "ai_idx": ai_idx,
+            })
+            _last_turn_end_at = time.monotonic()
+
+        if not bids_by_ai:
+            break
+
+        winners, ties = _resolve_round(bids_by_ai)
+        for ai_idx, char, bid in winners:
+            crews[ai_idx].append(char)
+            bankrolls[ai_idx] -= bid
+            pool.remove(char)
+
+        for ai_idx in range(len(ais)):
+            if len(crews[ai_idx]) >= 4:
+                passed.add(ai_idx)
+
+        done_ais = sorted({
+            i for i in range(len(ais))
+            if len(crews[i]) >= 4 or i in passed or bankrolls[i] < min_floor or not pool
+        })
+        record = AuctionRoundRecord(
+            round_num=round_num,
+            bids_by_ai={
+                ai_idx: [(char.id, bid) for char, bid in bids]
+                for ai_idx, bids in bids_by_ai.items()
+            },
+            winners=[(ai_idx, char.id, bid) for ai_idx, char, bid in winners],
+            ties=[([*ai_idxs], char.id, bid) for ai_idxs, char, bid in ties],
+            bankrolls_after=dict(bankrolls),
+            crews_after={i: [c.id for c in crew] for i, crew in crews.items()},
+            done_ais=done_ais,
+        )
+        rounds_log.append(record)
+        emit_broadcast({
+            "type": "auction_round_resolved",
+            "round": round_num,
+            "winners": [
+                {"char_id": char.id, "ai_idx": ai_idx, "bid": bid}
+                for ai_idx, char, bid in winners
+            ],
+            "ties": [
+                {"char_id": char.id, "ai_idxs": ai_idxs, "bid": bid}
+                for ai_idxs, char, bid in ties
+            ],
+            "bankrolls_after": dict(bankrolls),
+            "crews_after": {i: [c.id for c in crew] for i, crew in crews.items()},
+            "done_ais": done_ais,
+        })
+
+        for ai_idx in active:
+            last_result_per_ai[ai_idx] = _extract_round_result_for(
+                ai_idx,
+                winners,
+                ties,
+                bids_by_ai.get(ai_idx, []),
+            )
+
+        _snapshot_auction(
+            snapshot_fn,
+            stage=f"auction_round_{round_num}",
+            round_num=round_num,
+            pool=pool,
+            crews=crews,
+            bankrolls=bankrolls,
+            passed=passed,
+            rounds_log=rounds_log,
+        )
+
+    final_crews: dict[int, Crew] = {}
+    for ai_idx in range(len(ais)):
+        crew = Crew(members=crews[ai_idx])
+        final_crews[ai_idx] = crew
+        emit_per_ai(ai_idx, {"type": "crew_known", "crew": crew_to_dict(crew)})
+
+    _snapshot_auction(
+        snapshot_fn,
+        stage="auction_complete",
+        round_num=len(rounds_log),
+        pool=pool,
+        crews=crews,
+        bankrolls=bankrolls,
+        passed=passed,
+        rounds_log=rounds_log,
+    )
+
+    return AuctionResult(
+        crews=final_crews,
+        bankrolls_spent={i: BANKROLL - bankrolls[i] for i in range(len(ais))},
+        rounds=rounds_log,
+        logs_per_ai=logs_per_ai,
+    )

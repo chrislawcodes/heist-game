@@ -296,6 +296,7 @@ function _isVisibleEvent(e) {
   if (e.type === 'turn_end') {
     const label = e.label || '';
     if (label === 'bid')             return true;
+    if (/^bid_round_\d+$/.test(label)) return true;  // auction: each round's bids
     if (label === 'job_pick')        return true;
     if (label === 'casting_summary') return true;
     if (/^scene_\d+_(?:escape_)?narrate$/.test(label)) return true;
@@ -307,6 +308,11 @@ function _isVisibleEvent(e) {
 // Returns true if the event belongs to the currently-selected AI, or has no
 // ai_idx (system/global events). Used by Step/Back to skip other AIs' events.
 function _isCurrentAIEvent(e) {
+  // Auction bids are simultaneous and shown together on the board, so every
+  // bid_round turn is a stop point regardless of which AI placed it. Without
+  // this, "Mind of A" stepping skips B's bid and collapses it into the
+  // resolution step — the user never sees both crews' chips sitting pending.
+  if (e.type === 'turn_end' && /^bid_round_\d+$/.test(e.label || '')) return true;
   return e.ai_idx === undefined || e.ai_idx === Shell.currentAI;
 }
 
