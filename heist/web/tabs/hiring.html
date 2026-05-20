@@ -11,6 +11,10 @@
 
 <style>
 .hiring-root {
+  /* Single source of truth for character-card width. Both the free-character
+     pool (left) and the crew slots (right) size their cards off this, so cards
+     are pixel-identical on both sides. */
+  --hr-card-w: 120px;
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -102,7 +106,8 @@
 }
 .hiring-root .hr-pool-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  grid-template-columns: repeat(auto-fill, var(--hr-card-w));
+  justify-content: start;
   gap: 6px;
   align-content: start;
 }
@@ -212,7 +217,7 @@
   flex-direction: column;
   gap: 0;
   flex: 0 0 auto;
-  width: 192px;
+  width: max-content;
 }
 .hiring-root .hr-crew-list {
   display: flex;
@@ -222,7 +227,7 @@
 }
 .hiring-root .hr-crew-col {
   flex: 0 0 auto;
-  width: 192px;
+  width: max-content;
   min-height: 0;
   background: var(--panel);
   border: 1px solid var(--border);
@@ -320,7 +325,7 @@
 
 .hiring-root .hr-crew-slots {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, var(--hr-card-w));
   gap: 6px;
   padding: 10px;
 }
@@ -478,9 +483,6 @@
     return Object.values(ledger).reduce((sum, chip) => sum + chip.amount, 0);
   }
 
-  function aiVisibleCount() {
-    return Shell && Shell.aiList ? Shell.aiList.length : 0;
-  }
 
   function allVisiblePoolChars() {
     if (!Shell) return [];
@@ -747,8 +749,6 @@
 
   function render() {
     if (!root || !Shell) return;
-    const crewCount = Math.max(1, aiVisibleCount());
-    const crewWidth = Math.max(192, crewCount * 192 + Math.max(0, crewCount - 1) * 12);
     const poolChars = allVisiblePoolChars();
     const poolCount = poolChars.length;
     const poolHtml = poolChars.length
@@ -766,7 +766,7 @@
           </div>
           <div class="hr-pool-grid" data-hr="pool-grid">${poolHtml}</div>
         </section>
-        <section class="hr-crews" style="width:${crewWidth}px">
+        <section class="hr-crews">
           <div class="hr-pool-header">
             <span class="hr-section-label">Crews</span>
             <span class="hr-section-count">${Shell.aiList.length} ${Shell.aiList.length === 1 ? 'crew' : 'crews'}</span>
