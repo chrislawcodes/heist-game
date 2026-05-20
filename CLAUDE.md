@@ -16,7 +16,8 @@ A single-player (Phase 1) → multiplayer (Phase 2+) AI heist game. The player w
 - Skill levels: Low / Medium / High only
 - Collaboration rule: two same-skill crew act one level higher, capped at High
 - Hard challenges require High skill (Medium + Medium collaboration counts)
-- Bankroll: $2,000
+- Challenge resolution is graded: clean / squeak (pass, +1 heat) / fail / caught (skill 2+ levels short → a crew member is caught). Take = per-scene loot secured during the run, kept only if at least one crew member escapes
+- Bankroll: $2,000,000
 - Roster: 16 characters, locked
 - Job slate is not locked — add/remove freely in `heist/content.py` (`JOBS` list). Current slate: Museum Gala, Armored Car, Corporate Server Farm, Penthouse Caper, Cargo Yard, Diplomatic Reception, Casino Vault
 - System owns all deterministic mechanics; Heist AI owns all creative/interpretive decisions
