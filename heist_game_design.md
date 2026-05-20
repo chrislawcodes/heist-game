@@ -195,7 +195,7 @@ If the heist body fails or aborts, or the escape fails: zero reward.
 - One human player
 - Bankroll: **$2000**
 - A slate of 3 jobs
-- A roster of 15 characters
+- A roster of 16 characters
 - Player submits only a strategy prompt
 - Heist AI selects crew (via bidding), selects job, runs the heist
 
@@ -208,22 +208,24 @@ If the heist body fails or aborts, or the escape fails: zero reward.
 | 3 | Eli "Owl" Park | Hacker L, Inside Man L | 2 | $200 |
 | 4 | Vance "The Wall" Tobin | Muscle H | 3 | $700 |
 | 5 | Carla Reyes | Muscle M, Driver L | 3 | $400 |
-| 6 | Big Mike Donato | Muscle L, Driver L | 2 | $200 |
-| 7 | Lin "Closer" Park | Inside Man H, Safecracker L | 4 | $1100 |
-| 8 | Theo Ashland | Inside Man M | 2 | $200 |
+| 6 | Big Mike Donato | Muscle L, Driver L, Inside Man L | 3 | $400 |
+| 7 | Lin "Closer" Chen | Inside Man H, Safecracker L | 4 | $1100 |
+| 8 | Theo Kapoor | Inside Man M | 2 | $200 |
 | 9 | Pearl Sutton | Inside Man M, Muscle L | 3 | $400 |
 | 10 | Rook Ferreira | Safecracker H | 3 | $700 |
 | 11 | Jolene "Jo" Hayes | Safecracker M, Hacker L | 3 | $400 |
-| 12 | Nestor Bly | Safecracker L, Hacker L | 2 | $200 |
+| 12 | Nestor Bly | Safecracker M, Hacker L | 3 | $400 |
 | 13 | "Slim" Adesanya | Driver H | 3 | $700 |
 | 14 | Margot Vinter | Driver M, Inside Man L | 3 | $400 |
-| 15 | Dex Owusu | Driver L, Muscle L | 2 | $200 |
+| 15 | Dex Owusu | Driver M, Muscle L | 3 | $400 |
+| 16 | Valentina "Val" Cruz | Muscle M, Inside Man L | 3 | $400 |
 
 **Roster design notes:**
-- 3 primaries per skill (15 total)
-- Inside Man has no Low option — premium skill
-- Two Medium Inside Men (Theo + Pearl) enable the collaboration substitution that makes the Museum doable
-- Personalities sketched; need polish before build
+- One High specialist per skill: Marcus (Hacker), Vance (Muscle), Lin (Inside Man), Rook (Safecracker), Slim (Driver). Marcus and Lin are the two 4-point premiums at $1100; Vance, Rook, and Slim are pure single-High hires at $700.
+- The other eleven characters are Medium/Low generalists, so most crews pair one premium specialist with cheaper support.
+- Two Medium Inside Men (Theo + Pearl) enable the collaboration substitution that makes the Museum doable.
+- Inside Man is the deepest skill on the bench (7 characters across all levels); Safecracker the thinnest (4).
+- Personalities fully authored — backstory, voice, motivation, quirk, look, and signature line for all 16.
 
 ### Phase 1 strategic landscape
 
@@ -533,7 +535,7 @@ To be designed:
 
 ### Phase 1 — settled
 
-- ✓ Roster: 15 characters, locked
+- ✓ Roster: 16 characters, locked
 - ✓ Skills, levels, challenge levels, interaction
 - ✓ Pricing and bankroll ($2000)
 - ✓ Driver mechanic with no-Driver option
@@ -551,7 +553,7 @@ To be designed:
 - Output format specifics (how the narrative is structured for display)
 - Failure consequence specifics (which kinds of failure produce which outcomes)
 - Escape mechanic in concrete terms (accumulated failures table)
-- Character roster content authoring (15 personality paragraphs)
+- Character roster content authoring (16 personality paragraphs)
 - Location flavor text polish
 - What the player sees during execution (streaming vs. final output)
 
@@ -575,7 +577,7 @@ To be designed:
 
 **Adversity that feels fair.** Hidden depth must feel like the world has depth, not arbitrary punishment.
 
-**Content authoring.** 15 characters and 3 locations need deliberate creative writing.
+**Content authoring.** 16 characters and 3 locations need deliberate creative writing.
 
 ---
 
@@ -585,7 +587,7 @@ The smallest possible Phase 1:
 
 - One player
 - The 3 Phase 1 jobs
-- The 15-character roster (with polished personalities and flavor)
+- The 16-character roster (with polished personalities and flavor)
 - Player writes a strategy prompt
 - Heist AI bids, selects job, writes casting summary
 - System rolls hidden depth and structures scenes
