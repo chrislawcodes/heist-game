@@ -85,8 +85,13 @@ def _round_bid_response(prompt: str) -> str:
     bankroll = int(bank_match.group(1)) if bank_match else 0
     strat_match = re.search(r"Player's strategy:\n---\n(.*?)\n---", prompt, re.DOTALL)
     strategy = strat_match.group(1) if strat_match else ""
-    # Deterministic per-AI offset (0/50/100/150/200) to break ties between stubs.
-    offset = (sum(ord(ch) for ch in strategy) % 5) * 50
+    # Deterministic per-AI bid offset so two stubs don't bid identically and
+    # tie every round (which would never resolve, hitting the round cap with
+    # empty crews). A position-weighted char sum mod a prime makes distinct
+    # strategy strings essentially never collide; the higher-offset AI wins
+    # contested picks and the other takes the next round's leftovers. Capped
+    # small (0-136) so four picks stay within bankroll.
+    offset = sum((i + 1) * ord(ch) for i, ch in enumerate(strategy)) % 137
     avail = [
         (int(cid), int(floor))
         for cid, floor in re.findall(r"id=(\d+),.*?floor=\$(\d+)", prompt)
