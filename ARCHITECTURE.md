@@ -183,8 +183,8 @@ On startup, `_recover_games()` reloads every game record. For any game whose sta
    *emits* `turn_end(casting_summary)`
 4. **Job pick** — AI selects one of the jobs in the slate (currently 7; see `heist/content.py`'s `JOBS` list) with why-this + why-not  
    *emits* `turn_end(job_pick)`, `job_known`, `hidden_depth_rolled`
-5. **Scene loop** — for each scene: assign → (decision?) → resolve → narrate  
-   *emits* `scene_start`, `turn_end(scene_N_assign)`, `turn_end(scene_N_decision)`, `scene_done`, `turn_end(scene_N_narrate)`
+5. **Scene loop** — for each scene: assign → resolve → (abort? if failed) → narrate. Decision scenes (hidden-depth bonus) also get a pursue/skip prompt before resolution.  
+   *emits* `scene_start`, `turn_end(scene_N_assign)`, `turn_end(scene_N_decision)`, `turn_end(scene_N_abort)`, `scene_done`, `turn_end(scene_N_narrate)`
 6. **Escape** — resolved mechanically from heat + driver skill  
    *emits* `scene_start(escape)`, `scene_done`, `turn_end(scene_N_escape_narrate)`
 7. **Epilogue** — closing prose  
@@ -197,7 +197,8 @@ On startup, `_recover_games()` reloads every game record. For any game whose sta
 Pure functions, no AI calls.
 
 - `effective_skill()` — two crew members in the same skill area act one level higher than the better one (capped at High)
-- `resolves_challenge()` — skill level vs. challenge level
+- `resolve_outcome()` — skill level vs. challenge level → `Outcome` (CLEAN / SQUEAK / FAIL / CAUGHT)
+- `outcome_is_pass()` — CLEAN and SQUEAK are passes; FAIL and CAUGHT are failures
 - `escape_resolves()` — driver skill vs. `(escape_modifier + heat)`
 
 ### `heist/state.py`, `heist/content.py`, `heist/scenes.py`
@@ -216,11 +217,11 @@ Pure functions, no AI calls.
 
 ### `heist/ai.py`
 
-`HeistAI` protocol: one method — `ask(prompt: str) -> AgentTurn`. Defines `parse_json_block()` (strips markdown fences, extracts JSON) used everywhere downstream.
+`HeistAI` protocol: one method — `ask(prompt: str) -> AgentTurn`. Defines `parse_json_block()` (strips markdown fences, extracts JSON, attempts deterministic repairs) used by `_call_json` for structured responses. Prose-only calls (casting summary, scene narration, epilogue) bypass JSON parsing entirely and use `_call` directly.
 
 ### `heist/stub_responses.py`
 
-`build_stub_ai()` — a `HeistAI` that returns scripted JSON. Used by `--agent stub` for end-to-end tests without burning API calls.
+`build_stub_ai()` — a `HeistAI` that dispatches scripted responses by prompt content. Structured calls return JSON; prose calls (narration, summary, epilogue) return plain text. Used by `--agent stub` for end-to-end tests without burning API calls.
 
 ### `heist/backends.py`
 
