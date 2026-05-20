@@ -289,10 +289,31 @@ let   _thoughtTimer  = null;
 
 let _currentOnEvent = null;  // set by initShell; used by replayStep
 
+// ── _attachStrategyToStarts ───────────────────────────────────────────────────
+// For each turn_start bid_round_N event, peek ahead to find the matching
+// turn_end and copy casting_strategy onto the start event as e._strategy.
+// This lets _processEvent show the strategy card at step 1 (turn_start),
+// before bids are revealed at step 2 (turn_end).
+function _attachStrategyToStarts(events) {
+  events.forEach(e => {
+    if (e.type !== 'turn_start' || !/^bid_round_\d+$/.test(e.label || '')) return;
+    const match = events.find(e2 =>
+      e2.type === 'turn_end' && e2.label === e.label && e2.ai_idx === e.ai_idx
+    );
+    if (match && match.parsed && match.parsed.casting_strategy) {
+      e._strategy = match.parsed.casting_strategy;
+    }
+  });
+}
+
 // ── isVisibleEvent: true for events that produce a visible DOM change ─────────
 function _isVisibleEvent(e) {
-  if (e.type === 'turn_start') return false;
   if (e.type === 'hidden_depth_rolled') return false;
+  if (e.type === 'turn_start') {
+    // Auction bid starts are visible: they show the strategy card before chips
+    // land, so the user sees intent before the bids are revealed.
+    return /^bid_round_\d+$/.test(e.label || '');
+  }
   if (e.type === 'turn_end') {
     const label = e.label || '';
     if (label === 'bid')             return true;
@@ -308,11 +329,10 @@ function _isVisibleEvent(e) {
 // Returns true if the event belongs to the currently-selected AI, or has no
 // ai_idx (system/global events). Used by Step/Back to skip other AIs' events.
 function _isCurrentAIEvent(e) {
-  // Auction bids are simultaneous and shown together on the board, so every
-  // bid_round turn is a stop point regardless of which AI placed it. Without
-  // this, "Mind of A" stepping skips B's bid and collapses it into the
-  // resolution step — the user never sees both crews' chips sitting pending.
-  if (e.type === 'turn_end' && /^bid_round_\d+$/.test(e.label || '')) return true;
+  // Auction bid turns (both start and end) are simultaneous — every AI's
+  // bid_round event is a stop point regardless of which AI placed it.
+  if (/^bid_round_\d+$/.test(e.label || '') &&
+      (e.type === 'turn_start' || e.type === 'turn_end')) return true;
   return e.ai_idx === undefined || e.ai_idx === Shell.currentAI;
 }
 
@@ -674,6 +694,7 @@ window.initShell = async function({ gameId, onEvent } = {}) {
     try {
       const data = await fetch(`/api/games/${targetGame.id}/events`).then(r => r.json());
       _REPLAY_EVENTS = data.events || [];
+      _attachStrategyToStarts(_REPLAY_EVENTS);
       Shell.replayEvents = _REPLAY_EVENTS;
       _computeVisibleByAI();
       _replayUpdateCounter();
@@ -717,6 +738,12 @@ function _processEvent(e, onEvent) {
   // Rail-level handling (thought cards, bid cards, etc.)
   if (e.type === 'turn_end') _railFromTurnEnd(e);
 
+  // Step 1 of auction bid rounds: show the strategy card now, before bids land.
+  if (e.type === 'turn_start' && /^bid_round_\d+$/.test(e.label || '') && e._strategy) {
+    const aiIdx = e.ai_idx ?? 0;
+    _addThought(aiIdx, 'strategy', 'Strategy', Shell.helpers.escapeHtml(e._strategy));
+  }
+
   const aiIdx = e.ai_idx ?? 0;
 
   // Top bar updates
@@ -749,7 +776,9 @@ function _railFromTurnEnd(e) {
   const aiIdx = e.ai_idx ?? 0;
   const esc = Shell.helpers.escapeHtml;
   if ((e.label === 'bid' || /^bid_round_\d+$/.test(e.label || '')) && e.parsed) {
-    if (e.parsed.casting_strategy) {
+    // Strategy: show at turn_end only for the legacy 'bid' label.
+    // For bid_round_N, strategy already showed at turn_start (step 1); skip here.
+    if (e.label === 'bid' && e.parsed.casting_strategy) {
       _addThought(aiIdx, 'strategy', 'Strategy', esc(e.parsed.casting_strategy));
     }
     (e.parsed.bids || []).forEach(b => {
