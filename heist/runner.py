@@ -112,6 +112,40 @@ def _call(
     return turn
 
 
+def _call_json(
+    ai: HeistAI, prompt: str, label: str, logs: list[TurnLog],
+    emit: EmitFn = None, retries: int = 2,
+) -> tuple[AgentTurn, dict]:
+    """Call the AI and parse its JSON response. On parse failure, re-ask the
+    model in the same session (up to `retries` times) before giving up.
+
+    The retry attempts do NOT emit viewer events and are not subject to the
+    inter-turn pacing delay (pass emit=None), but they are still logged via
+    _call's normal ai_call logging. If all attempts fail, the final parse
+    exception propagates (hard-fail preserved)."""
+    last_exc: Exception | None = None
+    for attempt in range(retries + 1):
+        if attempt == 0:
+            turn = _call(ai, prompt, label, logs, emit)
+        else:
+            retry_prompt = (
+                "Your last reply could not be parsed as JSON. Reply with ONLY "
+                "the JSON object I asked for — no prose, no markdown fences, "
+                "and make sure every string is properly closed and escaped."
+            )
+            # No emit on retries: keeps the viewer replay clean and skips the
+            # inter-turn delay. Still logged as an ai_call by _call.
+            turn = _call(ai, retry_prompt, f"{label}_retry{attempt}", logs, emit=None)
+        try:
+            return turn, parse_json_block(turn.text)
+        except ValueError as exc:   # json.JSONDecodeError subclasses ValueError
+            last_exc = exc
+            log.warn("parse_retry", label=label, attempt=attempt, error=str(exc))
+    assert last_exc is not None
+    log.error("parse_failed_final", label=label, attempts=retries + 1, error=str(last_exc))
+    raise last_exc
+
+
 def _roster_summary() -> str:
     lines = []
     for c in ROSTER:
@@ -334,8 +368,7 @@ def _fill_crew(
         fill_attempt += 1
         remaining = 4 - len(crew_so_far)
         prompt = _fill_prompt(crew_so_far, remaining)
-        turn = _call(ai, prompt, f"fill_{fill_attempt}", logs, emit)
-        parsed = parse_json_block(turn.text)
+        _, parsed = _call_json(ai, prompt, f"fill_{fill_attempt}", logs, emit)
         added_any = False
         spent = sum(c.floor_cost for c in crew_so_far)
         existing_ids = {c.id for c in crew_so_far}
@@ -454,8 +487,7 @@ def _draft_crew(
 ) -> Crew:
     """Draft only — returns the assembled Crew. Job pick happens later, after
     the casting summary."""
-    bid_turn = _call(ai, _bid_prompt(strategy), "bid", logs, emit)
-    bid_parsed = parse_json_block(bid_turn.text)
+    _, bid_parsed = _call_json(ai, _bid_prompt(strategy), "bid", logs, emit)
     extras["bid_logic"] = bid_parsed
     bids = _validate_bids(bid_parsed)
     crew_members = [c for c, _ in bids]
@@ -469,8 +501,7 @@ def _draft_crew(
 
 def _pick_job(crew: Crew, ai: HeistAI, logs: list[TurnLog], extras: dict, emit: EmitFn) -> Any:
     """Stage: pick a job given the assembled crew. Emits job_known."""
-    job_turn = _call(ai, _job_prompt(crew), "job_pick", logs, emit)
-    job_parsed = parse_json_block(job_turn.text)
+    _, job_parsed = _call_json(ai, _job_prompt(crew), "job_pick", logs, emit)
     name = job_parsed["job_name"]
     if name not in JOBS_BY_NAME:
         raise ValueError(f"AI picked unknown job {name!r}")
@@ -578,8 +609,8 @@ def run_heist(
     )
 
     # 2. Casting summary (BEFORE job pick — talks only about the crew)
-    summary_turn = _call(ai, _summary_prompt(), "casting_summary", logs, emit)
-    extras["casting_summary"] = parse_json_block(summary_turn.text).get("summary", "")
+    _, summary_parsed = _call_json(ai, _summary_prompt(), "casting_summary", logs, emit)
+    extras["casting_summary"] = summary_parsed.get("summary", "")
     _snapshot(
         snapshot_fn, stage=STAGE_SUMMARY_DONE, strategy=strategy, ai=ai, rng=rng,
         state=pre_state, extras=extras, scene_idx=0,
@@ -608,8 +639,8 @@ def run_heist(
     _finalize_reward(state)
 
     # 7. Epilogue
-    ep_turn = _call(ai, _epilogue_prompt(state), "epilogue", logs, emit)
-    extras["epilogue"] = parse_json_block(ep_turn.text).get("epilogue", "")
+    _, ep_parsed = _call_json(ai, _epilogue_prompt(state), "epilogue", logs, emit)
+    extras["epilogue"] = ep_parsed.get("epilogue", "")
     _snapshot(
         snapshot_fn, stage=STAGE_DONE, strategy=strategy, ai=ai, rng=rng,
         state=state, extras=extras, scene_idx=len(scenes),
@@ -690,8 +721,8 @@ def resume_heist(
         if emit:
             from heist.serialize import crew_to_dict
             emit({"type": "crew_known", "crew": crew_to_dict(state.crew)})
-        summary_turn = _call(ai, _summary_prompt(), "casting_summary", logs, emit)
-        extras["casting_summary"] = parse_json_block(summary_turn.text).get("summary", "")
+        _, summary_parsed = _call_json(ai, _summary_prompt(), "casting_summary", logs, emit)
+        extras["casting_summary"] = summary_parsed.get("summary", "")
         _snapshot(
             snapshot_fn, stage=STAGE_SUMMARY_DONE, strategy=strategy, ai=ai,
             rng=rng, state=state, extras=extras, scene_idx=0,
@@ -765,8 +796,8 @@ def resume_heist(
     _finalize_reward(state)
 
     if not extras.get("epilogue"):
-        ep_turn = _call(ai, _epilogue_prompt(state), "epilogue", logs, emit)
-        extras["epilogue"] = parse_json_block(ep_turn.text).get("epilogue", "")
+        _, ep_parsed = _call_json(ai, _epilogue_prompt(state), "epilogue", logs, emit)
+        extras["epilogue"] = ep_parsed.get("epilogue", "")
         _snapshot(
             snapshot_fn, stage=STAGE_DONE, strategy=strategy, ai=ai, rng=rng,
             state=state, extras=extras, scene_idx=scene_idx,
@@ -801,10 +832,9 @@ def _execute_scene(
             "context": scene.context,
         })
 
-    assign_turn = _call(
+    _, assign_parsed = _call_json(
         ai, _scene_assign_prompt(scene, state), f"scene_{scene.number}_assign", logs, emit
     )
-    assign_parsed = parse_json_block(assign_turn.text)
     member_ids = [int(i) for i in assign_parsed.get("assigned_member_ids", [])]
     assigned = [ROSTER_BY_ID[i] for i in member_ids if i in ROSTER_BY_ID]
     assignment_reasoning = assign_parsed.get("reasoning", "")
@@ -814,10 +844,9 @@ def _execute_scene(
     outcome_summary: str
 
     if scene.type == "decision":
-        dec_turn = _call(
+        _, dec_parsed = _call_json(
             ai, _scene_decision_prompt(scene), f"scene_{scene.number}_decision", logs, emit
         )
-        dec_parsed = parse_json_block(dec_turn.text)
         pursue = bool(dec_parsed.get("pursue", False))
         decision = {"pursue": pursue, "reasoning": dec_parsed.get("reasoning", "")}
         state.bonus_pursued = pursue
@@ -842,11 +871,10 @@ def _execute_scene(
     else:
         outcome_summary = "(no resolution)"
 
-    narrate_turn = _call(
+    _, narrate_parsed = _call_json(
         ai, _scene_narrate_prompt(scene, outcome_summary, assigned),
         f"scene_{scene.number}_narrate", logs, emit,
     )
-    narrate_parsed = parse_json_block(narrate_turn.text)
     narration = narrate_parsed.get("narration", "")
 
     return SceneResult(
@@ -889,20 +917,19 @@ def _execute_escape(
             "context": scene.context,
         })
 
-    assign_turn = _call(
+    _, assign_parsed = _call_json(
         ai, _scene_assign_prompt(scene, state),
         f"scene_{scene.number}_escape_assign", logs, emit,
     )
-    assign_parsed = parse_json_block(assign_turn.text)
     member_ids = [int(i) for i in assign_parsed.get("assigned_member_ids", [])]
     escape_assigned = [ROSTER_BY_ID[i] for i in member_ids if i in ROSTER_BY_ID]
     assignment_reasoning = assign_parsed.get("reasoning", "")
 
-    narrate_turn = _call(
+    _, narrate_parsed = _call_json(
         ai, _scene_narrate_prompt(scene, outcome_summary, escape_assigned),
         f"scene_{scene.number}_escape_narrate", logs, emit,
     )
-    narration = parse_json_block(narrate_turn.text).get("narration", "")
+    narration = narrate_parsed.get("narration", "")
 
     return SceneResult(
         scene=scene,
