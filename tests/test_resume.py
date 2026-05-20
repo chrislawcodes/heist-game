@@ -37,6 +37,8 @@ def test_state_roundtrip_is_structurally_equal():
     assert restored.aborted == state.aborted
     assert restored.escape_success == state.escape_success
     assert restored.final_take == state.final_take
+    assert restored.secured_take == state.secured_take
+    assert restored.caught_member_ids == state.caught_member_ids
     assert restored.job.name == state.job.name
     assert [m.id for m in restored.crew.members] == [m.id for m in state.crew.members]
     assert len(restored.scene_results) == len(state.scene_results)

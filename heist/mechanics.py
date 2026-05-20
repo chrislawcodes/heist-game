@@ -1,3 +1,5 @@
+import enum
+
 from heist.state import (
     CHALLENGE_TO_SKILL,
     ChallengeLevel,
@@ -5,6 +7,30 @@ from heist.state import (
     Crew,
     SkillLevel,
 )
+
+
+class Outcome(enum.Enum):
+    CLEAN = enum.auto()
+    SQUEAK = enum.auto()
+    FAIL = enum.auto()
+    CAUGHT = enum.auto()
+
+
+def resolve_outcome(skill: SkillLevel, challenge: ChallengeLevel) -> Outcome:
+    if challenge == ChallengeLevel.NONE:
+        return Outcome.CLEAN
+    gap = int(challenge) - int(skill)
+    if gap < 0:
+        return Outcome.CLEAN
+    if gap == 0:
+        return Outcome.SQUEAK
+    if gap == 1:
+        return Outcome.FAIL
+    return Outcome.CAUGHT
+
+
+def outcome_is_pass(outcome: Outcome) -> bool:
+    return outcome in (Outcome.CLEAN, Outcome.SQUEAK)
 
 
 def effective_skill(members: list[Character], skill: str) -> SkillLevel:

@@ -64,6 +64,7 @@ MUSEUM = Job(
         ("Minor piece", 1_800_000),
         ("Top-of-market centerpiece", 3_800_000),
     ],
+    scene_loot={"social": 500_000, "physical": 2_000_000},
 )
 
 ARMORED_CAR = Job(
@@ -127,6 +128,7 @@ ARMORED_CAR = Job(
         ("Light load", 900_000),
         ("Heavy day", 1_900_000),
     ],
+    scene_loot={"physical": 300_000, "confrontation": 1_100_000},
 )
 
 SERVER_FARM = Job(
@@ -191,6 +193,7 @@ SERVER_FARM = Job(
         ("Early-stage research", 3_500_000),
         ("Late-stage with patents", 7_800_000),
     ],
+    scene_loot={"physical": 1_000_000, "electronic": 5_000_000},
 )
 
 PENTHOUSE = Job(
@@ -249,6 +252,7 @@ PENTHOUSE = Job(
         ("Art + safe", 850_000),
         ("Everything incl. crypto wallet", 1_150_000),
     ],
+    scene_loot={"electronic": 200_000, "physical": 450_000},
 )
 
 CARGO_YARD = Job(
@@ -308,6 +312,7 @@ CARGO_YARD = Job(
         ("Counterfeits + small score", 1_300_000),
         ("Hidden jewels", 2_800_000),
     ],
+    scene_loot={"confrontation": 300_000, "physical": 1_500_000},
 )
 
 DIPLOMATIC_RECEPTION = Job(
@@ -367,6 +372,7 @@ DIPLOMATIC_RECEPTION = Job(
         ("Authentic Romanov", 3_200_000),
         ("Romanov + classified docs", 3_800_000),
     ],
+    scene_loot={"social": 700_000, "physical": 1_700_000},
 )
 
 CASINO_VAULT = Job(
@@ -427,6 +433,7 @@ CASINO_VAULT = Job(
         ("High-roller weekend take", 10_500_000),
         ("Float + chip reserves", 12_000_000),
     ],
+    scene_loot={"electronic": 3_000_000, "physical": 4_000_000},
 )
 
 JOBS: list[Job] = [
