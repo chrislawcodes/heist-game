@@ -171,13 +171,14 @@
   z-index: 2;
   pointer-events: none;
 }
-.hiring-root .hr-chip {
+.hiring-root .hr-chip,
+.hr-bid-ghost {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 11px;
+  gap: 8px;
+  padding: 6px 14px;
   border-radius: 999px;
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 800;
   line-height: 1;
   white-space: nowrap;
@@ -193,6 +194,14 @@
     background-color 0.2s ease,
     border-color 0.2s ease;
 }
+/* chip still mid-flight: the real chip is invisible until its ghost lands */
+.hiring-root .hr-chip.is-arriving { opacity: 0; }
+/* flying bid clone (on document.body) — freeze any inherited animation */
+.hr-bid-ghost { animation: none; will-change: transform; }
+.hr-bid-ghost .hr-chip-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--chip-color); box-shadow: 0 0 0 2px rgba(0,0,0,0.35);
+}
 .hiring-root .hr-chip.is-dropping {
   animation: chipDrop 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.4);
 }
@@ -201,8 +210,8 @@
   100% { opacity: 1; transform: none; }
 }
 .hiring-root .hr-chip-dot {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   background: var(--chip-color);
   flex-shrink: 0;
@@ -399,6 +408,7 @@
   const MOVE_MS = 700;            // slow glide so the move to crew is visible
   const RESOLVE_MS = 500;
   const MARKER_STAGGER_MS = 500;  // gap between bid markers dropping onto portraits
+  const MARKER_FLY_MS = 450;      // bid marker flight time (crew column -> portrait)
   const WIN_HOLD_MS = 600;        // hold winners highlighted before cards move
   // Gap between each won card's flight. Must exceed MOVE_MS so flights don't
   // overlap (each card lands + commits before the next one targets a slot).
@@ -593,25 +603,84 @@
     refreshTieStates(key);
   }
 
-  // Drop the next queued marker, render, and schedule the one after it.
+  // Fly a bid marker from the bidding AI's crew column onto the character's
+  // portrait, then reveal the real chip when it lands. Same FLIP technique as
+  // the won-card flight. The chip data is committed immediately (so the meter
+  // and resolution are correct) but rendered invisible (`arriving`) until the
+  // ghost arrives.
+  function _flyBidToPortrait(aiIdx, charId, amount) {
+    upsertChip(aiIdx, charId, amount, 'bid');
+    const key = charKey(charId);
+    const ledger = getAiLedger(aiIdx);
+    if (ledger[key]) ledger[key].arriving = true;
+    render();
+    const reveal = () => { if (ledger[key]) ledger[key].arriving = false; render(); };
+
+    const ai = Shell.aiList.find(a => a.idx === aiIdx);
+    const srcEl = root && root.querySelector(`.hr-crew-col[data-ai-idx="${aiIdx}"] .hr-crew-dot`);
+    const cardEl = root && root.querySelector(`.hr-pool-grid .hr-card[data-char-id="${key}"]`);
+    if (!ai || !srcEl || !cardEl) { reveal(); return; }
+
+    const srcRect = srcEl.getBoundingClientRect();
+    const cardRect = cardEl.getBoundingClientRect();
+
+    const ghost = document.createElement('span');
+    ghost.className = 'hr-chip hr-bid-ghost';
+    ghost.style.setProperty('--chip-color', ai.color);
+    ghost.innerHTML =
+      `<span class="hr-chip-dot"></span><span class="hr-chip-amt">$${Number(amount).toLocaleString()}</span>`;
+    ghost.style.position = 'fixed';
+    ghost.style.margin = '0';
+    ghost.style.zIndex = '9999';
+    ghost.style.pointerEvents = 'none';
+    document.body.appendChild(ghost);
+    _ghosts.push(ghost);
+
+    const gw = ghost.offsetWidth, gh = ghost.offsetHeight;
+    const startX = srcRect.left + srcRect.width / 2 - gw / 2;
+    const startY = srcRect.top + srcRect.height / 2 - gh / 2;
+    const endX = cardRect.left + cardRect.width / 2 - gw / 2;
+    const endY = cardRect.top + 10;
+    ghost.style.left = startX + 'px';
+    ghost.style.top = startY + 'px';
+    ghost.style.transform = 'translate(0px,0px)';
+    ghost.style.transition = `transform ${MARKER_FLY_MS}ms cubic-bezier(0.34,0.8,0.3,1)`;
+    void ghost.offsetWidth;   // commit start frame before moving
+    ghost.style.transform = `translate(${endX - startX}px, ${endY - startY}px)`;
+
+    setTimeout(() => {
+      reveal();
+      ghost.remove();
+      const i = _ghosts.indexOf(ghost);
+      if (i >= 0) _ghosts.splice(i, 1);
+    }, MARKER_FLY_MS);
+  }
+
+  // Fly the next queued marker, then schedule the one after it.
   function _drainPlaceQueue() {
     const item = _placeQueue.shift();
     if (!item) { _placeTimer = null; return; }
-    upsertChip(item.aiIdx, item.charId, item.amount, 'bid');
-    render();
+    _flyBidToPortrait(item.aiIdx, item.charId, item.amount);
     _placeTimer = _placeQueue.length
       ? setTimeout(_drainPlaceQueue, MARKER_STAGGER_MS)
       : null;
   }
 
-  // Place any markers still queued, immediately (used before resolution so no
-  // bid is left unplaced if the user advances faster than the stagger).
+  // Place any markers still queued/in-flight immediately (used before
+  // resolution so no bid is left unplaced if the user advances faster than
+  // the stagger). Reveals arriving chips and drops in-flight ghosts.
   function flushPlaceQueue() {
     if (_placeTimer) { clearTimeout(_placeTimer); _placeTimer = null; }
     while (_placeQueue.length) {
       const item = _placeQueue.shift();
       upsertChip(item.aiIdx, item.charId, item.amount, 'bid');
     }
+    Shell.aiList.forEach(ai => {
+      const ledger = getAiLedger(ai.idx);
+      Object.values(ledger).forEach(c => { if (c.arriving) c.arriving = false; });
+    });
+    while (_ghosts.length) { const g = _ghosts.pop(); if (g && g.parentNode) g.remove(); }
+    render();
   }
 
   function normalizeBidEvent(aiIdx, parsed) {
@@ -779,11 +848,13 @@
     const html = chips.map(chip => {
       const ai = Shell.aiList.find(a => a.idx === chip.aiIdx);
       if (!ai) return '';
-      // Animate the drop only the first time a marker is rendered; mark it
-      // placed so re-renders (other bids, resolution) don't re-trigger it.
-      const isNew = !chip.placed;
+      // While `arriving`, the real chip is invisible — its ghost is flying in.
+      // When it lands (arriving cleared), give it a one-time settle pop.
+      const isNew = !chip.placed && !chip.arriving;
       if (isNew) chip.placed = true;
-      const cls = ['hr-chip', chip.state, isNew ? 'is-dropping' : ''].filter(Boolean).join(' ');
+      const cls = ['hr-chip', chip.state,
+        chip.arriving ? 'is-arriving' : '',
+        isNew ? 'is-dropping' : ''].filter(Boolean).join(' ');
       const label = `$${Number(chip.amount).toLocaleString()}`;
       return `<span class="${cls}" style="--chip-color:${ai.color}">
         <span class="hr-chip-dot"></span>
@@ -962,8 +1033,8 @@
   }
 
   function handleBidTurn(aiIdx, parsed) {
+    // normalizeBidEvent queues the bids; _drainPlaceQueue flies + renders each.
     normalizeBidEvent(aiIdx, parsed);
-    render();
     setBiddingStatus();
   }
 
