@@ -128,6 +128,18 @@
    it here; the hiring tab supplies its own targeted animations (hr-card
    enter/leave, chip drop). */
 .hiring-root .char-card { animation: none; }
+
+/* Flying clone used to animate a won card from the pool to its crew slot.
+   It lives on document.body (so it can travel across containers), hence these
+   rules are NOT scoped to .hiring-root. Freeze its inner animations so it
+   reads as a single solid card gliding across. */
+.hr-fly-ghost {
+  border-radius: 7px;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.55);
+  will-change: transform;
+}
+.hr-fly-ghost .char-card,
+.hr-fly-ghost .hr-chip { animation: none; }
 .hiring-root .hr-card.is-leaving {
   animation: hrLeave 0.5s ease forwards;
 }
@@ -388,7 +400,9 @@
   const RESOLVE_MS = 500;
   const MARKER_STAGGER_MS = 500;  // gap between bid markers dropping onto portraits
   const WIN_HOLD_MS = 600;        // hold winners highlighted before cards move
-  const MOVE_STAGGER_MS = 520;    // gap between each won card gliding to its crew
+  // Gap between each won card's flight. Must exceed MOVE_MS so flights don't
+  // overlap (each card lands + commits before the next one targets a slot).
+  const MOVE_STAGGER_MS = MOVE_MS + 120;
 
   // Staggered bid-marker placement: markers are added to the ledger one at a
   // time (MARKER_STAGGER_MS apart) so the user clearly sees each bid land.
@@ -396,6 +410,7 @@
   let _placeTimer = null;
   let _moveHoldTimer = null;
   let _moveSeqTimer = null;
+  const _ghosts = [];   // in-flight flying-card clones, for cleanup on reset
 
   function $$(name) {
     return root && root.querySelector(`[data-hr="${name}"]`);
@@ -631,9 +646,8 @@
     return committed + pending;
   }
 
-  // Incrementally add a won character to an AI's crew and animate the card
-  // gliding from the pool into the crew column.
-  function addToCrew(aiIdx, charId) {
+  // Commit a won character into an AI's crew (data only).
+  function _commitToCrew(aiIdx, charId) {
     const key = charKey(charId);
     const crew = crewByAI[aiIdx] || { members: [] };
     if (!crew.members.some(m => charKey(m.id) === key)) {
@@ -641,18 +655,61 @@
       crew.members.push(c ? { id: c.id } : { id: charId });
     }
     crewByAI[aiIdx] = crew;
-    const already = isHiredSomewhere(key);
     addHire(charId, aiIdx);
     Shell.markHired(aiIdx, charId);
-    if (already) return;
-    movingCharIds.add(key);
-    render();   // show this one card glide now (pool leave + crew enter)
-    clearTimer(moveTimersByChar, key);
-    moveTimersByChar.set(key, setTimeout(() => {
-      movingCharIds.delete(key);
-      moveTimersByChar.delete(key);
-      render();
-    }, MOVE_MS));
+  }
+
+  // The first still-empty slot element in an AI's crew column (the flight target).
+  function _firstEmptySlot(aiIdx) {
+    const col = root && root.querySelector(`.hr-crew-col[data-ai-idx="${aiIdx}"]`);
+    if (!col) return null;
+    const empty = col.querySelector('.hr-slot-empty');
+    return empty ? empty.closest('.hr-slot') : null;
+  }
+
+  // Animate a card flying from its pool position to its destination crew slot.
+  // Uses a fixed-position clone (FLIP-style); pool and crew cards are the same
+  // size so a pure translate lands it cleanly. onLand commits + re-renders so
+  // the real card appears exactly where the ghost lands.
+  function _flyGhost(sourceEl, fromRect, toRect, onLand) {
+    const ghost = sourceEl.cloneNode(true);
+    ghost.classList.add('hr-fly-ghost');
+    ghost.classList.remove('is-leaving', 'is-entering');
+    ghost.style.visibility = 'visible';   // source was hidden; the clone must show
+    ghost.style.cssText +=
+      `position:fixed;left:${fromRect.left}px;top:${fromRect.top}px;` +
+      `width:${fromRect.width}px;height:${fromRect.height}px;margin:0;` +
+      `z-index:9999;pointer-events:none;` +
+      `transition:transform ${MOVE_MS}ms cubic-bezier(0.34,0.8,0.3,1);`;
+    document.body.appendChild(ghost);
+    _ghosts.push(ghost);
+    const dx = toRect.left - fromRect.left;
+    const dy = toRect.top - fromRect.top;
+    requestAnimationFrame(() => {
+      ghost.style.transform = `translate(${dx}px, ${dy}px)`;
+    });
+    setTimeout(() => {
+      if (onLand) onLand();          // real card renders into the slot
+      ghost.remove();                // swap out the clone
+      const i = _ghosts.indexOf(ghost);
+      if (i >= 0) _ghosts.splice(i, 1);
+    }, MOVE_MS);
+  }
+
+  // Move a won character into its crew with a visible flight from the pool.
+  function addToCrew(aiIdx, charId) {
+    const key = charKey(charId);
+    if (isHiredSomewhere(key)) { _commitToCrew(aiIdx, charId); render(); return; }
+    const fromEl = root && root.querySelector(`.hr-pool-grid .hr-card[data-char-id="${key}"]`);
+    const slotEl = _firstEmptySlot(aiIdx);
+    if (!fromEl || !slotEl) { _commitToCrew(aiIdx, charId); render(); return; }
+    const fromRect = fromEl.getBoundingClientRect();
+    const toRect = slotEl.getBoundingClientRect();
+    fromEl.style.visibility = 'hidden';   // hide source but keep its grid space during flight
+    _flyGhost(fromEl, fromRect, toRect, () => {
+      _commitToCrew(aiIdx, charId);
+      render();   // card now occupies the slot; hidden pool card is gone
+    });
   }
 
   // Drive chip resolution from the authoritative auction_round_resolved event:
@@ -852,10 +909,12 @@
 
     const memberKeys = new Set(members.map(m => charKey(m.id)));
     members.forEach(member => {
+      const key = charKey(member.id);
+      const alreadyHere = isHiredSomewhere(key);  // already flown in via the auction
       addHire(member.id, aiIdx);
       // Keep the rail in sync with the hired mark for the current AI stream.
       Shell.markHired(aiIdx, member.id);
-      const key = charKey(member.id);
+      if (alreadyHere) return;   // don't re-animate cards already in the crew
       movingCharIds.add(key);
       clearTimer(moveTimersByChar, key);
       moveTimersByChar.set(key, setTimeout(() => {
@@ -944,6 +1003,7 @@
     clearTimeout(_moveSeqTimer);
     _moveSeqTimer = null;
     if (_placeTimer) { clearTimeout(_placeTimer); _placeTimer = null; }
+    while (_ghosts.length) { const g = _ghosts.pop(); if (g && g.parentNode) g.remove(); }
     moveTimersByChar.forEach(t => clearTimeout(t));
     moveTimersByChar.clear();
     chipTimersByKey.forEach(t => clearTimeout(t));
