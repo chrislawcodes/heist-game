@@ -368,8 +368,7 @@ def _fill_crew(
         fill_attempt += 1
         remaining = 4 - len(crew_so_far)
         prompt = _fill_prompt(crew_so_far, remaining)
-        turn = _call(ai, prompt, f"fill_{fill_attempt}", logs, emit)
-        parsed = parse_json_block(turn.text)
+        _, parsed = _call_json(ai, prompt, f"fill_{fill_attempt}", logs, emit)
         added_any = False
         spent = sum(c.floor_cost for c in crew_so_far)
         existing_ids = {c.id for c in crew_so_far}
