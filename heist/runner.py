@@ -264,8 +264,7 @@ def _summary_prompt() -> str:
         "Now write a casting summary (a transparent paragraph or two for the player) "
         "explaining the bid logic and who you hired. Be honest about the trade-offs "
         "you made. (You have not picked a job yet — focus on the crew composition.) "
-        "Reply with ONLY JSON:\n"
-        '{"summary": "<2-4 paragraphs in markdown, no leading heading>"}'
+        "Reply with ONLY the prose — 2-4 paragraphs in markdown, no heading."
     )
 
 
@@ -331,8 +330,7 @@ def _scene_narrate_prompt(scene: Scene, outcome_summary: str, assigned: list | N
         f"{crew_section}\n"
         "The mechanical outcome:\n"
         f"  {outcome_summary}\n\n"
-        "Reply with ONLY JSON:\n"
-        '{"narration": "<the prose, in markdown, no heading>"}'
+        "Reply with ONLY the prose — in markdown, no heading."
     )
 
 
@@ -344,8 +342,8 @@ def _epilogue_prompt(state: HeistState) -> str:
         f"  - Take: ${state.final_take:,}\n"
         f"  - Failed scenes: "
         f"{[r.scene.title for r in state.scene_results if r.success is False]}\n\n"
-        "Write a short epilogue (100-200 words). Reply with ONLY JSON:\n"
-        '{"epilogue": "<the prose, in markdown, no heading>"}'
+        "Write a short epilogue (100-200 words). Reply with ONLY the prose — "
+        "in markdown, no heading."
     )
 
 
@@ -644,8 +642,8 @@ def run_one_job(
     )
     _finalize_reward(state)
 
-    _, ep_parsed = _call_json(ai, _epilogue_prompt(state), "epilogue", logs, emit)
-    extras["epilogue"] = ep_parsed.get("epilogue", "")
+    ep_turn = _call(ai, _epilogue_prompt(state), "epilogue", logs, emit)
+    extras["epilogue"] = ep_turn.text
     extras["total_seconds"] = sum(t.seconds for t in logs)
     return state, extras
 
@@ -705,8 +703,8 @@ def run_heist(
         )
 
     # 2. Casting summary (BEFORE job pick — talks only about the crew)
-    _, summary_parsed = _call_json(ai, _summary_prompt(), "casting_summary", logs, emit)
-    extras["casting_summary"] = summary_parsed.get("summary", "")
+    summary_turn = _call(ai, _summary_prompt(), "casting_summary", logs, emit)
+    extras["casting_summary"] = summary_turn.text
     _snapshot(
         snapshot_fn, stage=STAGE_SUMMARY_DONE, strategy=strategy, ai=ai, rng=rng,
         state=pre_state, extras=extras, scene_idx=0,
@@ -735,8 +733,8 @@ def run_heist(
     _finalize_reward(state)
 
     # 7. Epilogue
-    _, ep_parsed = _call_json(ai, _epilogue_prompt(state), "epilogue", logs, emit)
-    extras["epilogue"] = ep_parsed.get("epilogue", "")
+    ep_turn = _call(ai, _epilogue_prompt(state), "epilogue", logs, emit)
+    extras["epilogue"] = ep_turn.text
     _snapshot(
         snapshot_fn, stage=STAGE_DONE, strategy=strategy, ai=ai, rng=rng,
         state=state, extras=extras, scene_idx=len(scenes),
@@ -817,8 +815,8 @@ def resume_heist(
         if emit:
             from heist.serialize import crew_to_dict
             emit({"type": "crew_known", "crew": crew_to_dict(state.crew)})
-        _, summary_parsed = _call_json(ai, _summary_prompt(), "casting_summary", logs, emit)
-        extras["casting_summary"] = summary_parsed.get("summary", "")
+        summary_turn = _call(ai, _summary_prompt(), "casting_summary", logs, emit)
+        extras["casting_summary"] = summary_turn.text
         _snapshot(
             snapshot_fn, stage=STAGE_SUMMARY_DONE, strategy=strategy, ai=ai,
             rng=rng, state=state, extras=extras, scene_idx=0,
@@ -892,8 +890,8 @@ def resume_heist(
     _finalize_reward(state)
 
     if not extras.get("epilogue"):
-        _, ep_parsed = _call_json(ai, _epilogue_prompt(state), "epilogue", logs, emit)
-        extras["epilogue"] = ep_parsed.get("epilogue", "")
+        ep_turn = _call(ai, _epilogue_prompt(state), "epilogue", logs, emit)
+        extras["epilogue"] = ep_turn.text
         _snapshot(
             snapshot_fn, stage=STAGE_DONE, strategy=strategy, ai=ai, rng=rng,
             state=state, extras=extras, scene_idx=scene_idx,
@@ -967,11 +965,11 @@ def _execute_scene(
     else:
         outcome_summary = "(no resolution)"
 
-    _, narrate_parsed = _call_json(
+    narrate_turn = _call(
         ai, _scene_narrate_prompt(scene, outcome_summary, assigned),
         f"scene_{scene.number}_narrate", logs, emit,
     )
-    narration = narrate_parsed.get("narration", "")
+    narration = narrate_turn.text
 
     return SceneResult(
         scene=scene,
@@ -1021,11 +1019,11 @@ def _execute_escape(
     escape_assigned = [ROSTER_BY_ID[i] for i in member_ids if i in ROSTER_BY_ID]
     assignment_reasoning = assign_parsed.get("reasoning", "")
 
-    _, narrate_parsed = _call_json(
+    narrate_turn = _call(
         ai, _scene_narrate_prompt(scene, outcome_summary, escape_assigned),
         f"scene_{scene.number}_escape_narrate", logs, emit,
     )
-    narration = narrate_parsed.get("narration", "")
+    narration = narrate_turn.text
 
     return SceneResult(
         scene=scene,
