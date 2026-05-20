@@ -441,6 +441,7 @@ def _snapshot(
         "extras": {
             "strategy": extras.get("strategy", ""),
             "bid_logic": extras.get("bid_logic"),
+            "auction_state": extras.get("auction_state"),
             "casting_summary": extras.get("casting_summary", ""),
             "epilogue": extras.get("epilogue", ""),
             "job_viability_warning": extras.get("job_viability_warning"),
@@ -569,6 +570,8 @@ def _run_scene_loop(
 def run_heist(
     strategy: str,
     ai: HeistAI,
+    *,
+    crew: Crew | None = None,
     rng: random.Random | None = None,
     on_scene: SceneCallback | None = None,
     emit: EmitFn = None,
@@ -591,22 +594,32 @@ def run_heist(
     }
     heist_start = time.monotonic()
 
-    # 1. Draft crew
-    crew = _draft_crew(strategy, ai, logs, extras, emit)
-    # Snapshot crew_drafted: stash the crew so resume can skip _call("bid").
-    # No job yet, so we synthesise a placeholder HeistState that just carries
-    # the crew. resume_heist treats job/hidden_depth as TBD at this stage.
-    placeholder_job = JOBS[0]   # never observed; replaced by real pick later
-    pre_state = HeistState(
-        crew=crew, job=placeholder_job,
-        hidden_depth=HiddenDepthRoll(
-            element=placeholder_job.hidden_depth[0], reward_label="", reward_amount=0,
-        ),
-    )
-    _snapshot(
-        snapshot_fn, stage=STAGE_CREW_DRAFTED, strategy=strategy, ai=ai, rng=rng,
-        state=pre_state, extras=extras, scene_idx=0,
-    )
+    # Back-compat path: if no crew is provided, keep the legacy draft → fill
+    # flow so older resume snapshots and single-AI tests still behave the same.
+    if crew is None:
+        crew = _draft_crew(strategy, ai, logs, extras, emit)
+        # Snapshot crew_drafted: stash the crew so resume can skip _call("bid").
+        # No job yet, so we synthesise a placeholder HeistState that just carries
+        # the crew. resume_heist treats job/hidden_depth as TBD at this stage.
+        placeholder_job = JOBS[0]   # never observed; replaced by real pick later
+        pre_state = HeistState(
+            crew=crew, job=placeholder_job,
+            hidden_depth=HiddenDepthRoll(
+                element=placeholder_job.hidden_depth[0], reward_label="", reward_amount=0,
+            ),
+        )
+        _snapshot(
+            snapshot_fn, stage=STAGE_CREW_DRAFTED, strategy=strategy, ai=ai, rng=rng,
+            state=pre_state, extras=extras, scene_idx=0,
+        )
+    else:
+        placeholder_job = JOBS[0]   # never observed; replaced by real pick later
+        pre_state = HeistState(
+            crew=crew, job=placeholder_job,
+            hidden_depth=HiddenDepthRoll(
+                element=placeholder_job.hidden_depth[0], reward_label="", reward_amount=0,
+            ),
+        )
 
     # 2. Casting summary (BEFORE job pick — talks only about the crew)
     _, summary_parsed = _call_json(ai, _summary_prompt(), "casting_summary", logs, emit)

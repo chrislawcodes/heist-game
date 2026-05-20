@@ -33,6 +33,8 @@ import time
 import traceback
 from pathlib import Path
 
+from heist.ai import AgentTurn
+from heist.content import ROSTER_BY_ID
 from heist.logs import log
 from heist.persist import (
     delete_game_record,
@@ -111,6 +113,168 @@ def _update_game(game_id: int, **fields) -> None:
             save_game_record(persist_game)
         except Exception as exc:
             log.warn("save_game_record_failed", error=str(exc))
+
+
+def _build_ai(agent: str, *, ai_idx: int = 0, auction_mode: bool = False):
+    from heist.backends import CodexHeistAI, GeminiHeistAI
+    from heist.stub_responses import build_stub_ai
+
+    if agent == "stub":
+        if not auction_mode:
+            return build_stub_ai()
+        return _AuctionAwareStubAI(ai_idx)
+    if agent == "codex":
+        return CodexHeistAI(model="gpt-5.4")
+    if agent == "codex-mini":
+        return CodexHeistAI(model="gpt-5.4-mini")
+    if agent == "gemini":
+        return GeminiHeistAI()
+    raise RuntimeError(f"Unknown agent: {agent}")
+
+
+class _AuctionAwareStubAI:
+    """Stub AI that can handle both the legacy single-AI flow and the new
+    auction bidding prompt used by the server smoke test."""
+
+    _TARGET_SETS = [
+        [2, 6, 8, 10],
+        [9, 11, 12, 14],
+        [3, 5, 8, 10],
+        [4, 6, 8, 10],
+    ]
+
+    def __init__(self, ai_idx: int):
+        from heist.stub_responses import build_stub_ai
+
+        self._base = build_stub_ai()
+        self._target_ids = self._TARGET_SETS[ai_idx % len(self._TARGET_SETS)]
+        self.session_id = None
+
+    @property
+    def prompts_seen(self) -> list[str]:
+        return self._base.prompts_seen
+
+    def ask(self, prompt: str):
+        if "round of crew bidding" not in prompt:
+            return self._base.ask(prompt)
+
+        import json
+        import re
+
+        available_ids = {
+            int(m) for m in re.findall(r"id=(\d+)", prompt)
+        }
+        self._base._asked.append(prompt)
+        bids = []
+        for cid in self._target_ids:
+            if cid not in available_ids:
+                continue
+            char = ROSTER_BY_ID[cid]
+            bids.append({
+                "character_id": cid,
+                "bid": char.floor_cost,
+                "rationale": f"Pre-planned smoke-test target {char.name}.",
+            })
+        payload = {
+            "bids": bids,
+            "pass": not bids,
+            "reasoning": "Following the pre-planned smoke-test crew split.",
+        }
+        return AgentTurn(text=json.dumps(payload), session_id="stub-session")
+
+
+def _run_auction_coordinator(game_id: int) -> None:
+    from heist.auction import run_auction
+
+    def emit_tagged(ai_idx: int, evt: dict) -> None:
+        _broadcast({**evt, "ai_idx": ai_idx})
+
+    def snapshot_cb(payload: dict) -> None:
+        with _lock:
+            game = _games.get(game_id)
+            ais = list(game.get("ais", [])) if game else []
+        for ai_idx, ai_cfg in enumerate(ais):
+            try:
+                save_runner_snapshot(
+                    game_id,
+                    ai_idx,
+                    {
+                        **payload,
+                        "game_id": game_id,
+                        "ai_idx": ai_idx,
+                        "agent": ai_cfg.get("agent", "stub"),
+                    },
+                )
+            except Exception as exc:
+                log.warn(
+                    "save_runner_snapshot_failed",
+                    game_id=game_id,
+                    ai_idx=ai_idx,
+                    error=str(exc),
+                )
+
+    with _lock:
+        game = _games.get(game_id)
+        if not game:
+            return
+        ais_cfg = list(game.get("ais", []))
+    try:
+        ais = [
+            _build_ai(cfg.get("agent", "stub"), ai_idx=ai_idx, auction_mode=True)
+            for ai_idx, cfg in enumerate(ais_cfg)
+        ]
+        logs_per_ai: dict[int, list] = {i: [] for i in range(len(ais))}
+        result = run_auction(
+            ais,
+            [cfg.get("prompt", "") for cfg in ais_cfg],
+            logs_per_ai,
+            emit_tagged,
+            _broadcast,
+            snapshot_fn=snapshot_cb,
+        )
+        for ai_idx, ai_cfg in enumerate(ais_cfg):
+            t = threading.Thread(
+                target=_run_game,
+                args=(
+                    ai_cfg.get("prompt", ""),
+                    ai_cfg.get("agent", "stub"),
+                    None,
+                    game_id,
+                    ai_idx,
+                ),
+                kwargs={
+                    "crew": result.crews[ai_idx],
+                    "ai_obj": ais[ai_idx],
+                },
+                daemon=True,
+            )
+            t.start()
+    except Exception as exc:
+        _broadcast({"type": "error", "message": str(exc)})
+        log.error(
+            "auction_coordinator_crashed",
+            game_id=game_id,
+            error=str(exc),
+            traceback=traceback.format_exc(),
+        )
+        persist_game: dict | None = None
+        global _game_running
+        with _lock:
+            game = _games.get(game_id)
+            if game:
+                game["status"] = "done"
+                game["ai_results"] = [
+                    {"error": str(exc)} for _ in game.get("ais", [])
+                ]
+                game["ais_remaining"] = 0
+                persist_game = dict(game)
+            _game_running = False
+        if persist_game is not None:
+            try:
+                save_game_record(persist_game)
+            except Exception as save_exc:
+                log.warn("save_game_record_failed", game_id=game_id,
+                         error=str(save_exc))
 
 
 # ── HTTP handler ──────────────────────────────────────────────────────────────
@@ -445,14 +609,12 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             _games[game_id]["ais_remaining"] = len(game["ais"])
 
         self._json_ok({"ok": True})
-
-        for ai_idx, ai_cfg in enumerate(game["ais"]):
-            t = threading.Thread(
-                target=_run_game,
-                args=(ai_cfg["prompt"], ai_cfg["agent"], None, game_id, ai_idx),
-                daemon=True,
-            )
-            t.start()
+        t = threading.Thread(
+            target=_run_auction_coordinator,
+            args=(game_id,),
+            daemon=True,
+        )
+        t.start()
 
     def _handle_quick_game(self):
         """One-click preset: launch the two QUICK_TEST_TEAMS (The Operators and
@@ -486,13 +648,12 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             _game_running = True
             _event_history.clear()
         self._json_ok({"game_id": gid, "ok": True})
-        for ai_idx, ai_cfg in enumerate(ais):
-            t = threading.Thread(
-                target=_run_game,
-                args=(ai_cfg["prompt"], ai_cfg["agent"], None, gid, ai_idx),
-                daemon=True,
-            )
-            t.start()
+        t = threading.Thread(
+            target=_run_auction_coordinator,
+            args=(gid,),
+            daemon=True,
+        )
+        t.start()
 
     def _handle_delete_game(self, gid_str: str) -> None:
         """Remove a non-running game: drop it from the in-memory dict and
@@ -617,6 +778,8 @@ def _run_game(
     game_id: int,
     ai_idx: int = 0,
     resume_snapshot: dict | None = None,
+    crew=None,
+    ai_obj=None,
 ) -> None:
     global _game_running
     started_at = time.monotonic()
@@ -673,27 +836,19 @@ def _run_game(
                          game_id=game_id, error=str(exc))
 
     try:
-        from heist.ai import HeistAI
-        from heist.backends import CodexHeistAI, GeminiHeistAI
         from heist.runner import resume_heist, run_heist
         from heist.serialize import state_to_dict
-        from heist.stub_responses import build_stub_ai
 
-        ai: HeistAI
-        if agent == "stub":
-            ai = build_stub_ai()
-        elif agent == "codex":
-            ai = CodexHeistAI(model="gpt-5.4")
-        elif agent == "codex-mini":
-            ai = CodexHeistAI(model="gpt-5.4-mini")
-        elif agent == "gemini":
-            ai = GeminiHeistAI()
-        else:
-            err = f"Unknown agent: {agent}"
-            emit_tagged({"type": "error", "message": err})
-            log.error("game_crashed", game_id=game_id, ai_idx=ai_idx, error=err)
-            _record_result({"error": err})
-            return
+        ai = ai_obj
+        if ai is None:
+            try:
+                ai = _build_ai(agent)
+            except RuntimeError as exc:
+                err = str(exc)
+                emit_tagged({"type": "error", "message": err})
+                log.error("game_crashed", game_id=game_id, ai_idx=ai_idx, error=err)
+                _record_result({"error": err})
+                return
 
         if resume_snapshot is not None:
             # Re-attach the codex session so the CLI picks up the in-flight
@@ -711,7 +866,7 @@ def _run_game(
             rng_seed = seed if seed is not None else random.randint(0, 1 << 30) + ai_idx
             rng = random.Random(rng_seed)
             state, extras = run_heist(
-                strategy, ai, rng=rng, emit=emit_tagged, snapshot_fn=snapshot_cb,
+                strategy, ai, crew=crew, rng=rng, emit=emit_tagged, snapshot_fn=snapshot_cb,
             )
 
         emit_tagged({
@@ -777,6 +932,7 @@ def _recover_games() -> tuple[int, int]:
 
     games_recovered = 0
     ai_resuming = 0
+    auction_restart: list[int] = []
     pending: list[tuple[int, int, dict, dict]] = []  # (gid, ai_idx, snap, ai_cfg)
 
     with _lock:
@@ -795,6 +951,15 @@ def _recover_games() -> tuple[int, int]:
                 results = results + [None] * (len(ais) - len(results))
 
             snapshots = list_pending_snapshots(gid)
+            if not snapshots or any(
+                snap.get("stage", "").startswith("auction_round_")
+                or snap.get("stage") == "auction_complete"
+                for snap in snapshots.values()
+            ):
+                auction_restart.append(gid)
+                _game_running = True
+                continue
+
             still_remaining = 0
             for ai_idx, ai_cfg in enumerate(ais):
                 if results[ai_idx] is not None:
@@ -824,6 +989,15 @@ def _recover_games() -> tuple[int, int]:
             save_game_record(snap)
         except Exception as exc:
             log.warn("save_game_record_failed", game_id=gid, error=str(exc))
+
+    for gid in auction_restart:
+        log.info("game_recovered_auction", game_id=gid)
+        t = threading.Thread(
+            target=_run_auction_coordinator,
+            args=(gid,),
+            daemon=True,
+        )
+        t.start()
 
     for gid, ai_idx, snap, ai_cfg in pending:
         log.info("game_recovered", game_id=gid, ai_idx=ai_idx,
