@@ -284,6 +284,12 @@ def _scene_assign_prompt(scene: Scene, state: HeistState) -> str:
         challenge_desc = (
             f"  Challenge: {scene.challenge_skill}, level {scene.challenge_level.name}\n"
         )
+    decision_note = (
+        "\nThis is a BONUS opportunity — optional, not a core scene. You will be "
+        "asked in the next step whether to pursue it. Do NOT set abort:true just "
+        "to skip the bonus; use abort only to abandon the entire heist.\n"
+        if scene.type == "decision" else ""
+    )
     return (
         f"Scene {scene.number} of the heist — {scene.title}.\n"
         f"  Type: {scene.type}\n"
@@ -293,8 +299,10 @@ def _scene_assign_prompt(scene: Scene, state: HeistState) -> str:
         + "\n\nAssign one or more crew members to handle this scene. If a second "
         "crew member can support — same skill area as the challenge — send them too; "
         "pairs act one level higher than the better specialist. "
-        "If you need to bail, set \"abort\": true and skip the assignment.\n"
-        "Reply with ONLY JSON:\n"
+        "Set \"abort\": true ONLY to abandon the ENTIRE heist mid-run "
+        "(not to skip a single scene).\n"
+        + decision_note
+        + "Reply with ONLY JSON:\n"
         '{"assigned_member_ids": [<int>, ...], "abort": <true|false>, '
         '"reasoning": "<why these people or why abort>"}'
     )
