@@ -73,6 +73,7 @@ class Job:
     # success. DO NOT populate or use this field before Phase 4; scouting
     # and score-resolution must ship together.
     challenge_scores: dict[str, int] = field(default_factory=dict)
+    scene_loot: dict[str, int] = field(default_factory=dict)
 
 
 @dataclass
@@ -100,6 +101,7 @@ class Scene:
     challenge_level: ChallengeLevel | None
     is_core: bool
     context: str
+    category: str | None = None
 
 
 @dataclass
@@ -126,6 +128,8 @@ class HeistState:
     job: Job
     hidden_depth: HiddenDepthRoll
     scene_results: list[SceneResult] = field(default_factory=list)
+    caught_member_ids: list[int] = field(default_factory=list)
+    secured_take: int = 0
     heat: int = 0
     aborted: bool = False
     bonus_pursued: bool = False

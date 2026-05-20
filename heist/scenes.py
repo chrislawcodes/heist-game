@@ -9,11 +9,8 @@ Rules (documented in README):
 - Bonus-with-cost elements become a decision-point scene before transition.
 - Penultimate scene = "transition" (to exit).
 - Final scene = "escape".
-
-Failure-cascade classification:
-- Any challenge whose effective level is HARD is a "core" scene. Failing a
-  core scene aborts the heist. Failing supporting / hidden_depth / decision
-  scenes adds +1 to heat for the escape.
+The runner now grades each scene outcome instead of using a binary pass/fail
+cascade.
 """
 
 from heist.state import (
@@ -84,6 +81,7 @@ def generate_scenes(job: Job, hidden: HiddenDepthRoll) -> list[Scene]:
                 title=f"Challenge — {category}",
                 challenge_skill=CHALLENGE_TO_SKILL[category],
                 challenge_level=level, is_core=is_core, context=ctx,
+                category=category,
             )
         )
         n += 1
@@ -96,6 +94,7 @@ def generate_scenes(job: Job, hidden: HiddenDepthRoll) -> list[Scene]:
                 title=f"Hidden depth — {el.description}",
                 challenge_skill=CHALLENGE_TO_SKILL[cat],
                 challenge_level=lvl, is_core=is_core, context=el.description,
+                category=cat,
             )
         )
         n += 1

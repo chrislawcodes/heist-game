@@ -57,11 +57,11 @@ def test_every_job_runs_cleanly_with_stub(job_name):
     assert state.scene_results[-1].scene.type == "escape"
     assert state.escape_success is not None
     assert state.escape_difficulty is not None
-    # final_take is either 0 (abort/failed escape) or hidden-depth reward + maybe bonus
-    if state.aborted or state.escape_success is False:
-        assert state.final_take == 0
+    free_members = [m for m in state.crew.members if m.id not in state.caught_member_ids]
+    if free_members:
+        assert state.final_take == state.secured_take
     else:
-        assert state.final_take >= state.hidden_depth.reward_amount
+        assert state.final_take == 0
 
 
 def test_zero_take_on_failed_escape(monkeypatch):
@@ -90,6 +90,7 @@ def test_zero_take_on_failed_escape(monkeypatch):
         crew=Crew([char]), job=job,
         hidden_depth=HiddenDepthRoll(el, "std", 1_000_000),
         escape_success=False,
+        caught_member_ids=[1],
     )
     _finalize_reward(state)
     assert state.final_take == 0
@@ -120,6 +121,7 @@ def test_zero_take_on_abort():
         crew=Crew([char]), job=job,
         hidden_depth=HiddenDepthRoll(el, "std", 1_000_000),
         aborted=True,
+        caught_member_ids=[1],
     )
     _finalize_reward(state)
     assert state.final_take == 0

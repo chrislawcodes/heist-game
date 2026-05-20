@@ -68,6 +68,7 @@ def job_to_dict(job: Job) -> dict:
         "profile": {k: v.name for k, v in job.profile.items()},
         "escape_modifier": job.escape_modifier,
         "challenge_scores": dict(job.challenge_scores),
+        "scene_loot": dict(job.scene_loot),
     }
 
 
@@ -80,6 +81,7 @@ def scene_to_dict(s: Scene) -> dict:
         "challenge_level": s.challenge_level.name if s.challenge_level else None,
         "is_core": s.is_core,
         "context": s.context,
+        "category": s.category,
     }
 
 
@@ -143,6 +145,7 @@ def job_from_dict(d: dict) -> Job:
         hidden_depth=[],
         reward_amounts=[],
         challenge_scores={k: int(v) for k, v in d.get("challenge_scores", {}).items()},
+        scene_loot={k: int(v) for k, v in d.get("scene_loot", {}).items()},
     )
 
 
@@ -157,6 +160,7 @@ def scene_from_dict(d: dict) -> Scene:
         challenge_level=level,
         is_core=bool(d.get("is_core", False)),
         context=d.get("context", ""),
+        category=d.get("category"),
     )
 
 
@@ -199,6 +203,8 @@ def state_from_dict(d: dict) -> HeistState:
         job=job,
         hidden_depth=hidden,
         scene_results=[scene_result_from_dict(r) for r in d.get("scene_results", [])],
+        caught_member_ids=[int(i) for i in d.get("caught_member_ids", [])],
+        secured_take=int(d.get("secured_take", 0)),
         heat=int(d.get("heat", 0)),
         aborted=bool(d.get("aborted", False)),
         bonus_pursued=bool(d.get("bonus_pursued", False)),
@@ -215,6 +221,8 @@ def state_to_dict(state: HeistState) -> dict:
     return {
         "crew": crew_to_dict(state.crew),
         "job": job_to_dict(state.job),
+        "caught_member_ids": list(state.caught_member_ids),
+        "secured_take": state.secured_take,
         "heat": state.heat,
         "aborted": state.aborted,
         "bonus_pursued": state.bonus_pursued,

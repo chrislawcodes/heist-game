@@ -28,13 +28,17 @@ from heist.ai import AgentTurn, HeistAI, parse_json_block
 from heist.content import BANKROLL, JOBS, JOBS_BY_NAME, ROSTER, ROSTER_BY_ID
 from heist.logs import log
 from heist.mechanics import (
+    Outcome,
     effective_skill,
     escape_resolves,
     job_is_viable,
-    resolves_challenge,
+    outcome_is_pass,
+    resolve_outcome,
 )
 from heist.state import (
+    CHALLENGE_TO_SKILL,
     Campaign,
+    ChallengeLevel,
     Character,
     Crew,
     HeistState,
@@ -65,6 +69,7 @@ STAGE_DONE           = "done"
 # mode); CLI mode is unaffected. Override with HEIST_TURN_DELAY=<seconds>.
 TURN_DELAY_SECONDS = float(os.environ.get("HEIST_TURN_DELAY", "10"))
 _last_turn_end_at: float | None = None
+_SKILL_TO_CATEGORY = {skill: category for category, skill in CHALLENGE_TO_SKILL.items()}
 
 
 def _call(
@@ -270,7 +275,8 @@ def _summary_prompt() -> str:
 
 def _scene_assign_prompt(scene: Scene, state: HeistState) -> str:
     crew_lines = []
-    for c in state.crew.members:
+    free_members = [c for c in state.crew.members if c.id not in state.caught_member_ids]
+    for c in free_members:
         skills = ", ".join(f"{s} {lvl.name}" for s, lvl in c.skills.items())
         crew_lines.append(f"  id={c.id}: {c.name} ({skills})")
     challenge_desc = ""
@@ -287,8 +293,10 @@ def _scene_assign_prompt(scene: Scene, state: HeistState) -> str:
         + "\n\nAssign one or more crew members to handle this scene. If a second "
         "crew member can support — same skill area as the challenge — send them too; "
         "pairs act one level higher than the better specialist. "
+        "If you need to bail, set \"abort\": true and skip the assignment.\n"
         "Reply with ONLY JSON:\n"
-        '{"assigned_member_ids": [<int>, ...], "reasoning": "<why these people>"}'
+        '{"assigned_member_ids": [<int>, ...], "abort": <true|false>, '
+        '"reasoning": "<why these people or why abort>"}'
     )
 
 
@@ -402,23 +410,46 @@ def _fill_crew(
 
 def _resolve_challenge_scene(
     scene: Scene, assigned: list[Character]
-) -> tuple[bool, str]:
-    """Returns (success, outcome_summary)."""
+) -> tuple[Outcome, str]:
+    """Returns (outcome, outcome_summary)."""
     assert scene.challenge_skill is not None and scene.challenge_level is not None
     skill = effective_skill(assigned, scene.challenge_skill)
-    success = resolves_challenge(skill, scene.challenge_level)
-    label = "success" if success else "failure"
-    return success, (
+    outcome = resolve_outcome(skill, scene.challenge_level)
+    gap = int(scene.challenge_level) - int(skill)
+    if scene.challenge_level == ChallengeLevel.NONE:
+        gap_text = "challenge level NONE"
+    else:
+        gap_text = f"gap {gap}"
+    return outcome, (
         f"Crew skill in {scene.challenge_skill}: {skill.name}; "
-        f"challenge level: {scene.challenge_level.name}. Result: {label}."
+        f"challenge level: {scene.challenge_level.name}; {gap_text}. "
+        f"Result: {outcome.name.lower()}."
     )
 
 
-def _apply_failure_cascade(state: HeistState, scene: Scene) -> None:
-    if scene.is_core:
-        state.aborted = True
-    else:
-        state.heat += 1
+def _free_members(state: HeistState) -> list[Character]:
+    return [m for m in state.crew.members if m.id not in state.caught_member_ids]
+
+
+def _catch_member_from_assigned(scene: Scene, assigned: list[Character]) -> Character | None:
+    if not assigned or scene.challenge_skill is None:
+        return None
+    skill_holders = [
+        member
+        for member in assigned
+        if member.skills.get(scene.challenge_skill, SkillLevel.NONE) != SkillLevel.NONE
+    ]
+    if len(skill_holders) == 1:
+        return skill_holders[0]
+    return min(assigned, key=lambda member: (member.floor_cost, member.id))
+
+
+def _scene_category(scene: Scene) -> str | None:
+    if scene.category is not None:
+        return scene.category
+    if scene.challenge_skill is not None:
+        return _SKILL_TO_CATEGORY.get(scene.challenge_skill)
+    return None
 
 
 def _snapshot(
@@ -564,7 +595,7 @@ def _run_scene_loop(
         scene = scenes[idx]
         if state.aborted and scene.type != "escape":
             continue
-        result = _execute_scene(scene, state, ai, logs, emit)
+        result = _execute_scene(scene, state, ai, logs, emit, rng)
         state.scene_results.append(result)
         extras["scene_narrations"].append(result)
         _broadcast_scene_done(emit, scene, state, result)
@@ -909,10 +940,16 @@ def resume_heist(
 
 
 def _execute_scene(
-    scene: Scene, state: HeistState, ai: HeistAI, logs: list[TurnLog], emit: EmitFn = None
+    scene: Scene,
+    state: HeistState,
+    ai: HeistAI,
+    logs: list[TurnLog],
+    emit: EmitFn = None,
+    rng: random.Random | None = None,
 ) -> SceneResult:
     if scene.type == "escape":
-        return _execute_escape(scene, state, ai, logs, emit)
+        assert rng is not None
+        return _execute_escape(scene, state, ai, logs, emit, rng)
 
     if emit:
         emit({
@@ -930,12 +967,26 @@ def _execute_scene(
         ai, _scene_assign_prompt(scene, state), f"scene_{scene.number}_assign", logs, emit
     )
     member_ids = [int(i) for i in assign_parsed.get("assigned_member_ids", [])]
-    assigned = [ROSTER_BY_ID[i] for i in member_ids if i in ROSTER_BY_ID]
+    free_ids = {m.id for m in _free_members(state)}
+    assigned = [ROSTER_BY_ID[i] for i in member_ids if i in free_ids and i in ROSTER_BY_ID]
     assignment_reasoning = assign_parsed.get("reasoning", "")
 
     decision: dict | None = None
     success: bool | None = None
     outcome_summary: str
+
+    if bool(assign_parsed.get("abort", False)):
+        state.aborted = True
+        decision = {"abort": True, "reasoning": assignment_reasoning}
+        outcome_summary = "Crew aborted the heist before resolving this scene."
+        return SceneResult(
+            scene=scene,
+            assigned_member_ids=member_ids,
+            success=None,
+            narration="",
+            reasoning=assignment_reasoning,
+            decision=decision,
+        )
 
     if scene.type == "decision":
         _, dec_parsed = _call_json(
@@ -945,23 +996,36 @@ def _execute_scene(
         decision = {"pursue": pursue, "reasoning": dec_parsed.get("reasoning", "")}
         state.bonus_pursued = pursue
         if pursue:
-            success, outcome_summary = _resolve_challenge_scene(scene, assigned)
+            outcome, outcome_summary = _resolve_challenge_scene(scene, assigned)
+            success = outcome_is_pass(outcome)
             state.bonus_succeeded = success
+            if outcome != Outcome.CLEAN:
+                state.heat += 1
+            if outcome == Outcome.CAUGHT:
+                caught = _catch_member_from_assigned(scene, assigned)
+                if caught is not None and caught.id not in state.caught_member_ids:
+                    state.caught_member_ids.append(caught.id)
             if success:
                 # Sample bonus amount: midpoint of range
                 el = state.hidden_depth.element
                 lo, hi = el.effect["bonus_amount_range"]
                 state.bonus_amount = (lo + hi) // 2
-            elif not success:
-                _apply_failure_cascade(state, scene)
+                state.secured_take += state.bonus_amount
         else:
             outcome_summary = "Crew declined the bonus opportunity."
     elif scene.type in ("challenge", "hidden_depth"):
-        success, outcome_summary = _resolve_challenge_scene(scene, assigned)
-        if not success:
-            _apply_failure_cascade(state, scene)
-            if state.aborted:
-                outcome_summary += " Core failure — crew is aborting the job."
+        outcome, outcome_summary = _resolve_challenge_scene(scene, assigned)
+        success = outcome_is_pass(outcome)
+        if outcome != Outcome.CLEAN:
+            state.heat += 1
+        if outcome == Outcome.CAUGHT:
+            caught = _catch_member_from_assigned(scene, assigned)
+            if caught is not None and caught.id not in state.caught_member_ids:
+                state.caught_member_ids.append(caught.id)
+        if success:
+            category = _scene_category(scene)
+            if category is not None and category in state.job.scene_loot:
+                state.secured_take += state.job.scene_loot[category]
     elif scene.type in ("setup", "transition"):
         outcome_summary = f"{scene.title}: no mechanical resolution."
     else:
@@ -984,14 +1048,23 @@ def _execute_scene(
 
 
 def _execute_escape(
-    scene: Scene, state: HeistState, ai: HeistAI, logs: list[TurnLog], emit: EmitFn = None
+    scene: Scene,
+    state: HeistState,
+    ai: HeistAI,
+    logs: list[TurnLog],
+    emit: EmitFn = None,
+    rng: random.Random | None = None,
 ) -> SceneResult:
-    success, difficulty = escape_resolves(
-        state.crew, state.heat, state.job.escape_modifier
-    )
+    assert rng is not None
+    free_members = _free_members(state)
+    free_crew = Crew(members=free_members)
+    difficulty = state.job.escape_modifier + state.heat
+    success = bool(free_members) and escape_resolves(
+        free_crew, state.heat, state.job.escape_modifier
+    )[0]
     state.escape_success = success
     state.escape_difficulty = difficulty
-    driver_skill = effective_skill(state.crew.members, "driver")
+    driver_skill = effective_skill(free_members, "driver")
     if driver_skill == SkillLevel.NONE:
         driver_skill = SkillLevel.LOW
     outcome_summary = (
@@ -1018,8 +1091,15 @@ def _execute_escape(
         f"scene_{scene.number}_escape_assign", logs, emit,
     )
     member_ids = [int(i) for i in assign_parsed.get("assigned_member_ids", [])]
-    escape_assigned = [ROSTER_BY_ID[i] for i in member_ids if i in ROSTER_BY_ID]
+    free_ids = {m.id for m in free_members}
+    escape_assigned = [ROSTER_BY_ID[i] for i in member_ids if i in free_ids and i in ROSTER_BY_ID]
     assignment_reasoning = assign_parsed.get("reasoning", "")
+
+    if not success:
+        remaining_free = [m for m in free_members if m.id not in state.caught_member_ids]
+        if remaining_free:
+            caught = rng.choice(remaining_free)
+            state.caught_member_ids.append(caught.id)
 
     narrate_turn = _call(
         ai, _scene_narrate_prompt(scene, outcome_summary, escape_assigned),
@@ -1038,9 +1118,5 @@ def _execute_escape(
 
 
 def _finalize_reward(state: HeistState) -> None:
-    if state.aborted or state.escape_success is False:
-        state.final_take = 0
-        return
-    state.final_take = state.hidden_depth.reward_amount + (
-        state.bonus_amount if state.bonus_succeeded else 0
-    )
+    free = [m for m in state.crew.members if m.id not in state.caught_member_ids]
+    state.final_take = state.secured_take if free else 0
