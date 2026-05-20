@@ -354,10 +354,11 @@ For each scene:
 
 1. System tells Heist AI: scene number, scene type (setup / challenge / hidden depth / exit / escape), the challenge being addressed (if any), the challenge level, any context.
 2. Heist AI: picks which crew member(s) act in this scene.
-3. System: computes outcome using skill vs. challenge.
-4. System tells Heist AI the outcome (success / failure / decision needed).
-5. If decision needed: system presents the decision and parameters. Heist AI responds with the decision and reasoning.
-6. Heist AI: narrates the scene incorporating the outcome (and decision, if any) in 200-400 words.
+3. For decision scenes (hidden-depth bonus): system presents the decision. Heist AI decides whether to pursue before the outcome is resolved.
+4. System: computes outcome using skill vs. challenge.
+5. System tells Heist AI the outcome (success / failure / caught).
+6. If the outcome is a failure: system asks the Heist AI — abort now (escape with what's secured) or push on? Heist AI decides and gives reasoning. `state.aborted` is only set if the AI chooses to abort.
+7. Heist AI: narrates the scene incorporating the outcome and the abort decision (if any).
 
 ### Model and temperature
 
