@@ -117,47 +117,57 @@
 }
 
 .hiring-root .hr-card {
+  position: relative;   /* anchor for the bid-marker overlay on the portrait */
   display: flex;
   flex-direction: column;
   min-width: 0;
 }
 .hiring-root .hr-card.is-leaving {
-  animation: hrLeave 0.22s ease forwards;
+  animation: hrLeave 0.5s ease forwards;
 }
 .hiring-root .hr-card.is-entering {
   opacity: 0;
-  transform: translateY(8px) scale(0.985);
-  animation: hrEnter 0.28s ease forwards;
+  transform: translateY(10px) scale(0.97);
+  animation: hrEnter 0.6s ease forwards;
 }
 @keyframes hrLeave {
   from { opacity: 1; transform: none; filter: none; }
-  to   { opacity: 0.22; transform: translateY(6px) scale(0.985); filter: grayscale(0.2); }
+  to   { opacity: 0.18; transform: translateY(10px) scale(0.97); filter: grayscale(0.25); }
 }
 @keyframes hrEnter {
-  from { opacity: 0; transform: translateY(8px) scale(0.985); }
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
   to   { opacity: 1; transform: none; }
 }
 
+/* Bid markers overlay the top of the portrait so it's obvious which
+   character is being bid on. */
 .hiring-root .hr-chip-row {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  right: 5px;
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 4px;
-  padding: 5px 6px 0;
+  z-index: 2;
+  pointer-events: none;
 }
 .hiring-root .hr-chip {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 3px 6px;
+  padding: 3px 7px;
   border-radius: 999px;
   font-size: 10px;
   font-weight: 800;
   line-height: 1;
   white-space: nowrap;
-  border: 1px solid transparent;
-  background: rgba(255,255,255,0.04);
-  background: color-mix(in srgb, var(--chip-color) 18%, transparent);
-  color: var(--chip-color);
+  border: 1px solid color-mix(in srgb, var(--chip-color) 45%, transparent);
+  background: color-mix(in srgb, var(--chip-color) 30%, rgba(0,0,0,0.55));
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.55);
+  backdrop-filter: blur(2px);
   transition:
     opacity 0.2s ease,
     transform 0.2s ease,
@@ -165,23 +175,30 @@
     background-color 0.2s ease,
     border-color 0.2s ease;
 }
+.hiring-root .hr-chip.is-dropping {
+  animation: chipDrop 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.4);
+}
+@keyframes chipDrop {
+  0%   { opacity: 0; transform: translateY(-10px) scale(0.6); }
+  100% { opacity: 1; transform: none; }
+}
 .hiring-root .hr-chip-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: currentColor;
+  background: var(--chip-color);
   flex-shrink: 0;
-  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 18%, transparent);
+  box-shadow: 0 0 0 2px rgba(0,0,0,0.35);
 }
 .hiring-root .hr-chip-amt {
   display: inline-flex;
   align-items: center;
   gap: 3px;
 }
+/* State changes recolor the marker via --chip-color; the base dark-tinted
+   overlay style (white text) carries through for legibility over portraits. */
 .hiring-root .hr-chip.won {
   --chip-color: var(--green);
-  background: color-mix(in srgb, var(--green) 16%, transparent);
-  border-color: color-mix(in srgb, var(--green) 35%, transparent);
 }
 .hiring-root .hr-chip.won .hr-chip-amt::before {
   content: '✓';
@@ -190,16 +207,11 @@
 }
 .hiring-root .hr-chip.lost {
   --chip-color: #8f8e99;
-  color: #9a98a5;
   text-decoration: line-through;
-  background: rgba(255,255,255,0.03);
-  border-color: rgba(255,255,255,0.06);
   animation: chipLost 0.6s ease forwards;
 }
 .hiring-root .hr-chip.tied {
   --chip-color: var(--red);
-  background: color-mix(in srgb, var(--red) 18%, transparent);
-  border-color: color-mix(in srgb, var(--red) 28%, transparent);
   animation: tieFlash 0.85s ease-in-out infinite;
 }
 @keyframes chipLost {
@@ -382,9 +394,17 @@
   let resolvingTimer = null;
 
   const BANKROLL = 2000;
-  const CHIP_CLEAR_MS = 600;
-  const MOVE_MS = 240;
+  const CHIP_CLEAR_MS = 900;
+  const MOVE_MS = 700;            // slow glide so the move to crew is visible
   const RESOLVE_MS = 500;
+  const MARKER_STAGGER_MS = 500;  // gap between bid markers dropping onto portraits
+  const WIN_HOLD_MS = 600;        // hold winners highlighted before cards move
+
+  // Staggered bid-marker placement: markers are added to the ledger one at a
+  // time (MARKER_STAGGER_MS apart) so the user clearly sees each bid land.
+  const _placeQueue = [];
+  let _placeTimer = null;
+  let _moveHoldTimer = null;
 
   function $$(name) {
     return root && root.querySelector(`[data-hr="${name}"]`);
@@ -561,9 +581,31 @@
       amount: Number(amount) || 0,
       source,
       state: 'pending',
+      placed: false,   // false until first rendered → drives the drop-in animation
     };
     clearTimer(chipTimersByKey, `${aiIdx}:${key}`);
     refreshTieStates(key);
+  }
+
+  // Drop the next queued marker, render, and schedule the one after it.
+  function _drainPlaceQueue() {
+    const item = _placeQueue.shift();
+    if (!item) { _placeTimer = null; return; }
+    upsertChip(item.aiIdx, item.charId, item.amount, 'bid');
+    render();
+    _placeTimer = _placeQueue.length
+      ? setTimeout(_drainPlaceQueue, MARKER_STAGGER_MS)
+      : null;
+  }
+
+  // Place any markers still queued, immediately (used before resolution so no
+  // bid is left unplaced if the user advances faster than the stagger).
+  function flushPlaceQueue() {
+    if (_placeTimer) { clearTimeout(_placeTimer); _placeTimer = null; }
+    while (_placeQueue.length) {
+      const item = _placeQueue.shift();
+      upsertChip(item.aiIdx, item.charId, item.amount, 'bid');
+    }
   }
 
   function normalizeBidEvent(aiIdx, parsed) {
@@ -571,8 +613,10 @@
     parsed.bids.forEach(bid => {
       const charId = bid.character_id ?? bid.characterId ?? bid.id ?? bid.char_id;
       if (charId == null) return;
-      upsertChip(aiIdx, charId, bid.bid, 'bid');
+      _placeQueue.push({ aiIdx, charId, amount: bid.bid });
     });
+    // Kick the stagger if it isn't already running (first marker lands now).
+    if (!_placeTimer) _drainPlaceQueue();
   }
 
   function normalizeFillEvent(aiIdx, parsed) {
@@ -623,6 +667,7 @@
   // winners' chips -> won (+ card moves to crew), losers -> lost (+ clear),
   // tied bidders -> tied pulse (+ clear so the card returns to the pool).
   function handleAuctionResolved(e) {
+    flushPlaceQueue();  // make sure every bid marker is down before resolving
     const winners = e.winners || [];
     const ties = e.ties || [];
     const bankrollsAfter = e.bankrolls_after || {};
@@ -639,6 +684,8 @@
       });
     });
 
+    // Beat 1: reveal winners/losers in place (markers turn green/grey). The
+    // cards stay in the pool so the user can see who won what.
     winners.forEach(w => {
       const key = charKey(w.char_id);
       Shell.aiList.forEach(ai => {
@@ -652,11 +699,16 @@
           scheduleLostChipClear(ai.idx, w.char_id);
         }
       });
-      addToCrew(w.ai_idx, w.char_id);
     });
-
     render();
     setResolvingStatus();
+
+    // Beat 2: after a hold, glide each won card into its crew (slow MOVE_MS).
+    clearTimeout(_moveHoldTimer);
+    _moveHoldTimer = setTimeout(() => {
+      _moveHoldTimer = null;
+      winners.forEach(w => addToCrew(w.ai_idx, w.char_id));
+    }, WIN_HOLD_MS);
   }
 
   function renderChipRowHtml(charId) {
@@ -665,7 +717,11 @@
     const html = chips.map(chip => {
       const ai = Shell.aiList.find(a => a.idx === chip.aiIdx);
       if (!ai) return '';
-      const cls = ['hr-chip', chip.state].filter(Boolean).join(' ');
+      // Animate the drop only the first time a marker is rendered; mark it
+      // placed so re-renders (other bids, resolution) don't re-trigger it.
+      const isNew = !chip.placed;
+      if (isNew) chip.placed = true;
+      const cls = ['hr-chip', chip.state, isNew ? 'is-dropping' : ''].filter(Boolean).join(' ');
       const label = `$${Number(chip.amount).toLocaleString()}`;
       return `<span class="${cls}" style="--chip-color:${ai.color}">
         <span class="hr-chip-dot"></span>
@@ -884,6 +940,9 @@
   function clearAllTimers() {
     clearTimeout(resolvingTimer);
     resolvingTimer = null;
+    clearTimeout(_moveHoldTimer);
+    _moveHoldTimer = null;
+    if (_placeTimer) { clearTimeout(_placeTimer); _placeTimer = null; }
     moveTimersByChar.forEach(t => clearTimeout(t));
     moveTimersByChar.clear();
     chipTimersByKey.forEach(t => clearTimeout(t));
@@ -897,6 +956,7 @@
     for (const k of Object.keys(spentByAI)) delete spentByAI[k];
     crewKnownByAI.clear();
     movingCharIds.clear();
+    _placeQueue.length = 0;
     clearAllTimers();
   }
 
