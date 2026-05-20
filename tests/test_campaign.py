@@ -1,0 +1,128 @@
+from __future__ import annotations
+
+from heist.campaign import run_campaign, settle_round
+from heist.content import DEFAULT_PROMPT, JOBS, ROSTER
+from heist.state import Campaign, Crew, HeistState, HiddenDepthRoll, RoundResult
+from heist.stub_responses import build_stub_ai
+
+
+def _make_state(crew, job=None, take=1_000_000, escape_success=True, heat=0):
+    job = job or JOBS[0]
+    hidden = HiddenDepthRoll(
+        element=job.hidden_depth[0],
+        reward_label="test",
+        reward_amount=take,
+    )
+    state = HeistState(crew=crew, job=job, hidden_depth=hidden)
+    state.final_take = take
+    state.escape_success = escape_success
+    state.heat = heat
+    return state
+
+
+def _make_campaign(crew_members=None, notoriety=0):
+    from heist.content import BANKROLL
+
+    members = crew_members or ROSTER[:4]
+    return Campaign(
+        rounds_total=10,
+        bankroll=BANKROLL,
+        banked_loot=0,
+        standing_crew=list(members),
+        notoriety=notoriety,
+        attempted_job_names=set(),
+        round_results=[],
+    )
+
+
+def test_settle_round_banks_take():
+    campaign = _make_campaign()
+    state = _make_state(Crew(list(campaign.standing_crew)))
+
+    ended = settle_round(campaign, state)
+
+    assert ended is False
+    assert campaign.banked_loot == 1_000_000
+    assert isinstance(campaign.round_results[0], RoundResult)
+
+
+def test_settle_round_no_capture_on_success():
+    campaign = _make_campaign()
+    original_ids = [c.id for c in campaign.standing_crew]
+    state = _make_state(Crew(list(campaign.standing_crew)), escape_success=True)
+
+    settle_round(campaign, state)
+
+    assert [c.id for c in campaign.standing_crew] == original_ids
+
+
+def test_settle_round_capture_on_failed_escape():
+    members = ROSTER[:2]
+    campaign = _make_campaign(crew_members=members)
+    state = _make_state(Crew(list(members)), escape_success=False)
+
+    settle_round(campaign, state)
+
+    assert campaign.standing_crew == []
+
+
+def test_settle_round_notoriety_accumulates_and_decays():
+    campaign = _make_campaign()
+    state1 = _make_state(Crew(list(campaign.standing_crew)), heat=3)
+
+    settle_round(campaign, state1, notoriety_decay=1)
+    assert campaign.notoriety == 2
+
+    state2 = _make_state(Crew(list(campaign.standing_crew)), take=0, heat=0)
+    settle_round(campaign, state2, notoriety_decay=1)
+    assert campaign.notoriety == 1
+
+
+def test_settle_round_crew_wipe_ends_campaign():
+    members = ROSTER[:4]
+    campaign = _make_campaign(crew_members=members)
+    state = _make_state(Crew(list(members)), escape_success=False)
+
+    ended = settle_round(campaign, state)
+
+    assert ended is True
+    assert campaign.standing_crew == []
+
+
+def test_settle_round_critical_notoriety_ends_campaign():
+    campaign = _make_campaign(notoriety=8)
+    state = _make_state(Crew(list(campaign.standing_crew)), take=0, heat=2)
+
+    ended = settle_round(campaign, state, notoriety_decay=1)
+
+    assert campaign.notoriety == 9
+    assert ended is True
+
+
+def test_settle_round_marks_job_attempted():
+    campaign = _make_campaign()
+    state = _make_state(Crew(list(campaign.standing_crew)))
+
+    settle_round(campaign, state)
+
+    assert state.job.name in campaign.attempted_job_names
+
+
+def test_settle_round_round_idx_increments():
+    campaign = _make_campaign()
+    state = _make_state(Crew(list(campaign.standing_crew)))
+
+    assert campaign.round_idx == 0
+    settle_round(campaign, state)
+    assert campaign.round_idx == 1
+    assert campaign.round_results[0].round_idx == 0
+
+
+def test_run_campaign_stub_completes():
+    campaign, extras = run_campaign(DEFAULT_PROMPT, build_stub_ai(), rounds=3)
+
+    assert len(campaign.round_results) >= 1
+    assert campaign.banked_loot >= 0
+    assert len(extras) == len(campaign.round_results)
+    job_names = [r.job_name for r in campaign.round_results]
+    assert len(job_names) == len(set(job_names))

@@ -52,6 +52,15 @@ def main(argv: list[str] | None = None) -> int:
     run_p.add_argument("--seed", type=int, default=None)
     run_p.add_argument("--agent", default="stub", choices=["stub", "codex", "gemini"])
 
+    campaign_p = subparsers.add_parser(
+        "run-campaign", help="Run a multi-round campaign."
+    )
+    campaign_p.add_argument("--rounds", type=int, default=10)
+    campaign_p.add_argument("--prompt-file", type=Path, default=None)
+    campaign_p.add_argument("--out", type=Path, default=None)
+    campaign_p.add_argument("--seed", type=int, default=None)
+    campaign_p.add_argument("--agent", default="stub", choices=["stub", "codex", "gemini"])
+
     # backwards-compat: bare flags with no subcommand → treat as `run`
     parser.add_argument("--prompt-file", type=Path, default=None)
     parser.add_argument("--out", type=Path, default=Path("heist_report.md"))
@@ -63,6 +72,59 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "serve":
         from heist.server import serve
         serve(port=args.port, web_dir=args.web_dir)
+        return 0
+
+    if args.command == "run-campaign":
+        from heist.campaign import run_campaign
+        from heist.state import Campaign, HeistState
+
+        prompt = args.prompt_file.read_text() if args.prompt_file else DEFAULT_PROMPT
+        rng = random.Random(args.seed)
+        ai = _build_ai(args.agent)
+
+        def print_round(camp: Campaign, state: HeistState, extras: dict) -> None:
+            r = camp.round_results[-1]
+            print(
+                f"\n=== Round {r.round_idx + 1}/{camp.rounds_total}: {r.job_name} ===\n"
+                f"  Take: ${r.take:,}  |  Escape: {r.escape_success}  |  "
+                f"Heat: {r.heat}  |  Notoriety: {camp.notoriety}  |  "
+                f"Crew: {len(camp.standing_crew)}"
+            )
+
+        campaign, _ = run_campaign(
+            prompt,
+            ai,
+            rounds=args.rounds,
+            rng=rng,
+            on_round=print_round,
+        )
+
+        print(f"\n{'=' * 50}")
+        print(
+            f"Campaign complete — {len(campaign.round_results)}/{campaign.rounds_total} rounds"
+        )
+        print(f"  Banked loot:       ${campaign.banked_loot:,}")
+        print(f"  Remaining crew:    {len(campaign.standing_crew)}")
+        print(f"  Final notoriety:   {campaign.notoriety}")
+        successful = sum(1 for r in campaign.round_results if r.take > 0)
+        print(f"  Successful rounds: {successful}/{len(campaign.round_results)}")
+
+        if args.out:
+            lines = ["# Campaign Report\n"]
+            for r in campaign.round_results:
+                lines.append(
+                    f"## Round {r.round_idx + 1}: {r.job_name}\n"
+                    f"- Take: ${r.take:,}\n- Escape: {r.escape_success}\n"
+                    f"- Heat: {r.heat}\n"
+                )
+            lines.append(
+                f"## Totals\n- Banked loot: ${campaign.banked_loot:,}\n"
+                f"- Rounds: {len(campaign.round_results)}/{campaign.rounds_total}\n"
+                f"- Crew remaining: {len(campaign.standing_crew)}\n"
+            )
+            args.out.write_text("\n".join(lines))
+            print(f"\nWrote {args.out}", file=sys.stderr)
+
         return 0
 
     # run (subcommand or bare)

@@ -40,6 +40,7 @@ class Character:
     weakness: str = ""
     look: str = ""
     signature_line: str = ""
+    skill_scores: dict[str, int] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -61,6 +62,7 @@ class Job:
     escape_modifier: int
     hidden_depth: list[HiddenDepthElement]
     reward_amounts: list[tuple[str, int]]
+    challenge_scores: dict[str, int] = field(default_factory=dict)
 
 
 @dataclass
@@ -122,3 +124,28 @@ class HeistState:
     escape_success: bool | None = None
     escape_difficulty: int | None = None
     final_take: int = 0
+
+
+@dataclass
+class RoundResult:
+    round_idx: int
+    job_name: str
+    take: int
+    aborted: bool
+    escape_success: bool | None
+    heat: int
+
+
+@dataclass
+class Campaign:
+    rounds_total: int
+    bankroll: int
+    banked_loot: int
+    standing_crew: list["Character"] = field(default_factory=list)
+    notoriety: int = 0
+    attempted_job_names: set[str] = field(default_factory=set)
+    round_results: list[RoundResult] = field(default_factory=list)
+
+    @property
+    def round_idx(self) -> int:
+        return len(self.round_results)

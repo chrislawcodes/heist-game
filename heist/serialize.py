@@ -49,6 +49,7 @@ def character_to_dict(c: Character) -> dict:
         "weakness": c.weakness,
         "look": c.look,
         "signature_line": c.signature_line,
+        "skill_scores": dict(c.skill_scores),
     }
 
 
@@ -66,6 +67,7 @@ def job_to_dict(job: Job) -> dict:
         "reward_range": list(job.reward_range),
         "profile": {k: v.name for k, v in job.profile.items()},
         "escape_modifier": job.escape_modifier,
+        "challenge_scores": dict(job.challenge_scores),
     }
 
 
@@ -118,6 +120,7 @@ def character_from_dict(d: dict) -> Character:
         weakness=d.get("weakness", ""),
         look=d.get("look", ""),
         signature_line=d.get("signature_line", ""),
+        skill_scores={k: int(v) for k, v in d.get("skill_scores", {}).items()},
     )
 
 
@@ -139,6 +142,7 @@ def job_from_dict(d: dict) -> Job:
         escape_modifier=int(d.get("escape_modifier", 0)),
         hidden_depth=[],
         reward_amounts=[],
+        challenge_scores={k: int(v) for k, v in d.get("challenge_scores", {}).items()},
     )
 
 

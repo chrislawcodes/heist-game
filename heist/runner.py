@@ -34,6 +34,7 @@ from heist.mechanics import (
     resolves_challenge,
 )
 from heist.state import (
+    Campaign,
     Character,
     Crew,
     HeistState,
@@ -154,9 +155,10 @@ def _roster_summary() -> str:
     return "\n".join(lines)
 
 
-def _job_slate_summary() -> str:
+def _job_slate_summary(available_jobs: list | None = None) -> str:
+    jobs = available_jobs if available_jobs is not None else JOBS
     lines = []
-    for j in JOBS:
+    for j in jobs:
         prof = " | ".join(f"{k} {v.name}" for k, v in j.profile.items())
         lines.append(
             f"  - {j.name!r}: reward ${j.reward_range[0]:,}-${j.reward_range[1]:,}, "
@@ -224,7 +226,7 @@ def _fill_prompt(crew_so_far: list[Character], remaining: int) -> str:
     )
 
 
-def _job_prompt(crew: Crew) -> str:
+def _job_prompt(crew: Crew, available_jobs: list | None = None) -> str:
     crew_lines = []
     for c in crew.members:
         skills = ", ".join(f"{s} {lvl.name}" for s, lvl in c.skills.items())
@@ -232,7 +234,7 @@ def _job_prompt(crew: Crew) -> str:
     return (
         f"Crew assembled (spent ${crew.total_cost}/{BANKROLL}):\n"
         + "\n".join(crew_lines)
-        + f"\n\nJob slate:\n{_job_slate_summary()}\n\n"
+        + f"\n\nJob slate:\n{_job_slate_summary(available_jobs)}\n\n"
         "Pick the job this crew should attempt. Before you commit: for every Hard "
         "challenge in the job's profile, confirm the crew has either a High specialist "
         "in that area OR two Mediums who can pair on it. If neither, that job is a "
@@ -243,6 +245,15 @@ def _job_prompt(crew: Crew) -> str:
         '  "why_not":  "<for each of the other jobs on the slate, one sentence on '
         'why it was a worse pick>"\n'
         "}"
+    )
+
+
+def _campaign_context(campaign: Campaign) -> str:
+    return (
+        f"Campaign context: Round {campaign.round_idx + 1}/{campaign.rounds_total}. "
+        f"Notoriety: {campaign.notoriety}/10. "
+        f"Banked loot: ${campaign.banked_loot:,}. "
+        f"Standing crew: {len(campaign.standing_crew)} member(s)."
     )
 
 
@@ -565,6 +576,78 @@ def _run_scene_loop(
             snapshot_fn, stage=STAGE_IN_SCENE, strategy=strategy, ai=ai, rng=rng,
             state=state, extras=extras, scene_idx=idx + 1,
         )
+
+
+def run_one_job(
+    strategy: str,
+    ai: HeistAI,
+    campaign: Campaign,
+    *,
+    rng: random.Random,
+    emit: EmitFn = None,
+    snapshot_fn: SnapshotFn = None,
+) -> tuple[HeistState, dict[str, Any]] | None:
+    """Run one campaign round. Returns (state, extras) or None if job pool empty."""
+    from heist.scenes import generate_scenes
+    from heist.state import Crew
+
+    available_jobs = [j for j in JOBS if j.name not in campaign.attempted_job_names]
+    if not available_jobs:
+        return None
+
+    crew = Crew(members=list(campaign.standing_crew))
+    logs: list[TurnLog] = []
+    extras: dict[str, Any] = {
+        "strategy": strategy,
+        "bid_logic": None,
+        "casting_summary": "",
+        "scene_narrations": [],
+        "epilogue": "",
+        "turn_logs": logs,
+        "campaign_round": campaign.round_idx,
+    }
+
+    # Job pick with campaign context prepended.
+    ctx = _campaign_context(campaign)
+    _, job_parsed = _call_json(
+        ai, ctx + "\n\n" + _job_prompt(crew, available_jobs), "job_pick", logs, emit
+    )
+
+    # Validate; fall back to first available if AI picks an already-attempted job.
+    jobs_by_name = {j.name: j for j in available_jobs}
+    name = job_parsed.get("job_name", "")
+    if name not in jobs_by_name:
+        log.warn(
+            "job_pick_fallback",
+            picked=name,
+            available=[j.name for j in available_jobs],
+        )
+        name = available_jobs[0].name
+    job = jobs_by_name[name]
+
+    if emit:
+        from heist.serialize import job_to_dict
+
+        emit({"type": "job_known", "job": job_to_dict(job)})
+
+    hidden = _roll_hidden_depth(job, rng, emit)
+    state = HeistState(crew=crew, job=job, hidden_depth=hidden)
+    scenes = generate_scenes(job, hidden)
+
+    _snapshot(
+        snapshot_fn, stage=STAGE_JOB_PICKED, strategy=strategy, ai=ai,
+        rng=rng, state=state, extras=extras, scene_idx=0,
+    )
+    _run_scene_loop(
+        scenes, state, ai, logs, extras, emit, None,
+        snapshot_fn, strategy, rng, start_idx=0,
+    )
+    _finalize_reward(state)
+
+    _, ep_parsed = _call_json(ai, _epilogue_prompt(state), "epilogue", logs, emit)
+    extras["epilogue"] = ep_parsed.get("epilogue", "")
+    extras["total_seconds"] = sum(t.seconds for t in logs)
+    return state, extras
 
 
 def run_heist(
