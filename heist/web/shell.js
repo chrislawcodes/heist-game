@@ -155,7 +155,8 @@
 .thought-sub-head { font-size: 9px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: var(--purple); margin-top: 6px; margin-bottom: 2px; }
 .thought-sub-head:first-child { margin-top: 0; }
 .thinking-empty { font-size: 12px; color: var(--muted); font-style: italic; text-align: center; padding: 16px 0; }
-.thought-hired-badge { margin-top: 6px; display: inline-flex; align-items: center; gap: 4px; background: #0c2018; color: var(--green); padding: 2px 7px; border-radius: 3px; font-size: 10px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; }
+.thought-hired-badge  { margin-top: 6px; display: inline-flex; align-items: center; gap: 4px; background: #0c2018; color: var(--green); padding: 2px 7px; border-radius: 3px; font-size: 10px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; }
+.thought-failed-badge { margin-top: 6px; display: inline-flex; align-items: center; gap: 4px; background: #2e0c0c; color: var(--red);   padding: 2px 7px; border-radius: 3px; font-size: 10px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; }
 `;
   document.head.appendChild(style);
 })();
@@ -278,6 +279,7 @@ let _REPLAY_INDEX  = 0;
 let _REPLAY_TIMER  = null;
 let _reviewMode    = false;  // true → fast-forward all events instantly, no animation
 let _visibleByAI   = {};     // ai_idx → [buffer indices of visible events for that AI]
+let _wonBids       = { won: new Set(), resolvedRounds: new Set() }; // built from auction_round_resolved
 
 const _THOUGHT_CARD_DELAY_MS = (() => {
   const p = new URLSearchParams(window.location.search);
@@ -288,6 +290,21 @@ const _thoughtQueue = [];
 let   _thoughtTimer  = null;
 
 let _currentOnEvent = null;  // set by initShell; used by replayStep
+
+// ── _buildWonBids ─────────────────────────────────────────────────────────────
+// Scans all auction_round_resolved events and builds a lookup of which bids won.
+// Only rounds that have a resolution event are considered settled; bids in
+// unresolved rounds are not marked failed (handles mid-stream / in-progress games).
+function _buildWonBids(events) {
+  const won = new Set();
+  const resolvedRounds = new Set();
+  events.forEach(e => {
+    if (e.type !== 'auction_round_resolved') return;
+    resolvedRounds.add(e.round);
+    (e.winners || []).forEach(w => won.add(`${w.ai_idx}:${w.char_id}`));
+  });
+  return { won, resolvedRounds };
+}
 
 // ── _attachStrategyToStarts ───────────────────────────────────────────────────
 // For each turn_start bid_round_N event, peek ahead to find the matching
@@ -330,10 +347,13 @@ function _isVisibleEvent(e) {
 // Returns true if the event belongs to the currently-selected AI, or has no
 // ai_idx (system/global events). Used by Step/Back to skip other AIs' events.
 function _isCurrentAIEvent(e) {
-  // Auction bid turns (both start and end) are simultaneous — every AI's
-  // bid_round event is a stop point regardless of which AI placed it.
-  if (/^bid_round_\d+$/.test(e.label || '') &&
-      (e.type === 'turn_start' || e.type === 'turn_end')) return true;
+  if (/^bid_round_\d+$/.test(e.label || '')) {
+    // Every AI's bid reveal (turn_end) is a stop point — user sees all bids land.
+    if (e.type === 'turn_end') return true;
+    // Strategy preview (turn_start) is only a stop point for the current AI;
+    // other AIs' strategy is invisible to this viewer, so skip the empty step.
+    if (e.type === 'turn_start') return (e.ai_idx ?? 0) === Shell.currentAI;
+  }
   return e.ai_idx === undefined || e.ai_idx === Shell.currentAI;
 }
 
@@ -696,6 +716,7 @@ window.initShell = async function({ gameId, onEvent } = {}) {
       const data = await fetch(`/api/games/${targetGame.id}/events`).then(r => r.json());
       _REPLAY_EVENTS = data.events || [];
       _attachStrategyToStarts(_REPLAY_EVENTS);
+      _wonBids = _buildWonBids(_REPLAY_EVENTS);
       Shell.replayEvents = _REPLAY_EVENTS;
       _computeVisibleByAI();
       _replayUpdateCounter();
@@ -782,13 +803,17 @@ function _railFromTurnEnd(e) {
     if (e.label === 'bid' && e.parsed.casting_strategy) {
       _addThought(aiIdx, 'strategy', 'Strategy', esc(e.parsed.casting_strategy));
     }
+    // Determine which round this is so we only mark bids failed once resolved.
+    const roundNum = parseInt((e.label || '').match(/\d+/)?.[0] || '0', 10);
+    const roundResolved = _wonBids.resolvedRounds.has(roundNum);
     (e.parsed.bids || []).forEach(b => {
-      _flashCard(b.character_id);
+      // _flashCard is now called when the thought card renders (chip + card sync)
       const c = Shell.charById.get(b.character_id);
       if (!c) return;
+      const failed = roundResolved && !_wonBids.won.has(`${aiIdx}:${b.character_id}`);
       const amount = b.bid != null ? ' · $' + Number(b.bid).toLocaleString() : '';
       _addThought(aiIdx, 'bid', 'Bid · ' + c.name + amount, esc(b.rationale || '—'),
-        { id: 'bid-' + aiIdx + '-' + b.character_id, charId: b.character_id });
+        { id: 'bid-' + aiIdx + '-' + b.character_id, charId: b.character_id, failed });
     });
   } else if (e.label === 'casting_summary' && e.parsed && e.parsed.summary) {
     const s = e.parsed.summary;
@@ -897,6 +922,8 @@ function _addThought(aiIdx, kind, title, bodyHtml, opts) {
   _aiStreams[aiIdx].unshift(t);
   if (_THOUGHT_CARD_DELAY_MS <= 0 || _reviewMode) {
     if (aiIdx === Shell.currentAI) _prependThought(t);
+    // Chip fires at the same moment the card renders
+    if (t.kind === 'bid' && t.charId != null) _flashCard(t.charId);
     return;
   }
   _thoughtQueue.push(t);
@@ -907,6 +934,8 @@ function _drainOneThought() {
   const t = _thoughtQueue.shift();
   if (!t) { _thoughtTimer = null; return; }
   if (t.aiIdx === Shell.currentAI) _prependThought(t);
+  // Chip fires at the same moment the card renders (regardless of which AI)
+  if (t.kind === 'bid' && t.charId != null) _flashCard(t.charId);
   if (_thoughtQueue.length > 0) {
     _thoughtTimer = setTimeout(_drainOneThought, _THOUGHT_CARD_DELAY_MS);
   } else {
@@ -922,12 +951,14 @@ function _prependThought(t) {
   const line = document.createElement('div');
   line.className = `thought-line tk-${t.kind}`;
   if (t.id) line.id = 'thought-' + t.id;
-  const showHired = t.kind === 'bid' && t.charId != null
+  const showHired  = t.kind === 'bid' && !t.failed && t.charId != null
     && _hiredMarks[t.aiIdx] && _hiredMarks[t.aiIdx].has(t.charId);
+  const showFailed = t.kind === 'bid' && t.failed;
   line.innerHTML =
     `<div class="thought-kind">${Shell.helpers.escapeHtml(t.title)}</div>` +
     `<div class="thought-body">${t.body}</div>` +
-    (showHired ? '<div class="thought-hired-badge">✓ Hired</div>' : '');
+    (showHired  ? '<div class="thought-hired-badge">✓ Hired</div>'  : '') +
+    (showFailed ? '<div class="thought-failed-badge">✗ Failed</div>' : '');
   stream.insertBefore(line, stream.firstChild);
   stream.scrollTop = 0;
 }
@@ -969,12 +1000,14 @@ function _renderThinking() {
     line.className = `thought-line tk-${t.kind}`;
     line.style.animation = 'none';
     if (t.id) line.id = 'thought-' + t.id;
-    const showHired = t.kind === 'bid' && t.charId != null
+    const showHired  = t.kind === 'bid' && !t.failed && t.charId != null
       && (t.hired || (hiredHere && hiredHere.has(t.charId)));
+    const showFailed = t.kind === 'bid' && t.failed;
     line.innerHTML =
       `<div class="thought-kind">${Shell.helpers.escapeHtml(t.title)}</div>` +
       `<div class="thought-body">${t.body}</div>` +
-      (showHired ? '<div class="thought-hired-badge">✓ Hired</div>' : '');
+      (showHired  ? '<div class="thought-hired-badge">✓ Hired</div>'  : '') +
+      (showFailed ? '<div class="thought-failed-badge">✗ Failed</div>' : '');
     stream.appendChild(line);
   });
 }
