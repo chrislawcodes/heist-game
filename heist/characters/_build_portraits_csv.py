@@ -18,7 +18,7 @@ from pathlib import Path
 CHARACTERS: list[dict] = [
     {
         "id": 1, "file": "c01_marcus", "name": 'Marcus "Prodigy" Renault',
-        "skills": "Hacker H, Driver L", "floor_cost": 1100,
+        "skills": "Hacker H, Driver L", "floor_cost": 1_100_000,
         "backstory": "Got caught running a botnet at seventeen in Lyon, did three years in a French juvenile facility, came out at twenty already too well-known for legitimate work, fell into corporate espionage by twenty-two.",
         "voice": "Switches between rapid French-accented English and dead silence. Doesn't joke, doesn't notice when other people do. Uses 'obviously' too much.",
         "motivation": "Repaying his mother for the lawyer bills she's still working off. Has never told her what he does.",
@@ -45,7 +45,7 @@ CHARACTERS: list[dict] = [
     },
     {
         "id": 2, "file": "c02_sasha", "name": "Sasha Kuznetsova",
-        "skills": "Hacker M", "floor_cost": 200,
+        "skills": "Hacker M", "floor_cost": 200_000,
         "backstory": "Grew up in a Moscow apartment block; learned coding from her father's pirated copies of MSDN. Came to Toronto on a student visa, never went home; the visa expired five years ago.",
         "voice": "Quiet and flat. Speaks with the cadence of someone translating in her head. Drops 'the' and 'a' before nouns.",
         "motivation": "Saving for a Canadian passport on the open market. Knows exactly what it costs and has about a quarter of it.",
@@ -72,7 +72,7 @@ CHARACTERS: list[dict] = [
     },
     {
         "id": 3, "file": "c03_eli", "name": 'Eli "Owl" Park',
-        "skills": "Hacker L, Inside Man L", "floor_cost": 200,
+        "skills": "Hacker L, Inside Man L", "floor_cost": 200_000,
         "backstory": "Bartended in Koreatown LA for a decade and watched every kind of grift come through the door. A regular taught her enough Linux to be dangerous, then died of a heart attack still owing her $1,400.",
         "voice": "Quick, warm, slightly hoarse like she's just been laughing. Calls people 'sweetheart' only when she wants something from them.",
         "motivation": "Buying back the bar she used to work at. The family sold it during COVID and the new owners gutted it and put in a juice place.",
@@ -97,7 +97,7 @@ CHARACTERS: list[dict] = [
     },
     {
         "id": 4, "file": "c04_vance", "name": 'Vance "The Wall" Tobin',
-        "skills": "Muscle H", "floor_cost": 700,
+        "skills": "Muscle H", "floor_cost": 700_000,
         "backstory": "Heavyweight boxer out of Detroit, ranked top twenty in the late 2000s. Got knocked out by a southpaw he should have beaten, took a head injury, never fought again. The pension stopped at $1,200 a month.",
         "voice": "Slow and deliberate, like every word costs him a thought. Pronounces every consonant. Calls everyone 'boss' — even people he doesn't respect.",
         "motivation": "His daughter has cerebral palsy. He's bought every piece of equipment in her room with this work.",
@@ -122,7 +122,7 @@ CHARACTERS: list[dict] = [
     },
     {
         "id": 5, "file": "c05_carla", "name": "Carla Reyes",
-        "skills": "Muscle M, Driver L", "floor_cost": 400,
+        "skills": "Muscle M, Driver L", "floor_cost": 400_000,
         "backstory": "Two tours as a Marine MP in Iraq, came home and couldn't sleep. Joined a private security firm in Houston, quit when she realized half the job was harassing day laborers. The work she does now pays better and bothers her less.",
         "voice": "Direct, no wasted words. Uses military verbs ('clear,' 'secure,' 'negative'). When she swears in Spanish she sounds about ten years younger.",
         "motivation": "Building her sister's repair shop into a real business. The sister doesn't know the money isn't from 'private security gigs.'",
@@ -146,7 +146,7 @@ CHARACTERS: list[dict] = [
     },
     {
         "id": 6, "file": "c06_big_mike", "name": "Big Mike Donato",
-        "skills": "Muscle L, Driver L, Inside Man L", "floor_cost": 200,
+        "skills": "Muscle L, Driver L, Inside Man L", "floor_cost": 200_000,
         "backstory": "Worked the Newark docks for twenty years until the longshoremen's union got broken. Picked up driving for a chop shop, then for crews. Knows every back route between Trenton and the Bronx.",
         "voice": "Loud, friendly, profane. Hugs hello. Has exactly two volumes: warm shouting and quiet menace.",
         "motivation": "Pays alimony to two ex-wives and child support for four kids. Cheerfully calls himself 'the joke at his own family's holidays.'",
@@ -171,7 +171,7 @@ CHARACTERS: list[dict] = [
     },
     {
         "id": 7, "file": "c07_lin", "name": 'Lin "Closer" Chen',
-        "skills": "Inside Man H, Safecracker L", "floor_cost": 1100,
+        "skills": "Inside Man H, Safecracker L", "floor_cost": 1_100_000,
         "backstory": "Stanford MBA, recruited into McKinsey out of school, washed out after refusing to falsify a client's quarterly report. The career was over either way; she chose the version that paid more.",
         "voice": "Crystal-clear, mid-tempo, never raised. Uses business-school vocabulary on purpose — 'stakeholder alignment,' 'downside scenario.'",
         "motivation": "Not in it for money anymore. Wants to prove her judgment was right about that quarterly report, and the cleanest evidence is doing the work for fifteen years without getting caught.",
@@ -196,7 +196,7 @@ CHARACTERS: list[dict] = [
     },
     {
         "id": 8, "file": "c08_theo", "name": "Theo Kapoor",
-        "skills": "Inside Man M", "floor_cost": 200,
+        "skills": "Inside Man M", "floor_cost": 200_000,
         "backstory": "Failed actor — three years off-Broadway, then a long slide into voiceover work and stand-in gigs. A director he respected once told him he was 'always lying about the wrong thing.' He took it badly, then he took it as a job description.",
         "voice": "Smooth and adaptable. Has a default voice for the road and an actor's range underneath. Hums between sentences.",
         "motivation": "Still wants to be on a stage. Tells himself the work funds the gap until his next callback, even though it has been the work for nine years now.",
@@ -221,7 +221,7 @@ CHARACTERS: list[dict] = [
     },
     {
         "id": 9, "file": "c09_pearl", "name": "Pearl Sutton",
-        "skills": "Inside Man M, Muscle L", "floor_cost": 400,
+        "skills": "Inside Man M, Muscle L", "floor_cost": 400_000,
         "backstory": "Catholic boarding-school girl who ran away at sixteen, joined a small-town hustler's two-person grift in West Virginia, and learned more in eighteen months than the convent taught in eight years. The hustler is in prison; Pearl is not.",
         "voice": "Grandmotherly Appalachian accent that disarms people in seconds. Says 'darlin'' with at least three different meanings.",
         "motivation": "Doesn't know. Hasn't asked herself in a decade. Tells the crew it's about a great-niece's tuition — and the great-niece is real, but the tuition is paid.",
@@ -249,7 +249,7 @@ CHARACTERS: list[dict] = [
     },
     {
         "id": 10, "file": "c10_rook", "name": "Rook Ferreira",
-        "skills": "Safecracker H", "floor_cost": 700,
+        "skills": "Safecracker H", "floor_cost": 700_000,
         "backstory": "Apprenticed under a Lisbon locksmith named Henriques for nine years; the old man taught her by tying her hands and making her feel the tumblers. Henriques was murdered for refusing a job in 2017. She didn't take that job either, but she has been picking it apart in her head ever since.",
         "voice": "Soft, almost whispered, with the tail of a Portuguese accent on long vowels. Never repeats herself; will simply walk away if asked.",
         "motivation": "Wants to be the person Henriques expected her to be. Doesn't believe she has gotten there yet.",
@@ -275,7 +275,7 @@ CHARACTERS: list[dict] = [
     },
     {
         "id": 11, "file": "c11_jolene", "name": 'Jolene "Jo" Hayes',
-        "skills": "Safecracker M, Hacker L", "floor_cost": 400,
+        "skills": "Safecracker M, Hacker L", "floor_cost": 400_000,
         "backstory": "Grew up in Tulsa, daughter of a competitive locksmith champion who never paid for a hotel because he could open the door of the room next to his. Picked up some computer security in community college because the local jobs all wanted both.",
         "voice": "Easy Oklahoma drawl, says 'y'all' without irony. Talks through her work out loud — sometimes to the lock, sometimes to no one.",
         "motivation": "Wants to be invited to her father's annual locksmith convention as a guest of honor. Knows she can't tell him how she got that good.",
@@ -300,7 +300,7 @@ CHARACTERS: list[dict] = [
     },
     {
         "id": 12, "file": "c12_nestor", "name": "Nestor Bly",
-        "skills": "Safecracker M, Hacker L", "floor_cost": 400,
+        "skills": "Safecracker M, Hacker L", "floor_cost": 400_000,
         "backstory": "Career safecracker out of Philadelphia who never quite made it to first chair, did time in '03 for a botched mall job, picked up enough hacking in the federal library to be useful again at fifty.",
         "voice": "Wry, slow, with a Philly bite on the vowels. Loves a long story.",
         "motivation": "Stays in because the apartment costs $2,400 and his social security is $1,800. Tells the crew he stays for the company.",
@@ -326,7 +326,7 @@ CHARACTERS: list[dict] = [
     },
     {
         "id": 13, "file": "c13_slim", "name": '"Slim" Adesanya',
-        "skills": "Driver H", "floor_cost": 700,
+        "skills": "Driver H", "floor_cost": 700_000,
         "backstory": "Drove auto-rickshaws in Lagos until eighteen, came to London as a courier and discovered he could navigate the city without a GPS. Was scouted by a crew after he outran a panicked dispatcher who happened to be a getaway driver for a bigger crew.",
         "voice": "London-Nigerian, fast, warm, never panicked. Counts out loud during chases ('three seconds, four, five — we're clear').",
         "motivation": "Sending money home to his mother who runs a small fabric shop in Surulere. She thinks he's a 'private chauffeur.'",
@@ -351,7 +351,7 @@ CHARACTERS: list[dict] = [
     },
     {
         "id": 14, "file": "c14_margot", "name": "Margot Vinter",
-        "skills": "Driver M, Inside Man L", "floor_cost": 400,
+        "skills": "Driver M, Inside Man L", "floor_cost": 400_000,
         "backstory": "Daughter of an East German rally driver who defected with her in 1988. Grew up between Hamburg and Berlin, did club racing in her twenties, lost her license after the third DUI. Picked up freelance driving when no insurance company would take her.",
         "voice": "Mid-Atlantic by way of West Berlin. Light, sardonic, never serious. Calls every traffic light a 'suggestion.'",
         "motivation": "Believes she is being punished by some larger force for the DUIs and that the only way out is enough money to make herself untouchable.",
@@ -377,7 +377,7 @@ CHARACTERS: list[dict] = [
     },
     {
         "id": 15, "file": "c15_dex", "name": "Dex Owusu",
-        "skills": "Driver M, Muscle L", "floor_cost": 400,
+        "skills": "Driver M, Muscle L", "floor_cost": 400_000,
         "backstory": "Grew up in the Bronx, son of Ghanaian immigrants. Worked maintenance at a city bus depot for six years; learned mechanical work and pulled a couple of side gigs that got him noticed. Stayed in the work because the bus depot fired him.",
         "voice": "Brooklyn-Ghanaian cadence, slow with sudden bursts. Doesn't curse. Says 'lord have mercy' when things go badly.",
         "motivation": "Trying to save enough to start a small auto-repair shop with his cousin. Has been 'two more jobs away' for three years.",
@@ -403,7 +403,7 @@ CHARACTERS: list[dict] = [
     },
     {
         "id": 16, "file": "c16_val", "name": 'Valentina "Val" Cruz',
-        "skills": "Muscle M, Inside Man L", "floor_cost": 400,
+        "skills": "Muscle M, Inside Man L", "floor_cost": 400_000,
         "backstory": "Eight years as a Cook County corrections officer in Chicago — knew every shift pattern, every blind spot, every guard who'd look the other way for the right story. Left after a use-of-force review that went nowhere. Does asset recovery now.",
         "voice": "Flat Chicago working-class. Short sentences. Doesn't explain herself twice. When she laughs it surprises people — loud and genuine, gone in a second.",
         "motivation": "Supporting her mother and two younger sisters after her father's deportation. The repo work pays well. She doesn't think too hard about the rest.",

@@ -27,8 +27,8 @@ def resolves_challenge(skill_level: SkillLevel, challenge: ChallengeLevel) -> bo
 
 
 def base_cost(total_points: int, num_high: int) -> int:
-    base = {2: 200, 3: 400, 4: 800}[total_points]
-    return base + 300 * num_high
+    base = {2: 200_000, 3: 400_000, 4: 800_000}[total_points]
+    return base + 300_000 * num_high
 
 
 def expected_floor_cost(char: Character) -> int:

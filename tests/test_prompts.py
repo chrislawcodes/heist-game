@@ -43,12 +43,12 @@ def test_bid_prompt_contains_tradecraft():
     prompt = _bid_prompt("test strategy")
     assert _TRADECRAFT in prompt
     assert "test strategy" in prompt
-    assert "Bankroll: $2000" in prompt
+    assert "Bankroll: $2000000" in prompt
 
 
 def test_job_prompt_warns_about_traps():
     crew = Crew(members=[
-        Character(10, "Rook", {"safecracker": SkillLevel.HIGH}, 700, "")
+        Character(10, "Rook", {"safecracker": SkillLevel.HIGH}, 700_000, "")
     ])
     prompt = _job_prompt(crew)
     assert "trap" in prompt.lower()

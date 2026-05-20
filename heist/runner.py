@@ -197,7 +197,7 @@ def _bid_prompt(strategy: str) -> str:
         "decision points, and narrating each scene in character. Stay in this role.\n\n"
         f"{_TRADECRAFT}\n\n"
         f"Player's strategy prompt:\n---\n{strategy}\n---\n\n"
-        f"Bankroll: ${BANKROLL}. Roster (15 characters):\n{_roster_summary()}\n\n"
+        f"Bankroll: ${BANKROLL}. Roster (16 characters):\n{_roster_summary()}\n\n"
         "Draft your crew. Reply with ONLY a JSON object (no prose around it) of shape:\n"
         '{\n'
         '  "casting_strategy": "one-sentence strategy in your own words",\n'
@@ -206,7 +206,7 @@ def _bid_prompt(strategy: str) -> str:
         '  ],\n'
         '  "reasoning": "<why this overall composition fits the prompt>"\n'
         "}\n"
-        "Bids must be ≥ each character's floor cost. Total bids ≤ $2000. "
+        "Bids must be ≥ each character's floor cost. Total bids ≤ $2,000,000. "
         "Aim for 4 crew slots. If you can't quite hit 4 within budget, leave room — "
         "I'll ask you to fill in."
     )
@@ -219,7 +219,7 @@ def _fill_prompt(crew_so_far: list[Character], remaining: int) -> str:
         f"Your bids hired {len(crew_so_far)}/4: [{have}]. "
         f"Spent ${spent}, ${BANKROLL - spent} left, need {remaining} more slots.\n"
         "Pick from the remaining roster (those not already hired) such that total "
-        f"spend ≤ $2000. Reply with ONLY JSON:\n"
+        f"spend ≤ $2,000,000. Reply with ONLY JSON:\n"
         '{"additions": [<character_id>, ...], "reasoning": "<why>"}'
     )
 
