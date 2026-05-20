@@ -51,11 +51,11 @@ def test_resolves_challenge_pass_and_fail():
 
 
 def test_base_cost_table():
-    assert base_cost(2, 0) == 200
-    assert base_cost(3, 0) == 400
-    assert base_cost(3, 1) == 700
-    assert base_cost(4, 1) == 1100
-    assert base_cost(4, 2) == 1400
+    assert base_cost(2, 0) == 200_000
+    assert base_cost(3, 0) == 400_000
+    assert base_cost(3, 1) == 700_000
+    assert base_cost(4, 1) == 1_100_000
+    assert base_cost(4, 2) == 1_400_000
 
 
 def test_every_roster_member_has_correct_floor_cost():

@@ -17,7 +17,7 @@ from heist.locations import (  # noqa: F401
     SERVER_FARM,
 )
 
-BANKROLL = 2000
+BANKROLL = 2_000_000
 
 DEFAULT_PROMPT = (
     "I want to run a clean, professional heist with a balanced crew. Pick whichever job "

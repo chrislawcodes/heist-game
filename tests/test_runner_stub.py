@@ -11,7 +11,7 @@ from heist.stub_responses import build_stub_ai
 def test_end_to_end_with_stub_ai():
     state, extras = run_heist(DEFAULT_PROMPT, build_stub_ai(), rng=random.Random(42))
     assert len(state.crew.members) == 4
-    assert state.crew.total_cost <= 2000
+    assert state.crew.total_cost <= 2_000_000
     assert state.job.name == "The Museum Gala"
     # Structural assertions instead of a magic count — number depends on which
     # hidden depth element rolled (some skip scenes, some add them, abort cuts
@@ -51,7 +51,7 @@ def test_every_job_runs_cleanly_with_stub(job_name):
     )
     assert state.job.name == job_name
     assert len(state.crew.members) == 4
-    assert state.crew.total_cost <= 2000
+    assert state.crew.total_cost <= 2_000_000
     assert state.scene_results, "no scenes resolved"
     assert state.scene_results[0].scene.type == "setup"
     assert state.scene_results[-1].scene.type == "escape"
@@ -77,7 +77,7 @@ def test_zero_take_on_failed_escape(monkeypatch):
         Job,
         SkillLevel,
     )
-    char = Character(1, "x", {"driver": SkillLevel.LOW}, 200, "")
+    char = Character(1, "x", {"driver": SkillLevel.LOW}, 200_000, "")
     job = Job("J", "", (1, 2), {"physical": ChallengeLevel.LOW,
                                   "electronic": ChallengeLevel.NONE,
                                   "confrontation": ChallengeLevel.NONE,
@@ -107,7 +107,7 @@ def test_zero_take_on_abort():
         Job,
         SkillLevel,
     )
-    char = Character(1, "x", {"driver": SkillLevel.LOW}, 200, "")
+    char = Character(1, "x", {"driver": SkillLevel.LOW}, 200_000, "")
     job = Job("J", "", (1, 2), {"physical": ChallengeLevel.LOW,
                                   "electronic": ChallengeLevel.NONE,
                                   "confrontation": ChallengeLevel.NONE,

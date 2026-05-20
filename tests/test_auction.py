@@ -25,50 +25,50 @@ def _no_turn_delay(monkeypatch):
 
 
 def test_resolve_round_uncontested_win():
-    winners, ties = _resolve_round({0: [(_char(10), 700)]})
-    assert winners == [(0, _char(10), 700)]
+    winners, ties = _resolve_round({0: [(_char(10), 700_000)]})
+    assert winners == [(0, _char(10), 700_000)]
     assert ties == []
 
 
 def test_resolve_round_clear_winner():
     winners, ties = _resolve_round({
-        0: [(_char(10), 700)],
-        1: [(_char(10), 800)],
+        0: [(_char(10), 700_000)],
+        1: [(_char(10), 800_000)],
     })
-    assert winners == [(1, _char(10), 800)]
+    assert winners == [(1, _char(10), 800_000)]
     assert ties == []
 
 
 def test_resolve_round_tie_two_ais():
     winners, ties = _resolve_round({
-        0: [(_char(10), 800)],
-        1: [(_char(10), 800)],
+        0: [(_char(10), 800_000)],
+        1: [(_char(10), 800_000)],
     })
     assert winners == []
-    assert ties == [([0, 1], _char(10), 800)]
+    assert ties == [([0, 1], _char(10), 800_000)]
 
 
 def test_resolve_round_tie_three_ais():
     winners, ties = _resolve_round({
-        0: [(_char(10), 700)],
-        1: [(_char(10), 700)],
-        2: [(_char(10), 700)],
+        0: [(_char(10), 700_000)],
+        1: [(_char(10), 700_000)],
+        2: [(_char(10), 700_000)],
     })
     assert winners == []
-    assert ties == [([0, 1, 2], _char(10), 700)]
+    assert ties == [([0, 1, 2], _char(10), 700_000)]
 
 
 def test_resolve_round_mixed_chars():
     winners, ties = _resolve_round({
-        0: [(_char(10), 800), (_char(8), 200), (_char(9), 500)],
-        1: [(_char(10), 700), (_char(8), 200)],
-        2: [(_char(9), 400)],
+        0: [(_char(10), 800_000), (_char(8), 200_000), (_char(9), 500_000)],
+        1: [(_char(10), 700_000), (_char(8), 200_000)],
+        2: [(_char(9), 400_000)],
     })
     assert winners == [
-        (0, _char(9), 500),
-        (0, _char(10), 800),
+        (0, _char(9), 500_000),
+        (0, _char(10), 800_000),
     ]
-    assert ties == [([0, 1], _char(8), 200)]
+    assert ties == [([0, 1], _char(8), 200_000)]
 
 
 def test_validate_under_floor_rejected():
@@ -86,20 +86,20 @@ def test_validate_total_over_bankroll_rejected():
         _validate_round_bids(
             {
                 "bids": [
-                    {"character_id": 10, "bid": 1100},
-                    {"character_id": 13, "bid": 1100},
+                    {"character_id": 10, "bid": 1_100_000},
+                    {"character_id": 13, "bid": 1_100_000},
                 ]
             },
             pool=[_char(10), _char(13)],
             crew_so_far=[],
-            bankroll=2000,
+            bankroll=2_000_000,
         )
 
 
 def test_validate_bid_on_owned_rejected():
     with pytest.raises(ValueError):
         _validate_round_bids(
-            {"bids": [{"character_id": 10, "bid": 700}]},
+            {"bids": [{"character_id": 10, "bid": 700_000}]},
             pool=[_char(10), _char(13)],
             crew_so_far=[_char(10)],
             bankroll=BANKROLL,
@@ -109,7 +109,7 @@ def test_validate_bid_on_owned_rejected():
 def test_validate_bid_on_not_in_pool_rejected():
     with pytest.raises(ValueError):
         _validate_round_bids(
-            {"bids": [{"character_id": 10, "bid": 700}]},
+            {"bids": [{"character_id": 10, "bid": 700_000}]},
             pool=[_char(13)],
             crew_so_far=[],
             bankroll=BANKROLL,
@@ -118,7 +118,7 @@ def test_validate_bid_on_not_in_pool_rejected():
 
 def test_validate_pass_returns_empty_list_pass_true():
     bids, did_pass = _validate_round_bids(
-        {"pass": True, "bids": [{"character_id": 10, "bid": 700}]},
+        {"pass": True, "bids": [{"character_id": 10, "bid": 700_000}]},
         pool=[_char(10)],
         crew_so_far=[],
         bankroll=BANKROLL,
@@ -196,7 +196,7 @@ def test_run_auction_end_to_end_with_stub_ais():
     assert isinstance(result.crews[1], Crew)
     assert [c.id for c in result.crews[0].members] == [2, 6, 8, 10]
     assert [c.id for c in result.crews[1].members] == [9, 11, 12, 14]
-    assert result.bankrolls_spent == {0: 1500, 1: 1600}
+    assert result.bankrolls_spent == {0: 1_500_000, 1: 1_600_000}
     assert result.rounds
     assert any(evt["type"] == "auction_round_resolved" for evt in broadcast_events)
     assert any(evt["type"] == "crew_known" for evt in turn_events)

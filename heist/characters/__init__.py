@@ -21,7 +21,7 @@ ROSTER: list[Character] = [
         id=1,
         name='Marcus "Prodigy" Renault',
         skills={"hacker": H, "driver": L},
-        floor_cost=1100,
+        floor_cost=1_100_000,
         backstory=(
             "Got caught running a botnet at seventeen in Lyon, did three years in a French "
             "juvenile facility, came out at twenty already too well-known for legitimate work, "
@@ -52,7 +52,7 @@ ROSTER: list[Character] = [
         id=2,
         name="Sasha Kuznetsova",
         skills={"hacker": M},
-        floor_cost=200,
+        floor_cost=200_000,
         backstory=(
             "Grew up in a Moscow apartment block; learned coding from her father's pirated "
             "copies of MSDN. Came to Toronto on a student visa, never went home; "
@@ -83,7 +83,7 @@ ROSTER: list[Character] = [
         id=3,
         name='Eli "Owl" Park',
         skills={"hacker": L, "inside_man": L},
-        floor_cost=200,
+        floor_cost=200_000,
         backstory=(
             "Bartended in Koreatown LA for a decade and watched every kind of grift come "
             "through the door. A regular taught her enough Linux to be dangerous, then died "
@@ -117,7 +117,7 @@ ROSTER: list[Character] = [
         id=4,
         name='Vance "The Wall" Tobin',
         skills={"muscle": H},
-        floor_cost=700,
+        floor_cost=700_000,
         backstory=(
             "Heavyweight boxer out of Detroit, ranked top twenty in the late 2000s. "
             "Got knocked out by a southpaw he should have beaten, took a head injury, "
@@ -148,7 +148,7 @@ ROSTER: list[Character] = [
         id=5,
         name="Carla Reyes",
         skills={"muscle": M, "driver": L},
-        floor_cost=400,
+        floor_cost=400_000,
         backstory=(
             "Two tours as a Marine MP in Iraq, came home and couldn't sleep. Joined a private "
             "security firm in Houston, quit when she realized half the job was harassing day "
@@ -179,7 +179,7 @@ ROSTER: list[Character] = [
         id=6,
         name="Big Mike Donato",
         skills={"muscle": L, "driver": L, "inside_man": L},
-        floor_cost=400,
+        floor_cost=400_000,
         backstory=(
             "Worked the Newark docks for twenty years until the longshoremen's union got "
             "broken. Picked up driving for a chop shop, then for crews. Knows every back "
@@ -213,7 +213,7 @@ ROSTER: list[Character] = [
         id=7,
         name='Lin "Closer" Chen',
         skills={"inside_man": H, "safecracker": L},
-        floor_cost=1100,
+        floor_cost=1_100_000,
         backstory=(
             "Stanford MBA, second-generation Chinese-American, recruited into McKinsey out "
             "of school, washed out after refusing to falsify a client's quarterly report. "
@@ -248,7 +248,7 @@ ROSTER: list[Character] = [
         id=8,
         name="Theo Kapoor",
         skills={"inside_man": M},
-        floor_cost=200,
+        floor_cost=200_000,
         backstory=(
             "Second-generation Indian-American from New Jersey, trained at Juilliard on a "
             "scholarship, spent three years off-Broadway getting cast as 'terrorist #2' and "
@@ -285,7 +285,7 @@ ROSTER: list[Character] = [
         id=9,
         name="Pearl Sutton",
         skills={"inside_man": M, "muscle": L},
-        floor_cost=400,
+        floor_cost=400_000,
         backstory=(
             "Catholic boarding-school girl who ran away at sixteen, joined a small-town "
             "hustler's two-person grift in West Virginia, and learned more in eighteen months "
@@ -317,7 +317,7 @@ ROSTER: list[Character] = [
         id=10,
         name="Rook Ferreira",
         skills={"safecracker": H},
-        floor_cost=700,
+        floor_cost=700_000,
         backstory=(
             "Apprenticed under a Lisbon locksmith named Henriques for nine years; the old man "
             "taught her by tying her hands and making her feel the tumblers. Henriques was "
@@ -355,7 +355,7 @@ ROSTER: list[Character] = [
         id=11,
         name='Jolene "Jo" Hayes',
         skills={"safecracker": M, "hacker": L},
-        floor_cost=400,
+        floor_cost=400_000,
         backstory=(
             "Grew up in Tulsa's Greenwood District, granddaughter of a man who rebuilt his "
             "hardware store after 1921 and never talked about it. Her father became a "
@@ -391,7 +391,7 @@ ROSTER: list[Character] = [
         id=12,
         name="Nestor Bly",
         skills={"safecracker": M, "hacker": L},
-        floor_cost=400,
+        floor_cost=400_000,
         backstory=(
             "Career safecracker out of Philadelphia who never quite made it to first chair, "
             "did time in '03 for a botched mall job, picked up enough hacking in the federal "
@@ -422,7 +422,7 @@ ROSTER: list[Character] = [
         id=13,
         name='"Slim" Adesanya',
         skills={"driver": H},
-        floor_cost=700,
+        floor_cost=700_000,
         backstory=(
             "Drove auto-rickshaws in Lagos until eighteen, came to London as a courier and "
             "discovered he could navigate the city without a GPS. Was scouted by a crew after "
@@ -459,7 +459,7 @@ ROSTER: list[Character] = [
         id=14,
         name="Margot Vinter",
         skills={"driver": M, "inside_man": L},
-        floor_cost=400,
+        floor_cost=400_000,
         backstory=(
             "Daughter of an East German rally driver who defected with her in 1988. Grew up "
             "between Hamburg and Berlin, did club racing in her twenties, lost her license "
@@ -494,7 +494,7 @@ ROSTER: list[Character] = [
         id=15,
         name="Dex Owusu",
         skills={"driver": M, "muscle": L},
-        floor_cost=400,
+        floor_cost=400_000,
         backstory=(
             "Grew up in the Bronx, son of Ghanaian immigrants. Worked maintenance at a city "
             "bus depot for six years; learned mechanical work and pulled a couple of side gigs "
@@ -526,7 +526,7 @@ ROSTER: list[Character] = [
         id=16,
         name='Valentina "Val" Cruz',
         skills={"muscle": M, "inside_man": L},
-        floor_cost=400,
+        floor_cost=400_000,
         backstory=(
             "Eight years as a Cook County corrections officer in Chicago — knew every shift "
             "pattern, every blind spot, every guard who'd look the other way for the right "
