@@ -300,8 +300,9 @@ function _attachStrategyToStarts(events) {
     const match = events.find(e2 =>
       e2.type === 'turn_end' && e2.label === e.label && e2.ai_idx === e.ai_idx
     );
-    if (match && match.parsed && match.parsed.casting_strategy) {
-      e._strategy = match.parsed.casting_strategy;
+    if (match && match.parsed) {
+      // Auction rounds use 'reasoning'; legacy 'bid' label uses 'casting_strategy'
+      e._strategy = match.parsed.casting_strategy || match.parsed.reasoning || '';
     }
   });
 }
