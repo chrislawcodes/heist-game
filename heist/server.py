@@ -455,20 +455,21 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             t.start()
 
     def _handle_quick_game(self):
-        """One-click "test production" preset: stage + launch 2 codex-mini AIs
-        with the default prompt."""
+        """One-click preset: launch the two QUICK_TEST_TEAMS (The Operators and
+        The Wreckers) head-to-head against the same roster + job slate. Each
+        gets a different strategy prompt so the player can watch contrasting
+        philosophies play the same game."""
         global _next_id, _game_running
-        from heist.content import DEFAULT_PROMPT
+        from heist.content import QUICK_TEST_TEAMS
         with _lock:
             if _game_running:
                 self._json_error(409, "another game is already running")
                 return
             gid = _next_id
             _next_id += 1
-            ais = [
-                {"prompt": DEFAULT_PROMPT, "agent": "codex-mini"},
-                {"prompt": DEFAULT_PROMPT, "agent": "codex-mini"},
-            ]
+            # Take a defensive copy so the persisted record doesn't share
+            # references with the module-level preset.
+            ais = [dict(team) for team in QUICK_TEST_TEAMS]
             _games[gid] = {
                 "id": gid,
                 "created_at": time.time(),

@@ -647,7 +647,10 @@ window.initShell = async function({ gameId, onEvent } = {}) {
     if (targetGame && targetGame.ais && targetGame.ais.length) {
       Shell.aiList = targetGame.ais.map((ai, i) => ({
         idx: i,
-        label: ai.agent || ('AI ' + (i+1)),
+        // Prefer the explicit team name (set by quick-test presets like
+        // "The Operators" / "The Wreckers"), fall back to agent name, then
+        // to a generic "AI 1" label.
+        label: ai.name || ai.agent || ('AI ' + (i+1)),
         color: ['var(--ai-a)','var(--ai-b)','var(--ai-c)'][i] || 'var(--ai-a)',
       }));
       while (_aiStreams.length < Shell.aiList.length) _aiStreams.push([]);
