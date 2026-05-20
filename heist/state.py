@@ -40,6 +40,11 @@ class Character:
     weakness: str = ""
     look: str = ""
     signature_line: str = ""
+    # PHASE 4 FORWARD-COMPAT — intentionally empty until Phase 4 ships.
+    # Each skill will carry a hidden 1–10 score under its public bucket
+    # (1–3 = Low, 4–6 = Medium, 7–10 = High). Resolution will use the true
+    # score instead of the bucket. DO NOT populate or use this field before
+    # Phase 4; scouting and score-resolution must ship together.
     skill_scores: dict[str, int] = field(default_factory=dict)
 
 
@@ -62,6 +67,11 @@ class Job:
     escape_modifier: int
     hidden_depth: list[HiddenDepthElement]
     reward_amounts: list[tuple[str, int]]
+    # PHASE 4 FORWARD-COMPAT — intentionally empty until Phase 4 ships.
+    # Each challenge in a job's profile will carry a hidden 1–10 score under
+    # its public bucket. Resolution: crew skill_score >= challenge_score →
+    # success. DO NOT populate or use this field before Phase 4; scouting
+    # and score-resolution must ship together.
     challenge_scores: dict[str, int] = field(default_factory=dict)
 
 

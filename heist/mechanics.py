@@ -21,6 +21,14 @@ def effective_skill(members: list[Character], skill: str) -> SkillLevel:
 
 
 def resolves_challenge(skill_level: SkillLevel, challenge: ChallengeLevel) -> bool:
+    """Bucket-level resolution: crew skill >= challenge level → success.
+
+    PHASE 4 NOTE: This function will be superseded when hidden scores ship.
+    Phase 4 resolution is: Character.skill_scores[skill] >= Job.challenge_scores[category].
+    Both fields are intentionally empty until then — do NOT implement score
+    resolution here before Phase 4 (scouting must ship at the same time, or
+    the hidden scores are just random noise the player can't do anything about).
+    """
     if challenge == ChallengeLevel.NONE:
         return True
     return int(skill_level) >= int(challenge)
