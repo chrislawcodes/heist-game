@@ -373,6 +373,9 @@
   const movingCharIds = new Set();
   const moveTimersByChar = new Map();
   const chipTimersByKey = new Map();
+  // spentByAI: ai_idx -> authoritative spend, set from auction_round_resolved
+  // (BANKROLL - bankrolls_after). Drives the bankroll meter once a round resolves.
+  const spentByAI = {};
   let resolvingTimer = null;
 
   const BANKROLL = 2000;
@@ -574,13 +577,86 @@
 
   function normalizeFillEvent(aiIdx, parsed) {
     if (!parsed || !Array.isArray(parsed.additions)) return;
-    // AUCTION-V2: this fill branch goes away once the auction backend emits
-    // direct chip placements for every AI.
+    // Legacy per-AI fill (pre-auction backend). Kept for replaying old games.
     parsed.additions.forEach(charId => {
       const c = charById(charId);
       if (!c) return;
       upsertChip(aiIdx, charId, c.floor_cost, 'fill');
     });
+  }
+
+  // Spend shown on the bankroll meter: money already committed to won crew
+  // (authoritative, from bankrolls_after) plus this round's still-pending /
+  // tied bids that are "on the table".
+  function meterSpend(aiIdx) {
+    const committed = spentByAI[aiIdx] || 0;
+    const ledger = getAiLedger(aiIdx);
+    const pending = Object.values(ledger).reduce((sum, chip) =>
+      (chip.state === 'pending' || chip.state === 'tied') ? sum + chip.amount : sum, 0);
+    return committed + pending;
+  }
+
+  // Incrementally add a won character to an AI's crew and animate the card
+  // gliding from the pool into the crew column.
+  function addToCrew(aiIdx, charId) {
+    const key = charKey(charId);
+    const crew = crewByAI[aiIdx] || { members: [] };
+    if (!crew.members.some(m => charKey(m.id) === key)) {
+      const c = charById(charId);
+      crew.members.push(c ? { id: c.id } : { id: charId });
+    }
+    crewByAI[aiIdx] = crew;
+    const already = isHiredSomewhere(key);
+    addHire(charId, aiIdx);
+    Shell.markHired(aiIdx, charId);
+    if (already) return;
+    movingCharIds.add(key);
+    clearTimer(moveTimersByChar, key);
+    moveTimersByChar.set(key, setTimeout(() => {
+      movingCharIds.delete(key);
+      moveTimersByChar.delete(key);
+      render();
+    }, MOVE_MS));
+  }
+
+  // Drive chip resolution from the authoritative auction_round_resolved event:
+  // winners' chips -> won (+ card moves to crew), losers -> lost (+ clear),
+  // tied bidders -> tied pulse (+ clear so the card returns to the pool).
+  function handleAuctionResolved(e) {
+    const winners = e.winners || [];
+    const ties = e.ties || [];
+    const bankrollsAfter = e.bankrolls_after || {};
+
+    Object.keys(bankrollsAfter).forEach(idx => {
+      spentByAI[idx] = BANKROLL - Number(bankrollsAfter[idx] || 0);
+    });
+
+    ties.forEach(t => {
+      (t.ai_idxs || []).forEach(idx => {
+        const chip = getAiLedger(idx)[charKey(t.char_id)];
+        if (chip) chip.state = 'tied';
+        scheduleLostChipClear(idx, t.char_id);
+      });
+    });
+
+    winners.forEach(w => {
+      const key = charKey(w.char_id);
+      Shell.aiList.forEach(ai => {
+        const chip = getAiLedger(ai.idx)[key];
+        if (!chip) return;
+        if (ai.idx === w.ai_idx) {
+          chip.state = 'won';
+          clearTimer(chipTimersByKey, `${ai.idx}:${key}`);
+        } else {
+          chip.state = 'lost';
+          scheduleLostChipClear(ai.idx, w.char_id);
+        }
+      });
+      addToCrew(w.ai_idx, w.char_id);
+    });
+
+    render();
+    setResolvingStatus();
   }
 
   function renderChipRowHtml(charId) {
@@ -624,7 +700,11 @@
     const crew = getCrew(ai.idx);
     const members = crewMembers(crew);
     const done = members.length >= 4;
-    const spent = crewKnownByAI.has(ai.idx) ? finalSpend(ai.idx) : reservedSpend(ai.idx);
+    // Auction backend drives spend authoritatively via spentByAI (committed +
+    // on-the-table). Fall back to the legacy crew/reserved sums for old replays.
+    const spent = (spentByAI[ai.idx] != null)
+      ? meterSpend(ai.idx)
+      : crewKnownByAI.has(ai.idx) ? finalSpend(ai.idx) : reservedSpend(ai.idx);
     const pct = Math.max(0, Math.min(100, Math.round((spent / BANKROLL) * 100)));
     const slots = [];
 
@@ -783,8 +863,12 @@
     if (!root || !Shell) return;
     const aiIdx = e.ai_idx ?? 0;
 
-    if (e.type === 'turn_end' && e.label === 'bid' && e.parsed) {
+    if (e.type === 'turn_end' && (e.label === 'bid' || /^bid_round_\d+$/.test(e.label || '')) && e.parsed) {
+      // Both the legacy single 'bid' turn and the auction's per-round
+      // 'bid_round_N' turns carry parsed.bids of {character_id, bid}.
       handleBidTurn(aiIdx, e.parsed);
+    } else if (e.type === 'auction_round_resolved') {
+      handleAuctionResolved(e);
     } else if (e.type === 'turn_end' && /^fill_\d+$/.test(e.label || '') && e.parsed) {
       handleFillTurn(aiIdx, e.parsed);
     } else if (e.type === 'crew_known') {
@@ -812,6 +896,7 @@
     for (const k of Object.keys(HIRES)) delete HIRES[k];
     for (const k of Object.keys(crewByAI)) delete crewByAI[k];
     for (const k of Object.keys(bidParsedByAI)) delete bidParsedByAI[k];
+    for (const k of Object.keys(spentByAI)) delete spentByAI[k];
     crewKnownByAI.clear();
     movingCharIds.clear();
     clearAllTimers();

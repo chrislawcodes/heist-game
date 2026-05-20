@@ -296,6 +296,7 @@ function _isVisibleEvent(e) {
   if (e.type === 'turn_end') {
     const label = e.label || '';
     if (label === 'bid')             return true;
+    if (/^bid_round_\d+$/.test(label)) return true;  // auction: each round's bids
     if (label === 'job_pick')        return true;
     if (label === 'casting_summary') return true;
     if (/^scene_\d+_(?:escape_)?narrate$/.test(label)) return true;
