@@ -155,7 +155,8 @@
 .thought-sub-head { font-size: 9px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: var(--purple); margin-top: 6px; margin-bottom: 2px; }
 .thought-sub-head:first-child { margin-top: 0; }
 .thinking-empty { font-size: 12px; color: var(--muted); font-style: italic; text-align: center; padding: 16px 0; }
-.thought-hired-badge { margin-top: 6px; display: inline-flex; align-items: center; gap: 4px; background: #0c2018; color: var(--green); padding: 2px 7px; border-radius: 3px; font-size: 10px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; }
+.thought-hired-badge  { margin-top: 6px; display: inline-flex; align-items: center; gap: 4px; background: #0c2018; color: var(--green); padding: 2px 7px; border-radius: 3px; font-size: 10px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; }
+.thought-failed-badge { margin-top: 6px; display: inline-flex; align-items: center; gap: 4px; background: #2e0c0c; color: var(--red);   padding: 2px 7px; border-radius: 3px; font-size: 10px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; }
 `;
   document.head.appendChild(style);
 })();
@@ -262,6 +263,11 @@ const Shell = {
   unlockTab()         { /* no-op in multi-page architecture */ },
   addThought(aiIdx, kind, title, bodyHtml, opts) { _addThought(aiIdx, kind, title, bodyHtml, opts); },
   markHired(aiIdx, charId) { _markHired(aiIdx, charId); },
+  // Called by HiringTab when each bid chip starts flying (stagger is owned by the
+  // hiring tab; shell renders the card at that exact moment for sync).
+  bidChipFired(aiIdx, charId, amount, rationale) { _bidChipFired(aiIdx, charId, amount, rationale); },
+  // Called by HiringTab when auction_round_resolved marks a bid won/failed.
+  markBidResult(aiIdx, charId, result) { _markBidResult(aiIdx, charId, result); },
   onAISelected(cb) { _aiSubscribers.push(cb); },
 
 };
@@ -289,10 +295,32 @@ let   _thoughtTimer  = null;
 
 let _currentOnEvent = null;  // set by initShell; used by replayStep
 
+// ── _attachStrategyToStarts ───────────────────────────────────────────────────
+// For each turn_start bid_round_N event, peek ahead to find the matching
+// turn_end and copy casting_strategy onto the start event as e._strategy.
+// This lets _processEvent show the strategy card at step 1 (turn_start),
+// before bids are revealed at step 2 (turn_end).
+function _attachStrategyToStarts(events) {
+  events.forEach(e => {
+    if (e.type !== 'turn_start' || !/^bid_round_\d+$/.test(e.label || '')) return;
+    const match = events.find(e2 =>
+      e2.type === 'turn_end' && e2.label === e.label && e2.ai_idx === e.ai_idx
+    );
+    if (match && match.parsed) {
+      // Auction rounds use 'reasoning'; legacy 'bid' label uses 'casting_strategy'
+      e._strategy = match.parsed.casting_strategy || match.parsed.reasoning || '';
+    }
+  });
+}
+
 // ── isVisibleEvent: true for events that produce a visible DOM change ─────────
 function _isVisibleEvent(e) {
-  if (e.type === 'turn_start') return false;
   if (e.type === 'hidden_depth_rolled') return false;
+  if (e.type === 'turn_start') {
+    // Auction bid starts are visible: they show the strategy card before chips
+    // land, so the user sees intent before the bids are revealed.
+    return /^bid_round_\d+$/.test(e.label || '');
+  }
   if (e.type === 'turn_end') {
     const label = e.label || '';
     if (label === 'bid')             return true;
@@ -308,11 +336,13 @@ function _isVisibleEvent(e) {
 // Returns true if the event belongs to the currently-selected AI, or has no
 // ai_idx (system/global events). Used by Step/Back to skip other AIs' events.
 function _isCurrentAIEvent(e) {
-  // Auction bids are simultaneous and shown together on the board, so every
-  // bid_round turn is a stop point regardless of which AI placed it. Without
-  // this, "Mind of A" stepping skips B's bid and collapses it into the
-  // resolution step — the user never sees both crews' chips sitting pending.
-  if (e.type === 'turn_end' && /^bid_round_\d+$/.test(e.label || '')) return true;
+  if (/^bid_round_\d+$/.test(e.label || '')) {
+    // Every AI's bid reveal (turn_end) is a stop point — user sees all bids land.
+    if (e.type === 'turn_end') return true;
+    // Strategy preview (turn_start) is only a stop point for the current AI;
+    // other AIs' strategy is invisible to this viewer, so skip the empty step.
+    if (e.type === 'turn_start') return (e.ai_idx ?? 0) === Shell.currentAI;
+  }
   return e.ai_idx === undefined || e.ai_idx === Shell.currentAI;
 }
 
@@ -674,6 +704,7 @@ window.initShell = async function({ gameId, onEvent } = {}) {
     try {
       const data = await fetch(`/api/games/${targetGame.id}/events`).then(r => r.json());
       _REPLAY_EVENTS = data.events || [];
+      _attachStrategyToStarts(_REPLAY_EVENTS);
       Shell.replayEvents = _REPLAY_EVENTS;
       _computeVisibleByAI();
       _replayUpdateCounter();
@@ -717,6 +748,12 @@ function _processEvent(e, onEvent) {
   // Rail-level handling (thought cards, bid cards, etc.)
   if (e.type === 'turn_end') _railFromTurnEnd(e);
 
+  // Step 1 of auction bid rounds: show the strategy card now, before bids land.
+  if (e.type === 'turn_start' && /^bid_round_\d+$/.test(e.label || '') && e._strategy) {
+    const aiIdx = e.ai_idx ?? 0;
+    _addThought(aiIdx, 'strategy', 'Strategy', Shell.helpers.escapeHtml(e._strategy));
+  }
+
   const aiIdx = e.ai_idx ?? 0;
 
   // Top bar updates
@@ -748,18 +785,24 @@ function _processEvent(e, onEvent) {
 function _railFromTurnEnd(e) {
   const aiIdx = e.ai_idx ?? 0;
   const esc = Shell.helpers.escapeHtml;
-  if (e.label === 'bid' && e.parsed) {
-    if (e.parsed.casting_strategy) {
+  if ((e.label === 'bid' || /^bid_round_\d+$/.test(e.label || '')) && e.parsed) {
+    // Strategy: show at turn_end only for the legacy 'bid' label.
+    // For bid_round_N, strategy already showed at turn_start (step 1); skip here.
+    if (e.label === 'bid' && e.parsed.casting_strategy) {
       _addThought(aiIdx, 'strategy', 'Strategy', esc(e.parsed.casting_strategy));
     }
-    (e.parsed.bids || []).forEach(b => {
-      _flashCard(b.character_id);
-      const c = Shell.charById.get(b.character_id);
-      if (!c) return;
-      const amount = b.bid != null ? ' · $' + Number(b.bid).toLocaleString() : '';
-      _addThought(aiIdx, 'bid', 'Bid · ' + c.name + amount, esc(b.rationale || '—'),
-        { id: 'bid-' + aiIdx + '-' + b.character_id, charId: b.character_id });
-    });
+    // Bid cards for bid_round_N are driven by HiringTab via Shell.bidChipFired,
+    // called when each chip starts flying (one card per chip, staggered in sync).
+    // Only add bid cards here for the legacy 'bid' label (pre-auction backend).
+    if (e.label === 'bid') {
+      (e.parsed.bids || []).forEach(b => {
+        const c = Shell.charById.get(b.character_id);
+        if (!c) return;
+        const amount = b.bid != null ? ' · $' + Number(b.bid).toLocaleString() : '';
+        _addThought(aiIdx, 'bid', 'Bid · ' + c.name + amount, esc(b.rationale || '—'),
+          { id: 'bid-' + aiIdx + '-' + b.character_id, charId: b.character_id });
+      });
+    }
   } else if (e.label === 'casting_summary' && e.parsed && e.parsed.summary) {
     const s = e.parsed.summary;
     _addThought(aiIdx, 'strategy', 'Casting summary',
@@ -867,6 +910,8 @@ function _addThought(aiIdx, kind, title, bodyHtml, opts) {
   _aiStreams[aiIdx].unshift(t);
   if (_THOUGHT_CARD_DELAY_MS <= 0 || _reviewMode) {
     if (aiIdx === Shell.currentAI) _prependThought(t);
+    // Chip fires at the same moment the card renders
+    if (t.kind === 'bid' && t.charId != null) _flashCard(t.charId);
     return;
   }
   _thoughtQueue.push(t);
@@ -877,6 +922,8 @@ function _drainOneThought() {
   const t = _thoughtQueue.shift();
   if (!t) { _thoughtTimer = null; return; }
   if (t.aiIdx === Shell.currentAI) _prependThought(t);
+  // Chip fires at the same moment the card renders (regardless of which AI)
+  if (t.kind === 'bid' && t.charId != null) _flashCard(t.charId);
   if (_thoughtQueue.length > 0) {
     _thoughtTimer = setTimeout(_drainOneThought, _THOUGHT_CARD_DELAY_MS);
   } else {
@@ -892,12 +939,14 @@ function _prependThought(t) {
   const line = document.createElement('div');
   line.className = `thought-line tk-${t.kind}`;
   if (t.id) line.id = 'thought-' + t.id;
-  const showHired = t.kind === 'bid' && t.charId != null
+  const showHired  = t.kind === 'bid' && !t.failed && t.charId != null
     && _hiredMarks[t.aiIdx] && _hiredMarks[t.aiIdx].has(t.charId);
+  const showFailed = t.kind === 'bid' && t.failed;
   line.innerHTML =
     `<div class="thought-kind">${Shell.helpers.escapeHtml(t.title)}</div>` +
     `<div class="thought-body">${t.body}</div>` +
-    (showHired ? '<div class="thought-hired-badge">✓ Hired</div>' : '');
+    (showHired  ? '<div class="thought-hired-badge">✓ Hired</div>'  : '') +
+    (showFailed ? '<div class="thought-failed-badge">✗ Failed</div>' : '');
   stream.insertBefore(line, stream.firstChild);
   stream.scrollTop = 0;
 }
@@ -924,6 +973,44 @@ function _markHired(aiIdx, charId) {
   }
 }
 
+// Called by HiringTab._flyBidToPortrait / flushPlaceQueue when a bid chip starts
+// flying. Renders the bid thought card immediately (no queue delay) so it syncs
+// with the chip animation. Idempotent — skips if a card for this bid already exists.
+function _bidChipFired(aiIdx, charId, amount, rationale) {
+  while (_aiStreams.length <= aiIdx) _aiStreams.push([]);
+  // Idempotent check: skip if this bid was already recorded
+  const tId = 'bid-' + aiIdx + '-' + charId;
+  if (_aiStreams[aiIdx].some(t => t.id === tId)) return;
+  const c = Shell.charById.get(charId) || Shell.charById.get(Number(charId));
+  if (!c) return;
+  const esc = Shell.helpers.escapeHtml;
+  const amountStr = amount != null ? ' · $' + Number(amount).toLocaleString() : '';
+  const t = {
+    aiIdx, kind: 'bid',
+    title: 'Bid · ' + c.name + amountStr,
+    body: esc(rationale || '—'),
+    id: tId, charId,
+  };
+  _aiStreams[aiIdx].unshift(t);
+  if (aiIdx === Shell.currentAI) _prependThought(t);
+  _flashCard(charId);
+}
+
+// Called by HiringTab.handleAuctionResolved when a bid's result is known.
+// Adds a ✗ Failed badge to the card. Won bids get their badge later via _markHired.
+function _markBidResult(aiIdx, charId, result) {
+  if (result !== 'failed') return;  // 'won' is handled by _markHired on crew_known
+  const arr = _aiStreams[aiIdx] || [];
+  for (const t of arr) {
+    if (t.kind === 'bid' && t.charId === charId) { t.failed = true; break; }
+  }
+  if (aiIdx !== Shell.currentAI) return;
+  const card = document.getElementById('thought-bid-' + aiIdx + '-' + charId);
+  if (!card) return;
+  if (!card.querySelector('.thought-failed-badge'))
+    card.insertAdjacentHTML('beforeend', '<div class="thought-failed-badge">✗ Failed</div>');
+}
+
 function _renderThinking() {
   const stream = document.getElementById('thinking-stream');
   if (!stream) return;
@@ -939,12 +1026,14 @@ function _renderThinking() {
     line.className = `thought-line tk-${t.kind}`;
     line.style.animation = 'none';
     if (t.id) line.id = 'thought-' + t.id;
-    const showHired = t.kind === 'bid' && t.charId != null
+    const showHired  = t.kind === 'bid' && !t.failed && t.charId != null
       && (t.hired || (hiredHere && hiredHere.has(t.charId)));
+    const showFailed = t.kind === 'bid' && t.failed;
     line.innerHTML =
       `<div class="thought-kind">${Shell.helpers.escapeHtml(t.title)}</div>` +
       `<div class="thought-body">${t.body}</div>` +
-      (showHired ? '<div class="thought-hired-badge">✓ Hired</div>' : '');
+      (showHired  ? '<div class="thought-hired-badge">✓ Hired</div>'  : '') +
+      (showFailed ? '<div class="thought-failed-badge">✗ Failed</div>' : '');
     stream.appendChild(line);
   });
 }

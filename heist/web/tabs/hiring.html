@@ -608,7 +608,9 @@
   // the won-card flight. The chip data is committed immediately (so the meter
   // and resolution are correct) but rendered invisible (`arriving`) until the
   // ghost arrives.
-  function _flyBidToPortrait(aiIdx, charId, amount) {
+  function _flyBidToPortrait(aiIdx, charId, amount, rationale) {
+    // Notify shell so the thought card renders exactly when the chip starts flying.
+    if (Shell && Shell.bidChipFired) Shell.bidChipFired(aiIdx, charId, amount, rationale || '');
     upsertChip(aiIdx, charId, amount, 'bid');
     const key = charKey(charId);
     const ledger = getAiLedger(aiIdx);
@@ -660,7 +662,7 @@
   function _drainPlaceQueue() {
     const item = _placeQueue.shift();
     if (!item) { _placeTimer = null; return; }
-    _flyBidToPortrait(item.aiIdx, item.charId, item.amount);
+    _flyBidToPortrait(item.aiIdx, item.charId, item.amount, item.rationale || '');
     _placeTimer = _placeQueue.length
       ? setTimeout(_drainPlaceQueue, MARKER_STAGGER_MS)
       : null;
@@ -674,6 +676,9 @@
     while (_placeQueue.length) {
       const item = _placeQueue.shift();
       upsertChip(item.aiIdx, item.charId, item.amount, 'bid');
+      // Shell.bidChipFired is idempotent — safe to call here even if the first
+      // item already fired via _flyBidToPortrait (it deduplicates by card id).
+      if (Shell && Shell.bidChipFired) Shell.bidChipFired(item.aiIdx, item.charId, item.amount, item.rationale || '');
     }
     Shell.aiList.forEach(ai => {
       const ledger = getAiLedger(ai.idx);
@@ -688,7 +693,9 @@
     parsed.bids.forEach(bid => {
       const charId = bid.character_id ?? bid.characterId ?? bid.id ?? bid.char_id;
       if (charId == null) return;
-      _placeQueue.push({ aiIdx, charId, amount: bid.bid });
+      // Rationale is forwarded to Shell.bidChipFired so the thought card appears
+      // at the exact moment the chip starts flying.
+      _placeQueue.push({ aiIdx, charId, amount: bid.bid, rationale: bid.rationale || '' });
     });
     // Kick the stagger if it isn't already running (first marker lands now).
     if (!_placeTimer) _drainPlaceQueue();
@@ -821,6 +828,17 @@
       });
     });
     render();
+    // Notify shell so thought-card badges (✗ Failed) appear at the same moment
+    // the chips turn red — not pre-computed before the auction resolves.
+    if (Shell && Shell.markBidResult) {
+      winners.forEach(w => {
+        Shell.aiList.forEach(ai => {
+          const chip = getAiLedger(ai.idx)[charKey(w.char_id)];
+          if (!chip) return;
+          Shell.markBidResult(ai.idx, w.char_id, ai.idx === w.ai_idx ? 'won' : 'failed');
+        });
+      });
+    }
     setResolvingStatus();
 
     // Beat 2: after a hold, glide the won cards into their crews ONE AT A
