@@ -120,6 +120,8 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             self._serve_campaigns()
         elif p.startswith("/api/campaign/") and p.endswith("/state"):
             self._serve_campaign_state(p[len("/api/campaign/"):-len("/state")])
+        elif p.startswith("/api/campaign-journey/"):
+            self._serve_campaign_journey(p[len("/api/campaign-journey/"):])
         elif p.startswith("/api/games/") and p.endswith("/events"):
             self._serve_game_events(p[len("/api/games/"):-len("/events")])
         else:
@@ -325,7 +327,6 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             games = [
                 {k: v for k, v in g.items() if k != "events"}
                 for g in gamestate.games.values()
-                if not g.get("is_campaign_sub")
             ]
         self._json_ok(sorted(games, key=lambda g: g["created_at"]))
 
@@ -411,6 +412,78 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             current_round_idx=game_current_round_idx,
         )
         self._json_ok(payload)
+
+    def _serve_campaign_journey(self, gid_str: str) -> None:
+        try:
+            gid = int(gid_str)
+        except ValueError:
+            self._json_error(404, "not found")
+            return
+
+        with gamestate.lock:
+            game = gamestate.games.get(gid)
+            if not game or game.get("is_campaign") is not True:
+                self._json_error(404, "not found")
+                return
+            game = dict(game)
+
+        game_states = list(game.get("game_states") or [])
+        num_rounds = int(game.get("num_rounds", len(game_states)))
+        current_round_idx = int(game.get("current_round_idx", 0))
+
+        def _outcome_for(round_results: list, round_idx: int) -> dict:
+            if round_idx < len(round_results):
+                entry = round_results[round_idx]
+                if isinstance(entry, dict):
+                    take = int(entry.get("take", 0))
+                    escape_success = entry.get("escape_success")
+                    aborted = bool(entry.get("aborted", False))
+                else:
+                    take = int(getattr(entry, "take", 0))
+                    escape_success = getattr(entry, "escape_success", None)
+                    aborted = bool(getattr(entry, "aborted", False))
+                return {
+                    "take": take,
+                    "escape_success": escape_success,
+                    "aborted": aborted,
+                }
+            return {"take": 0, "escape_success": None, "aborted": False}
+
+        teams: list[dict] = []
+        for idx, gs in enumerate(game_states):
+            round_game_ids = list(gs.get("round_game_ids", []) or [])
+            hiring_game_ids = list(gs.get("hiring_game_ids", []) or [])
+            round_results = list(gs.get("round_results", []) or [])
+            rounds: list[dict] = []
+            for round_idx in range(num_rounds):
+                rounds.append({
+                    "round_idx": round_idx,
+                    "hire_sub_game_id": (
+                        hiring_game_ids[round_idx]
+                        if round_idx < len(hiring_game_ids)
+                        else None
+                    ),
+                    "heist_sub_game_id": (
+                        round_game_ids[round_idx]
+                        if round_idx < len(round_game_ids)
+                        else None
+                    ),
+                    "outcome": _outcome_for(round_results, round_idx),
+                })
+            teams.append({
+                "ai_idx": int(gs.get("ai_idx", idx)),
+                "team_name": gs.get("ai_name", f"AI {idx + 1}"),
+                "banked": int(gs.get("banked_loot", gs.get("banked", 0))),
+                "rounds": rounds,
+            })
+
+        teams.sort(key=lambda row: row["ai_idx"])
+        self._json_ok({
+            "campaign_id": gid,
+            "num_rounds": num_rounds,
+            "current_round_idx": current_round_idx,
+            "teams": teams,
+        })
 
     def _serve_game_events(self, gid_str: str) -> None:
         try:
