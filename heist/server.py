@@ -74,13 +74,17 @@ def _broadcast(event: dict) -> None:
     with _lock:
         _event_history.append(event)
         # Mirror into the relevant game's persistent event log so we can replay
-        # it later via /api/games/{id}/events. We don't always know the game_id
-        # on the event itself; fall back to the most-recently-running game.
+        # it later via /api/games/{id}/events. Route by game_id when present;
+        # fall back to the most-recently-running game for events without one.
         target_gid = None
-        for gid in reversed(list(_games.keys())):
-            if _games[gid].get("status") in ("running", "done"):
-                target_gid = gid
-                break
+        stamped_gid = event.get("game_id")
+        if stamped_gid is not None and stamped_gid in _games:
+            target_gid = stamped_gid
+        else:
+            for gid in reversed(list(_games.keys())):
+                if _games[gid].get("status") in ("running", "done"):
+                    target_gid = gid
+                    break
         if target_gid is not None:
             _games[target_gid].setdefault("events", []).append(event)
             # Snapshot the dict inside the lock; persist outside it so we
@@ -187,7 +191,7 @@ def _run_auction_coordinator(game_id: int) -> None:
     from heist.auction import run_auction
 
     def emit_tagged(ai_idx: int, evt: dict) -> None:
-        _broadcast({**evt, "ai_idx": ai_idx})
+        _broadcast({**evt, "ai_idx": ai_idx, "game_id": game_id})
 
     def snapshot_cb(payload: dict) -> None:
         with _lock:
@@ -793,7 +797,7 @@ def _run_game(
     )
 
     def emit_tagged(evt: dict) -> None:
-        _broadcast({**evt, "ai_idx": ai_idx})
+        _broadcast({**evt, "ai_idx": ai_idx, "game_id": game_id})
 
     def snapshot_cb(payload: dict) -> None:
         payload = {**payload, "game_id": game_id, "ai_idx": ai_idx, "agent": agent}
