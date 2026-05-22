@@ -108,6 +108,27 @@ body {
   font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
   color: var(--muted); margin-bottom: 10px;
 }
+.ep-standings-btn {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 18px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(232,160,48,0.35);
+  background: rgba(232,160,48,0.12);
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+.ep-standings-btn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(232,160,48,0.6);
+  background: rgba(232,160,48,0.18);
+}
 
 /* ── right rail ── */
 #rail {
@@ -174,6 +195,7 @@ body {
 <script>
 (async function() {
   const gameId = new URLSearchParams(location.search).get('game');
+  let campaignGameId = null;
 
   function esc(s) {
     return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -195,6 +217,9 @@ body {
       `<div class="ep-row"><span class="ep-row-key">Final heat</span><span class="ep-row-val">${s.heat || 0}</span></div>` +
       (s.bonus_pursued != null
         ? `<div class="ep-row"><span class="ep-row-key">Bonus</span><span class="ep-row-val">${s.bonus_pursued ? (s.bonus_success ? 'Pursued — succeeded' : 'Pursued — failed') : 'Not pursued'}</span></div>`
+        : '') +
+      (campaignGameId
+        ? `<a class="ep-standings-btn" href="/campaign?game=${encodeURIComponent(campaignGameId)}">See Standings →</a>`
         : '') +
       (epilogueText
         ? `<div class="ep-epilogue"><div class="ep-epilogue-label">Epilogue</div>${esc(epilogueText)}</div>`
@@ -218,10 +243,17 @@ body {
       if (e.type === '_reset') return;  // no tab to reset
       // Re-render on game_done (handles both live and replay)
       if (e.type === 'game_done' && (e.ai_idx ?? 0) === Shell.currentAI) {
+        if (e.campaign_id != null) campaignGameId = e.campaign_id;
         renderFromEvent(e);
       }
     }
   });
+
+  try {
+    const games = await fetch('/api/games').then(r => r.json());
+    const match = games.find(g => String(g.id) === String(gameId));
+    if (match && match.campaign_id != null) campaignGameId = match.campaign_id;
+  } catch {}
 
   // Register re-render on AI switch
   Shell.onAISelected(idx => renderForAI(idx));

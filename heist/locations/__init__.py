@@ -19,6 +19,7 @@ MUSEUM = Job(
         "social": ChallengeLevel.HARD,
     },
     escape_modifier=1,
+    tier="easy",
     hidden_depth=[
         HiddenDepthElement(
             "museum_display_case",
@@ -84,6 +85,7 @@ ARMORED_CAR = Job(
         "social": ChallengeLevel.NONE,
     },
     escape_modifier=2,
+    tier="easy",
     hidden_depth=[
         HiddenDepthElement(
             "armored_third_guard",
@@ -148,6 +150,7 @@ SERVER_FARM = Job(
         "social": ChallengeLevel.MEDIUM,
     },
     escape_modifier=1,
+    tier="medium",
     hidden_depth=[
         HiddenDepthElement(
             "server_late_team",
@@ -213,6 +216,7 @@ PENTHOUSE = Job(
         "social": ChallengeLevel.LOW,
     },
     escape_modifier=0,  # residential building, walk out the lobby
+    tier="medium",
     hidden_depth=[
         HiddenDepthElement(
             "penthouse_cleaning_crew",
@@ -273,6 +277,7 @@ CARGO_YARD = Job(
         "social": ChallengeLevel.NONE,
     },
     escape_modifier=0,  # open industrial yard, dark, multiple vehicle routes
+    tier="easy",
     hidden_depth=[
         HiddenDepthElement(
             "cargo_customs_inspector",
@@ -333,6 +338,7 @@ DIPLOMATIC_RECEPTION = Job(
         "social": ChallengeLevel.HARD,
     },
     escape_modifier=1,
+    tier="medium",
     hidden_depth=[
         HiddenDepthElement(
             "diplomatic_dummy_diamond",
@@ -393,6 +399,7 @@ CASINO_VAULT = Job(
         "social": ChallengeLevel.MEDIUM,
     },
     escape_modifier=2,
+    tier="hard",
     hidden_depth=[
         HiddenDepthElement(
             "casino_floor_distraction",
@@ -436,8 +443,364 @@ CASINO_VAULT = Job(
     scene_loot={"electronic": 3_000_000, "physical": 4_000_000},
 )
 
+CORNER_PHARMACY = Job(
+    name="Corner Pharmacy",
+    flavor=(
+        "A pill mill's back office is flush with cash and nobody's watching the door. "
+        "Low stakes, low heat - a good warmup."
+    ),
+    reward_range=(150_000, 350_000),
+    profile={
+        "physical": ChallengeLevel.LOW,
+        "confrontation": ChallengeLevel.NONE,
+        "electronic": ChallengeLevel.NONE,
+        "social": ChallengeLevel.NONE,
+    },
+    escape_modifier=0,
+    tier="easy",
+    hidden_depth=[
+        HiddenDepthElement(
+            "pharmacy_alarm_panel",
+            "The back-room alarm panel has a loose wire that could trip at the worst time.",
+            "complication",
+            {"adds": [("electronic", ChallengeLevel.LOW)]},
+        ),
+        HiddenDepthElement(
+            "pharmacy_night_clerk",
+            "A tired night clerk is counting stock in the back office.",
+            "complication",
+            {"adds": [("social", ChallengeLevel.LOW)]},
+        ),
+        HiddenDepthElement(
+            "pharmacy_painkiller_cache",
+            "A locked cabinet holds a separate stash of high-value painkillers.",
+            "bonus_with_cost",
+            {"bonus_amount_range": (60_000, 140_000),
+             "bonus_challenge": ("safecracker", ChallengeLevel.LOW)},
+        ),
+    ],
+    reward_amounts=[
+        ("Cash drawer", 180_000),
+        ("Inventory safe", 280_000),
+        ("Back-room stash", 330_000),
+    ],
+)
+
+ART_FORGERY_RING = Job(
+    name="Art Forgery Ring",
+    flavor=(
+        "A fence hired you to swap real paintings for fakes before the auction house notices. "
+        "You have one evening."
+    ),
+    reward_range=(450_000, 750_000),
+    profile={
+        "social": ChallengeLevel.MEDIUM,
+        "electronic": ChallengeLevel.MEDIUM,
+        "physical": ChallengeLevel.LOW,
+        "confrontation": ChallengeLevel.NONE,
+    },
+    escape_modifier=1,
+    tier="medium",
+    hidden_depth=[
+        HiddenDepthElement(
+            "forgery_preview_party",
+            "The preview party runs long, giving the crew extra cover in the gallery.",
+            "opportunity_with_cost",
+            {"modifies": [("social", ChallengeLevel.LOW)]},
+        ),
+        HiddenDepthElement(
+            "forgery_security_grid",
+            "A fresh security grid guards the staging room.",
+            "complication",
+            {"modifies": [("electronic", ChallengeLevel.HARD)]},
+        ),
+        HiddenDepthElement(
+            "forgery_client_archive",
+            "The client's payment archive sits in a locked office next door.",
+            "bonus_with_cost",
+            {"bonus_amount_range": (120_000, 250_000),
+             "bonus_challenge": ("inside_man", ChallengeLevel.MEDIUM)},
+        ),
+    ],
+    reward_amounts=[
+        ("Single swap", 500_000),
+        ("Full wall exchange", 680_000),
+        ("Wall plus archive", 740_000),
+    ],
+)
+
+PRIVATE_AIRFIELD = Job(
+    name="Private Airfield",
+    flavor=(
+        "A shipment is wheels-up in four hours. Intercept it on the tarmac before it "
+        "disappears into the night."
+    ),
+    reward_range=(400_000, 700_000),
+    profile={
+        "confrontation": ChallengeLevel.MEDIUM,
+        "physical": ChallengeLevel.MEDIUM,
+        "electronic": ChallengeLevel.LOW,
+        "social": ChallengeLevel.NONE,
+    },
+    escape_modifier=2,
+    tier="medium",
+    hidden_depth=[
+        HiddenDepthElement(
+            "airfield_fuel_truck",
+            "A fuel truck is parked where the crew wants to stage the intercept.",
+            "complication",
+            {"adds": [("physical", ChallengeLevel.MEDIUM)]},
+        ),
+        HiddenDepthElement(
+            "airfield_tower_blackout",
+            "The control tower loses power for a short, exploitable window.",
+            "opportunity_with_cost",
+            {"modifies": [("confrontation", ChallengeLevel.LOW)]},
+        ),
+        HiddenDepthElement(
+            "airfield_cargo_manifest",
+            "A second cargo pallet is misfiled and easy to take if the crew moves fast.",
+            "bonus_with_cost",
+            {"bonus_amount_range": (150_000, 300_000),
+             "bonus_challenge": ("safecracker", ChallengeLevel.LOW)},
+        ),
+    ],
+    reward_amounts=[
+        ("Tarmac pickup", 450_000),
+        ("Full shipment", 620_000),
+        ("Shipment plus pallet", 690_000),
+    ],
+)
+
+CITY_HALL_RECORDS = Job(
+    name="City Hall Records",
+    flavor=(
+        "Evidence against your employer sits in a secured vault inside an active government "
+        "building. Extract it cleanly - no one can know you were here."
+    ),
+    reward_range=(900_000, 1_400_000),
+    profile={
+        "electronic": ChallengeLevel.HARD,
+        "social": ChallengeLevel.HARD,
+        "physical": ChallengeLevel.MEDIUM,
+        "confrontation": ChallengeLevel.LOW,
+    },
+    escape_modifier=2,
+    tier="hard",
+    hidden_depth=[
+        HiddenDepthElement(
+            "cityhall_clerk_shift",
+            "Records clerks are changing shifts, leaving a brief gap in the floor traffic.",
+            "opportunity_with_cost",
+            {"modifies": [("social", ChallengeLevel.MEDIUM)]},
+        ),
+        HiddenDepthElement(
+            "cityhall_lockdown_drill",
+            "A surprise lockdown drill starts in the building while the crew is inside.",
+            "complication",
+            {"adds": [("confrontation", ChallengeLevel.MEDIUM)]},
+        ),
+        HiddenDepthElement(
+            "cityhall_evidence_archive",
+            "A sealed evidence archive holds blackmail material alongside the target file.",
+            "bonus_with_cost",
+            {"bonus_amount_range": (250_000, 600_000),
+             "bonus_challenge": ("safecracker", ChallengeLevel.MEDIUM)},
+        ),
+    ],
+    reward_amounts=[
+        ("Target file only", 950_000),
+        ("File and attachments", 1_200_000),
+        ("Archive plus evidence", 1_360_000),
+    ],
+)
+
+HARBOR_CONTAINER_SWAP = Job(
+    name="Harbor Container Swap",
+    flavor=(
+        "Switch a sealed container at a busy port before customs scans it. Tight window. "
+        "Wrong move and the whole yard lights up."
+    ),
+    reward_range=(850_000, 1_300_000),
+    profile={
+        "physical": ChallengeLevel.HARD,
+        "confrontation": ChallengeLevel.MEDIUM,
+        "electronic": ChallengeLevel.MEDIUM,
+        "social": ChallengeLevel.LOW,
+    },
+    escape_modifier=3,
+    tier="hard",
+    hidden_depth=[
+        HiddenDepthElement(
+            "harbor_scan_window",
+            "Customs scanners cycle offline for a short maintenance window.",
+            "opportunity_with_cost",
+            {"modifies": [("electronic", ChallengeLevel.LOW)]},
+        ),
+        HiddenDepthElement(
+            "harbor_foreman_walk",
+            "A foreman is walking the dock and asking questions about the container numbers.",
+            "complication",
+            {"adds": [("social", ChallengeLevel.MEDIUM)]},
+        ),
+        HiddenDepthElement(
+            "harbor_stowaway_box",
+            "A second sealed box rides inside the same stack and can be swapped too.",
+            "bonus_with_cost",
+            {"bonus_amount_range": (200_000, 500_000),
+             "bonus_challenge": ("safecracker", ChallengeLevel.MEDIUM)},
+        ),
+    ],
+    reward_amounts=[
+        ("Single swap", 900_000),
+        ("Stacked pallet", 1_150_000),
+        ("Dockside double", 1_280_000),
+    ],
+)
+
+FEDERAL_RESERVE_BRANCH = Job(
+    name="Federal Reserve Branch",
+    flavor=(
+        "An old regional vault, decommissioned but not emptied. The security is dated but "
+        "deep. The escape is anything but."
+    ),
+    reward_range=(1_600_000, 2_500_000),
+    profile={
+        "electronic": ChallengeLevel.HARD,
+        "physical": ChallengeLevel.HARD,
+        "confrontation": ChallengeLevel.MEDIUM,
+        "social": ChallengeLevel.LOW,
+    },
+    escape_modifier=3,
+    tier="elite",
+    hidden_depth=[
+        HiddenDepthElement(
+            "fed_old_alarm_rack",
+            "The vault alarm rack is old enough to have a documented maintenance backdoor.",
+            "opportunity_with_cost",
+            {"modifies": [("electronic", ChallengeLevel.MEDIUM)]},
+        ),
+        HiddenDepthElement(
+            "fed_transfer_team",
+            "A transfer team is inside moving boxes, raising the human traffic inside the branch.",
+            "complication",
+            {"adds": [("confrontation", ChallengeLevel.HARD)]},
+        ),
+        HiddenDepthElement(
+            "fed_archived_notes",
+            "Archived ledgers sit in a side archive with a separate lock.",
+            "bonus_with_cost",
+            {"bonus_amount_range": (400_000, 900_000),
+             "bonus_challenge": ("safecracker", ChallengeLevel.HARD)},
+        ),
+    ],
+    reward_amounts=[
+        ("Regional vault", 1_700_000),
+        ("Vault plus cash trays", 2_150_000),
+        ("Vault and archive", 2_450_000),
+    ],
+)
+
+BILLIONAIRES_COMPOUND = Job(
+    name="Billionaire's Compound",
+    flavor=(
+        "Private island, biometric locks, rotating guards. Every skill on your roster gets "
+        "tested tonight."
+    ),
+    reward_range=(2_000_000, 3_000_000),
+    profile={
+        "electronic": ChallengeLevel.HARD,
+        "social": ChallengeLevel.HARD,
+        "physical": ChallengeLevel.HARD,
+        "confrontation": ChallengeLevel.HARD,
+    },
+    escape_modifier=4,
+    tier="elite",
+    hidden_depth=[
+        HiddenDepthElement(
+            "compound_guest_manifest",
+            "The guest manifest is wrong, and the crew can use the gap to blend in.",
+            "opportunity_with_cost",
+            {"modifies": [("social", ChallengeLevel.MEDIUM)]},
+        ),
+        HiddenDepthElement(
+            "compound_roving_drone",
+            "A drone patrol makes the outer grounds much harder to cross unseen.",
+            "complication",
+            {"adds": [("electronic", ChallengeLevel.HARD)]},
+        ),
+        HiddenDepthElement(
+            "compound_art_bunker",
+            "An art bunker under the east wing holds a second, smaller treasure.",
+            "bonus_with_cost",
+            {"bonus_amount_range": (500_000, 1_000_000),
+             "bonus_challenge": ("inside_man", ChallengeLevel.HARD)},
+        ),
+    ],
+    reward_amounts=[
+        ("Private vault", 2_100_000),
+        ("Compound safehouse", 2_600_000),
+        ("Island treasury", 2_950_000),
+    ],
+)
+
+MINT = Job(
+    name="The Mint",
+    flavor=(
+        "The crown jewel. No crew has ever walked out clean. You think yours is different."
+    ),
+    reward_range=(2_500_000, 3_000_000),
+    profile={
+        "electronic": ChallengeLevel.HARD,
+        "physical": ChallengeLevel.HARD,
+        "social": ChallengeLevel.HARD,
+        "confrontation": ChallengeLevel.HARD,
+    },
+    escape_modifier=4,
+    tier="elite",
+    hidden_depth=[
+        HiddenDepthElement(
+            "mint_legacy_system",
+            "A legacy monitoring system leaves one narrow maintenance corridor exposed.",
+            "opportunity_with_cost",
+            {"modifies": [("electronic", ChallengeLevel.MEDIUM)]},
+        ),
+        HiddenDepthElement(
+            "mint_parade_cover",
+            "A ceremonial transport outside the building creates a brief distraction.",
+            "opportunity_with_cost",
+            {"modifies": [("social", ChallengeLevel.MEDIUM)]},
+        ),
+        HiddenDepthElement(
+            "mint_master_archive",
+            "The master stamp archive could be lifted with the bullion.",
+            "bonus_with_cost",
+            {"bonus_amount_range": (600_000, 1_200_000),
+             "bonus_challenge": ("safecracker", ChallengeLevel.HARD)},
+        ),
+    ],
+    reward_amounts=[
+        ("Coin plates", 2_550_000),
+        ("Bullion run", 2_850_000),
+        ("Bullion plus archive", 3_000_000),
+    ],
+)
+
 JOBS: list[Job] = [
-    MUSEUM, ARMORED_CAR, SERVER_FARM,
-    PENTHOUSE, CARGO_YARD, DIPLOMATIC_RECEPTION, CASINO_VAULT,
+    MUSEUM,
+    ARMORED_CAR,
+    CARGO_YARD,
+    CORNER_PHARMACY,
+    PENTHOUSE,
+    SERVER_FARM,
+    DIPLOMATIC_RECEPTION,
+    ART_FORGERY_RING,
+    PRIVATE_AIRFIELD,
+    CASINO_VAULT,
+    CITY_HALL_RECORDS,
+    HARBOR_CONTAINER_SWAP,
+    FEDERAL_RESERVE_BRANCH,
+    BILLIONAIRES_COMPOUND,
+    MINT,
 ]
 JOBS_BY_NAME: dict[str, Job] = {j.name: j for j in JOBS}

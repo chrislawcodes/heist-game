@@ -677,6 +677,11 @@ window.initShell = async function({ gameId, onEvent } = {}) {
   try {
     const games = await fetch('/api/games').then(r => r.json());
     if (gid != null) targetGame = games.find(g => g.id === gid);
+    // Campaign sub-games (round replays) are excluded from /api/games but are
+    // still accessible via /api/games/<id>/events. If the requested id isn't
+    // found, use a stub so we load its events directly instead of falling back
+    // to a different game.
+    if (!targetGame && gid != null) targetGame = { id: gid, ais: [], status: 'done' };
     if (!targetGame) {
       targetGame = [...games].reverse().find(g => g.status === 'running')
         || [...games].reverse().find(g => g.status === 'done')

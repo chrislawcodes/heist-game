@@ -19,6 +19,13 @@ from heist.locations import (  # noqa: F401
 
 BANKROLL = 2_000_000
 
+JOB_TIER_UNLOCK_ROUND: dict[str, int] = {
+    "easy": 1,
+    "medium": 3,
+    "hard": 6,
+    "elite": 8,
+}
+
 DEFAULT_PROMPT = (
     "I want to run a clean, professional heist with a balanced crew. Pick whichever job "
     "fits the crew best — I trust your judgment. Build me a team that can handle whatever "
@@ -66,3 +73,22 @@ QUICK_TEST_TEAMS: list[dict] = [
     {"name": "The Operators", "prompt": OPERATORS_PROMPT, "agent": "codex-mini"},
     {"name": "The Wreckers",  "prompt": WRECKERS_PROMPT,  "agent": "codex-mini"},
 ]
+
+GHOST_PROMPT = (
+    "We work in the shadows. Build a crew that speaks the language — inside men, hackers, "
+    "and a driver. Avoid muscle-heavy jobs; our edge is knowing the right people, not "
+    "breaking down doors. Spend smart: leave budget for contingencies.\n\n"
+    "Pick jobs that lean on social and electronic challenges — that's where we're dangerous. "
+    "Avoid Hard confrontation unless we have no choice.\n\n"
+    "Risk tolerance: medium. Pursue bonuses only when the access is already there. "
+    "If a core scene fails and exposure is likely, abort — ghosts don't get caught. "
+    "Clean exits preserve the next job."
+)
+
+# Preset used by /api/quick-campaign. Three contrasting philosophies, 3 rounds.
+QUICK_TEST_CAMPAIGN: list[dict] = [
+    {"name": "The Operators", "prompt": OPERATORS_PROMPT, "agent": "codex-mini"},
+    {"name": "The Wreckers",  "prompt": WRECKERS_PROMPT,  "agent": "codex-mini"},
+    {"name": "The Ghost",     "prompt": GHOST_PROMPT,     "agent": "codex-mini"},
+]
+QUICK_TEST_CAMPAIGN_ROUNDS = 3
