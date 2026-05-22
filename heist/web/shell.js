@@ -503,7 +503,9 @@ function _updatePhasenav(gameId, events) {
       return `<span class="phase-item phase-active">${p.label}</span>${sep}`;
     }
     if (p.reachable) {
-      return `<a class="phase-item phase-done" href="/${p.path}?game=${gameId}">${p.label}</a>${sep}`;
+      // The Hiring phase is a separate sub-game in campaigns; use its id when known.
+      const linkId = (p.path === 'hiring' && Shell.hiringSubGameId) ? Shell.hiringSubGameId : gameId;
+      return `<a class="phase-item phase-done" href="/${p.path}?game=${linkId}">${p.label}</a>${sep}`;
     }
     return `<span class="phase-item">${p.label}</span>${sep}`;
   }).join('');
@@ -691,6 +693,22 @@ window.initShell = async function({ gameId, onEvent } = {}) {
       }));
       while (_aiStreams.length < Shell.aiList.length) _aiStreams.push([]);
     }
+    // For campaign rounds: find the shared hiring sub-game and the per-AI
+    // campaign games so we can (a) link the phasenav Hiring tab to the right
+    // game and (b) get proper team names for old hiring records that lack `ais`.
+    if (targetGame && targetGame.campaign_id != null && targetGame.round_idx != null) {
+      const mates = games.filter(g =>
+        g.campaign_id === targetGame.campaign_id &&
+        g.round_idx   === targetGame.round_idx
+      );
+      const hiringGame = mates.find(g => g.is_hiring_sub);
+      if (hiringGame) Shell.hiringSubGameId = hiringGame.id;
+      // Per-AI sub-games carry the team name; sort by ai_idx so index 0 = AI A.
+      const aiGames = mates
+        .filter(g => g.is_campaign_sub && g.ai_name != null)
+        .sort((a, b) => (a.ai_idx ?? 0) - (b.ai_idx ?? 0));
+      if (aiGames.length) Shell.roundAINames = aiGames.map(g => g.ai_name);
+    }
   } catch {}
 
   _mountThinkingBar();
@@ -712,7 +730,8 @@ window.initShell = async function({ gameId, onEvent } = {}) {
       const evtMaxAI = _REPLAY_EVENTS.reduce((m, e) => Math.max(m, e.ai_idx ?? -1), -1);
       if (evtMaxAI >= 0 && Shell.aiList.length <= evtMaxAI) {
         for (let i = Shell.aiList.length; i <= evtMaxAI; i++) {
-          Shell.aiList.push({ idx: i, label: 'AI ' + (i + 1), color: ['var(--ai-a)','var(--ai-b)','var(--ai-c)'][i] || 'var(--ai-a)' });
+          const name = Shell.roundAINames && Shell.roundAINames[i];
+          Shell.aiList.push({ idx: i, label: name || ('AI ' + (i + 1)), color: ['var(--ai-a)','var(--ai-b)','var(--ai-c)'][i] || 'var(--ai-a)' });
         }
         while (_aiStreams.length < Shell.aiList.length) _aiStreams.push([]);
         _renderAIPicker();
