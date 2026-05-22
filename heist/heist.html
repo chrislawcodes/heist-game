@@ -147,13 +147,17 @@ body {
 <script src="/shell.js"></script>
 <script>
 (async function() {
-  const gameId = new URLSearchParams(location.search).get('game');
+  const params = new URLSearchParams(location.search);
+  const gameId = params.get('game');
 
   try { await loadTabFragment('heist'); } catch (e) { console.error('heist fragment failed:', e); }
   if (window.HeistTab) HeistTab.mount(document.getElementById('main'), { shell: Shell });
 
   await initShell({
     gameId,
+    campaignId: params.get('campaign'),
+    aiIdx: params.get('ai'),
+    roundIdx: params.get('round'),
     onEvent(e) {
       if (e.type === '_reset') {
         if (window.HeistTab) HeistTab.reset();
@@ -161,7 +165,7 @@ body {
       }
       if (window.HeistTab) HeistTab.handleEvent(e);
       if (e.type === 'game_done') {
-        Shell.atPhaseEnd(`/epilogue?game=${gameId}`);
+        Shell.atPhaseEnd(Shell.phaseUrl('epilogue'));
       }
     }
   });

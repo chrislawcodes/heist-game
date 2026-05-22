@@ -1080,8 +1080,8 @@ body {
       const previousWidth = prev ? lootPct(prev.banked || 0, Math.max(...(previousState?.standings || []).map(s => s.banked || 0), 0)) : lootPct(row.banked || 0, maxBank);
       const currentWidth = lootPct(row.banked || 0, maxBank);
       const crewCards = crew.map(member => memberCardHtml(member, animate && prevCrewById.get(member.char_id || member.id)?.captured === false && member.captured)).join('');
-      const watchLink = (row.status === 'done' || row.status === 'running') && row.ai_game_id
-        ? `<a class="watch-link" href="/heist?game=${encodeURIComponent(row.ai_game_id)}">Watch →</a>`
+      const watchLink = (row.status === 'done' || row.status === 'running') && row.ai_idx != null
+        ? `<a class="watch-link" href="/hiring?campaign=${encodeURIComponent(gameId)}&ai=${encodeURIComponent(row.ai_idx)}&round=0">Watch →</a>`
         : '';
       const lootBadge = lastRound ? `Round take ${money(lastRound.take)}` : 'No rounds yet';
       // Build a full-length round history padded to total_rounds.
@@ -1103,10 +1103,10 @@ body {
         const icon = isAbort ? '↩' : r.escape === 'clean' ? '✓' : r.escape === 'caught' ? '✗' : '~';
         const hgid = r.hiring_game_id;
         const hireLink = hgid
-          ? `<a class="rh-hire-link" href="/hiring?game=${encodeURIComponent(hgid)}" title="Watch hiring" onclick="event.stopPropagation()">H</a>`
+          ? `<a class="rh-hire-link" href="/hiring?campaign=${encodeURIComponent(gameId)}&ai=${encodeURIComponent(row.ai_idx)}&round=${encodeURIComponent(r.round_idx)}" title="Watch hiring" onclick="event.stopPropagation()">H</a>`
           : '';
         const watchLink = r.game_id
-          ? `<a class="rh-hire-link" href="/heist?game=${encodeURIComponent(r.game_id)}" title="Watch heist" onclick="event.stopPropagation()">→</a>`
+          ? `<a class="rh-hire-link" href="/heist?campaign=${encodeURIComponent(gameId)}&ai=${encodeURIComponent(row.ai_idx)}&round=${encodeURIComponent(r.round_idx)}" title="Watch heist" onclick="event.stopPropagation()">→</a>`
           : '';
         return `<div class="round-row ${cls} rh-nav" data-round-idx="${r.round_idx}" data-ai-idx="${row.ai_idx}">
         <span class="rh-num">R${(r.round_idx + 1)}</span>

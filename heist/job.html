@@ -147,13 +147,17 @@ body {
 <script src="/shell.js"></script>
 <script>
 (async function() {
-  const gameId = new URLSearchParams(location.search).get('game');
+  const params = new URLSearchParams(location.search);
+  const gameId = params.get('game');
 
   try { await loadTabFragment('job'); } catch (e) { console.error('job fragment failed:', e); }
   if (window.JobTab) JobTab.mount(document.getElementById('main'), { shell: Shell });
 
   await initShell({
     gameId,
+    campaignId: params.get('campaign'),
+    aiIdx: params.get('ai'),
+    roundIdx: params.get('round'),
     onEvent(e) {
       if (e.type === '_reset') {
         if (window.JobTab) JobTab.reset();
@@ -161,7 +165,7 @@ body {
       }
       if (window.JobTab) JobTab.handleEvent(e);
       if (e.type === 'scene_start') {
-        Shell.atPhaseEnd(`/heist?game=${gameId}`);
+        Shell.atPhaseEnd(Shell.phaseUrl('heist'));
       }
     }
   });

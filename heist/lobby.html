@@ -389,7 +389,8 @@ async function deleteCampaign(id, label, running = false) {
 
 async function refresh() {
   try {
-    await fetch('/api/games').then(r => r.json());
+    const games = await fetch('/api/games').then(r => r.json());
+    window.__visibleGames = (games || []).filter(game => !game.hidden_from_lobby);
   } catch {}
   try {
     const campaigns = await fetch('/api/campaigns').then(r => r.json());

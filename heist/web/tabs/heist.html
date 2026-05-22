@@ -681,8 +681,18 @@
     const assignedIds = (result && result.assigned_member_ids) || [];
     if (!result || !narr || !assignedIds.length) return '';
     const crew = currentCrew(aiIdx);
-    const leadId = assignedIds[0];
-    const lead = crew.find(c => String(c.id) === String(leadId));
+    const assignedMembers = assignedIds
+      .map(id => crew.find(c => String(c.id) === String(id)))
+      .filter(Boolean);
+    if (!assignedMembers.length) return '';
+    let lead = assignedMembers[0];
+    const skill = scene.meta && scene.meta.challenge_skill;
+    if (skill) {
+      const skillHolders = assignedMembers.filter(member =>
+        (member.skills && member.skills[skill]) && String(member.skills[skill]).toUpperCase() !== 'NONE'
+      );
+      if (skillHolders.length === 1) lead = skillHolders[0];
+    }
     if (!lead) return '';
     const initial = (lead.name || '?').slice(0, 1).toUpperCase();
     const primary = Shell.helpers.primarySkill(lead);

@@ -194,8 +194,9 @@ body {
 <script src="/shell.js"></script>
 <script>
 (async function() {
-  const gameId = new URLSearchParams(location.search).get('game');
-  let campaignGameId = null;
+  const params = new URLSearchParams(location.search);
+  const gameId = params.get('game');
+  let campaignGameId = params.get('campaign') ? Number(params.get('campaign')) : null;
 
   function esc(s) {
     return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -239,6 +240,9 @@ body {
 
   await initShell({
     gameId,
+    campaignId: params.get('campaign'),
+    aiIdx: params.get('ai'),
+    roundIdx: params.get('round'),
     onEvent(e) {
       if (e.type === '_reset') return;  // no tab to reset
       // Re-render on game_done (handles both live and replay)

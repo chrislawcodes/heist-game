@@ -137,6 +137,57 @@
 .thinking-avatar { width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: #000; }
 .thinking-title  { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text); flex: 1; }
 .thinking-private { font-size: 9px; font-weight: 700; letter-spacing: 1px; color: var(--muted); background: #1e1e22; padding: 2px 6px; border-radius: 3px; }
+#journey-controls {
+  flex-shrink: 0;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel2);
+}
+.journey-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.journey-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--muted);
+  min-width: 34px;
+}
+.journey-rounds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.journey-round {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  border-radius: 18px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.journey-round:hover { color: var(--text); border-color: rgba(232,160,48,0.35); }
+.journey-round.active {
+  color: var(--text);
+  border-color: rgba(232,160,48,0.5);
+  background: rgba(232,160,48,0.08);
+}
+.journey-team {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+}
 #thinking-stream { flex: 1; overflow-y: auto; padding: 8px 12px; display: flex; flex-direction: column; gap: 6px; }
 .thought-line { font-size: 12px; line-height: 1.5; padding: 7px 10px; border-radius: 4px; background: var(--panel2); border-left: 3px solid var(--border); animation: slideDownIn 0.35s ease; }
 @keyframes slideDownIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
@@ -179,9 +230,15 @@ const PORTRAIT_BG    = { hack:'1a2840', safe:'2a2008', musc:'2a0c0c', soc:'1e143
 const Shell = {
   roster: [],
   charById: new Map(),
-  aiList: [{ idx: 0, label: 'AI', color: 'var(--ai-a)' }],
+  aiList: [{ idx: 0, label: 'AI', name: 'AI', team_name: 'AI', color: 'var(--ai-a)' }],
   currentAI: 0,
+  journeyMode: false,
+  journey: null,
+  selectedRoundIdx: 0,
+  replayGameId: null,
+  replayAiIndices: new Set(),
   replayEvents: [],  // set by initShell after loading replay buffer
+  phaseUrl(phase, opts) { return _buildPhaseUrl(phase, opts); },
 
   helpers: {
     escapeHtml(s) {
@@ -294,6 +351,63 @@ const _thoughtQueue = [];
 let   _thoughtTimer  = null;
 
 let _currentOnEvent = null;  // set by initShell; used by replayStep
+
+function _isJourneyMode() {
+  return !!Shell.journeyMode && !!Shell.journey;
+}
+
+function _currentPhasePath() {
+  const p = window.location.pathname.replace(/^\//, '').split('?')[0];
+  return p || 'hiring';
+}
+
+function _journeyTeamName(team) {
+  return team?.team_name || team?.ai_name || team?.name || 'Team';
+}
+
+function _journeyRoundFor(team, roundIdx) {
+  if (!team || !Array.isArray(team.rounds)) return null;
+  return team.rounds.find(r => Number(r.round_idx) === Number(roundIdx)) || null;
+}
+
+function _journeyTeamFor(aiIdx) {
+  if (!Shell.journey || !Array.isArray(Shell.journey.teams)) return null;
+  return Shell.journey.teams.find(team => Number(team.ai_idx) === Number(aiIdx)) || null;
+}
+
+function _selectedJourneyTeam(aiIdx) {
+  const teams = Shell.journey?.teams || [];
+  if (!teams.length) return null;
+  const wanted = Number.isFinite(Number(aiIdx)) ? Number(aiIdx) : Shell.currentAI;
+  return _journeyTeamFor(wanted) || teams[0];
+}
+
+function _selectedJourneyRound(roundIdx) {
+  const total = Number(Shell.journey?.num_rounds || 0);
+  if (!total) return 0;
+  const raw = Number.isFinite(Number(roundIdx)) ? Number(roundIdx) : Shell.selectedRoundIdx;
+  return Math.max(0, Math.min(total - 1, raw));
+}
+
+function _buildPhaseUrl(phase, opts = {}) {
+  const path = String(phase || _currentPhasePath()).replace(/^\//, '') || 'hiring';
+  const params = new URLSearchParams();
+  if (_isJourneyMode()) {
+    const journey = Shell.journey;
+    const team = _selectedJourneyTeam(opts.aiIdx);
+    const roundIdx = _selectedJourneyRound(opts.roundIdx);
+    params.set('campaign', String(journey.campaign_id));
+    params.set('ai', String(team?.ai_idx ?? Shell.currentAI ?? 0));
+    params.set('round', String(roundIdx));
+  } else {
+    const gameId = opts.gameId ?? Shell.replayGameId ?? new URLSearchParams(window.location.search).get('game');
+    if (gameId != null && gameId !== '') params.set('game', String(gameId));
+  }
+  if (opts.atStage != null) params.set('atStage', String(opts.atStage));
+  if (opts.autoplay) params.set('autoplay', '1');
+  const q = params.toString();
+  return q ? `/${path}?${q}` : `/${path}`;
+}
 
 // ── _attachStrategyToStarts ───────────────────────────────────────────────────
 // For each turn_start bid_round_N event, peek ahead to find the matching
@@ -503,9 +617,7 @@ function _updatePhasenav(gameId, events) {
       return `<span class="phase-item phase-active">${p.label}</span>${sep}`;
     }
     if (p.reachable) {
-      // The Hiring phase is a separate sub-game in campaigns; use its id when known.
-      const linkId = (p.path === 'hiring' && Shell.hiringSubGameId) ? Shell.hiringSubGameId : gameId;
-      return `<a class="phase-item phase-done" href="/${p.path}?game=${linkId}">${p.label}</a>${sep}`;
+      return `<a class="phase-item phase-done" href="${Shell.phaseUrl(p.path)}">${p.label}</a>${sep}`;
     }
     return `<span class="phase-item">${p.label}</span>${sep}`;
   }).join('');
@@ -535,16 +647,13 @@ function _replayUpdateCounter() {
 }
 
 function _prevPhaseUrl(stage) {
-  const gameId = new URLSearchParams(window.location.search).get('game');
-  if (!gameId) return null;
   const current = window.location.pathname.replace(/^\//, '');
   const phases   = ['hiring', 'job', 'heist', 'epilogue'];
   const idx      = phases.indexOf(current);
   if (idx <= 0) return null;
   // Pass the target stage so the previous page lands exactly one event back
   // instead of fast-forwarding to its own phase-start default.
-  const stageParam = stage != null ? `&atStage=${stage}` : '';
-  return `/${phases[idx - 1]}?game=${gameId}${stageParam}`;
+  return Shell.phaseUrl(phases[idx - 1], { atStage: stage });
 }
 
 // Jump replay state to exactly `stage` stages processed across all AIs.
@@ -583,12 +692,6 @@ function replayBack() {
     return;
   }
   _jumpToStage(_prevCurrentAIStage(cur - 1));
-}
-
-// What page (= phase) are we on?
-function _currentPhasePath() {
-  const p = window.location.pathname.replace(/^\//, '').split('?')[0];
-  return p || 'hiring';
 }
 
 // Stage where the current page's phase ENDS (= last visible event still
@@ -656,7 +759,7 @@ window.loadTabFragment = loadTabFragment;
 //   gameId   — from ?game=ID; null falls back to most-recent game
 //   onEvent  — called for every SSE or replay event (including { type:'_reset' })
 //
-window.initShell = async function({ gameId, onEvent } = {}) {
+window.initShell = async function({ gameId, campaignId, aiIdx, roundIdx, onEvent } = {}) {
   _currentOnEvent = onEvent || null;
 
   // 1. Load roster + job slate so tab fragments can render them
@@ -669,66 +772,118 @@ window.initShell = async function({ gameId, onEvent } = {}) {
     console.error('shell: failed to load meta', e);
   }
 
-  // 2. Find this game in the games list → populate aiList
+  const urlParams = new URLSearchParams(window.location.search);
+  const journeyCampaignId = campaignId ?? urlParams.get('campaign');
+  const journeyAiIdx = aiIdx ?? urlParams.get('ai');
+  const journeyRoundIdx = roundIdx ?? urlParams.get('round');
+  const isJourney = journeyCampaignId != null && journeyCampaignId !== '';
+
+  Shell.journeyMode = isJourney;
+  Shell.journey = null;
+  Shell.selectedRoundIdx = 0;
+  Shell.replayGameId = null;
+  Shell.replayAiIndices = new Set();
+
   let targetGame = null;
-  const gid = gameId != null
-    ? (typeof gameId === 'string' ? parseInt(gameId, 10) : gameId)
-    : null;
   try {
-    const games = await fetch('/api/games').then(r => r.json());
-    if (gid != null) targetGame = games.find(g => g.id === gid);
-    // Campaign sub-games (round replays) are excluded from /api/games but are
-    // still accessible via /api/games/<id>/events. If the requested id isn't
-    // found, use a stub so we load its events directly instead of falling back
-    // to a different game.
-    if (!targetGame && gid != null) targetGame = { id: gid, ais: [], status: 'done' };
-    if (!targetGame) {
-      targetGame = [...games].reverse().find(g => g.status === 'running')
-        || [...games].reverse().find(g => g.status === 'done')
-        || [...games].reverse()[0];
-    }
-    if (targetGame && targetGame.ais && targetGame.ais.length) {
-      Shell.aiList = targetGame.ais.map((ai, i) => ({
-        idx: i,
-        // Prefer the explicit team name (set by quick-test presets like
-        // "The Operators" / "The Wreckers"), fall back to agent name, then
-        // to a generic "AI 1" label.
-        label: ai.name || ai.agent || ('AI ' + (i+1)),
-        color: ['var(--ai-a)','var(--ai-b)','var(--ai-c)'][i] || 'var(--ai-a)',
-      }));
+    if (isJourney) {
+      const journey = await fetch(`/api/campaign-journey/${encodeURIComponent(journeyCampaignId)}`).then(r => {
+        if (!r.ok) throw new Error(`fetch /api/campaign-journey/${journeyCampaignId}: ${r.status}`);
+        return r.json();
+      });
+      Shell.journey = journey;
+      Shell.aiList = (journey.teams || []).map((team, i) => {
+        const label = _journeyTeamName(team);
+        return {
+          idx: Number(team.ai_idx ?? i),
+          label,
+          name: label,
+          team_name: label,
+          color: ['var(--ai-a)', 'var(--ai-b)', 'var(--ai-c)'][i] || 'var(--ai-a)',
+        };
+      });
       while (_aiStreams.length < Shell.aiList.length) _aiStreams.push([]);
-    } else if (targetGame && targetGame.ai_name) {
-      // Per-AI campaign sub-game: single AI whose name is stored directly on
-      // the game record. Events have ai_idx:null so the inference block won't
-      // fire — patch the default aiList entry here instead.
-      const colorIdx = targetGame.ai_idx ?? 0;
-      Shell.aiList[0] = {
-        idx: 0,
-        label: targetGame.ai_name,
-        color: ['var(--ai-a)','var(--ai-b)','var(--ai-c)'][colorIdx] || 'var(--ai-a)',
-      };
+      const selectedTeam = _selectedJourneyTeam(parseInt(journeyAiIdx || '0', 10));
+      Shell.currentAI = selectedTeam?.ai_idx ?? 0;
+      Shell.selectedRoundIdx = _selectedJourneyRound(parseInt(journeyRoundIdx || '0', 10));
+      const currentPhase = _currentPhasePath();
+      const selectedRound = _journeyRoundFor(selectedTeam, Shell.selectedRoundIdx);
+      const selectedGameId = currentPhase === 'hiring'
+        ? selectedRound?.hire_sub_game_id
+        : selectedRound?.heist_sub_game_id;
+      if (selectedGameId == null) {
+        throw new Error(`missing ${currentPhase} sub-game for campaign ${journeyCampaignId}, ai ${Shell.currentAI}, round ${Shell.selectedRoundIdx}`);
+      }
+      targetGame = { id: selectedGameId, campaign_id: journey.campaign_id, round_idx: Shell.selectedRoundIdx, ai_idx: Shell.currentAI };
+      Shell.replayGameId = selectedGameId;
+    } else {
+      // 2. Find this game in the games list → populate aiList
+      const gid = gameId != null
+        ? (typeof gameId === 'string' ? parseInt(gameId, 10) : gameId)
+        : null;
+      const games = await fetch('/api/games').then(r => r.json());
+      if (gid != null) targetGame = games.find(g => g.id === gid);
+      // Campaign sub-games (round replays) are excluded from /api/games but are
+      // still accessible via /api/games/<id>/events. If the requested id isn't
+      // found, use a stub so we load its events directly instead of falling back
+      // to a different game.
+      if (!targetGame && gid != null) targetGame = { id: gid, ais: [], status: 'done' };
+      if (!targetGame) {
+        targetGame = [...games].reverse().find(g => g.status === 'running')
+          || [...games].reverse().find(g => g.status === 'done')
+          || [...games].reverse()[0];
+      }
+      if (targetGame && targetGame.ais && targetGame.ais.length) {
+        Shell.aiList = targetGame.ais.map((ai, i) => {
+          const label = ai.name || ai.agent || ('AI ' + (i + 1));
+          return {
+            idx: i,
+            label,
+            name: label,
+            color: ['var(--ai-a)', 'var(--ai-b)', 'var(--ai-c)'][i] || 'var(--ai-a)',
+          };
+        });
+        while (_aiStreams.length < Shell.aiList.length) _aiStreams.push([]);
+      } else if (targetGame && targetGame.ai_name) {
+        // Per-AI campaign sub-game: single AI whose name is stored directly on
+        // the game record. Events have ai_idx:null so the inference block won't
+        // fire — patch the default aiList entry here instead.
+        const colorIdx = targetGame.ai_idx ?? 0;
+        Shell.aiList[0] = {
+          idx: 0,
+          label: targetGame.ai_name,
+          name: targetGame.ai_name,
+          color: ['var(--ai-a)', 'var(--ai-b)', 'var(--ai-c)'][colorIdx] || 'var(--ai-a)',
+        };
+      }
+      // For campaign rounds: find the shared hiring sub-game and the per-AI
+      // campaign games so we can (a) link the phasenav Hiring tab to the right
+      // game and (b) get proper team names for old hiring records that lack `ais`.
+      if (targetGame && targetGame.campaign_id != null && targetGame.round_idx != null) {
+        const mates = games.filter(g =>
+          g.campaign_id === targetGame.campaign_id &&
+          g.round_idx   === targetGame.round_idx
+        );
+        const hiringGame = mates.find(g => g.is_hiring_sub);
+        if (hiringGame) Shell.hiringSubGameId = hiringGame.id;
+        // Per-AI sub-games carry the team name; sort by ai_idx so index 0 = AI A.
+        const aiGames = mates
+          .filter(g => g.is_campaign_sub && g.ai_name != null)
+          .sort((a, b) => (a.ai_idx ?? 0) - (b.ai_idx ?? 0));
+        if (aiGames.length) Shell.roundAINames = aiGames.map(g => g.ai_name);
+      }
+      Shell.replayGameId = targetGame && targetGame.id != null ? targetGame.id : null;
     }
-    // For campaign rounds: find the shared hiring sub-game and the per-AI
-    // campaign games so we can (a) link the phasenav Hiring tab to the right
-    // game and (b) get proper team names for old hiring records that lack `ais`.
-    if (targetGame && targetGame.campaign_id != null && targetGame.round_idx != null) {
-      const mates = games.filter(g =>
-        g.campaign_id === targetGame.campaign_id &&
-        g.round_idx   === targetGame.round_idx
-      );
-      const hiringGame = mates.find(g => g.is_hiring_sub);
-      if (hiringGame) Shell.hiringSubGameId = hiringGame.id;
-      // Per-AI sub-games carry the team name; sort by ai_idx so index 0 = AI A.
-      const aiGames = mates
-        .filter(g => g.is_campaign_sub && g.ai_name != null)
-        .sort((a, b) => (a.ai_idx ?? 0) - (b.ai_idx ?? 0));
-      if (aiGames.length) Shell.roundAINames = aiGames.map(g => g.ai_name);
-    }
-  } catch {}
+  } catch (e) {
+    console.error('shell: failed to load journey/game context', e);
+    _addThought(0, 'scene', 'Replay load error', Shell.helpers.escapeHtml(String(e)));
+    _setStatus('s-error', 'ERROR');
+    return;
+  }
 
   _mountThinkingBar();
   _renderAIPicker();
-  _selectAI(0);
+  _selectAI(Shell.currentAI);
 
   // 3. Always use replay mode. Load the recorded event buffer and expose
   //    step/play/reset controls. Live SSE is disabled — the user controls pace.
@@ -737,8 +892,9 @@ window.initShell = async function({ gameId, onEvent } = {}) {
     try {
       const data = await fetch(`/api/games/${targetGame.id}/events`).then(r => r.json());
       _REPLAY_EVENTS = data.events || [];
-      _attachStrategyToStarts(_REPLAY_EVENTS);
       Shell.replayEvents = _REPLAY_EVENTS;
+      Shell.replayAiIndices = new Set(_REPLAY_EVENTS.map(e => e.ai_idx ?? 0));
+      _attachStrategyToStarts(_REPLAY_EVENTS);
       // Hiring sub-game records created before the `ais` field was added won't
       // have aiList populated. Infer the count from the event stream so all
       // crew columns and bid chips render correctly.
@@ -746,7 +902,11 @@ window.initShell = async function({ gameId, onEvent } = {}) {
       if (evtMaxAI >= 0 && Shell.aiList.length <= evtMaxAI) {
         for (let i = Shell.aiList.length; i <= evtMaxAI; i++) {
           const name = Shell.roundAINames && Shell.roundAINames[i];
-          Shell.aiList.push({ idx: i, label: name || ('AI ' + (i + 1)), color: ['var(--ai-a)','var(--ai-b)','var(--ai-c)'][i] || 'var(--ai-a)' });
+          const journeyTeam = _journeyTeamFor(i);
+          const label = _isJourneyMode()
+            ? _journeyTeamName(journeyTeam || { ai_name: name, name })
+            : (name || ('AI ' + (i + 1)));
+          Shell.aiList.push({ idx: i, label, name: label, color: ['var(--ai-a)','var(--ai-b)','var(--ai-c)'][i] || 'var(--ai-a)' });
         }
         while (_aiStreams.length < Shell.aiList.length) _aiStreams.push([]);
         _renderAIPicker();
@@ -877,7 +1037,10 @@ function _markCrewHired(aiIdx, crew) {
 function _maybeFinishStream(latestGameDone) {
   _maybeFinishStream._seenDone = _maybeFinishStream._seenDone || new Set();
   _maybeFinishStream._seenDone.add(latestGameDone.ai_idx ?? 0);
-  if (_maybeFinishStream._seenDone.size < Shell.aiList.length) return;
+  const expected = Shell.replayAiIndices && Shell.replayAiIndices.size
+    ? Shell.replayAiIndices.size
+    : Shell.aiList.length;
+  if (_maybeFinishStream._seenDone.size < expected) return;
   if (_evtSource) { _evtSource.close(); _evtSource = null; }
   if (latestGameDone && latestGameDone.state) {
     const s = latestGameDone.state;
@@ -896,10 +1059,33 @@ function _mountThinkingBar() {
   const rail = document.getElementById('rail');
   if (!rail || document.getElementById('thinking-section')) return;
 
+  if (_isJourneyMode()) {
+    const journey = Shell.journey || {};
+    const team = _selectedJourneyTeam(Shell.currentAI);
+    const roundIdx = _selectedJourneyRound(Shell.selectedRoundIdx);
+    const rounds = Array.from({ length: Number(journey.num_rounds || 0) }, (_, i) => {
+      const active = i === roundIdx ? ' active' : '';
+      return `<button type="button" class="journey-round${active}" onclick="_selectRoundFromUI(${i})">R${i + 1}</button>`;
+    }).join('');
+
+    const controls = document.createElement('div');
+    controls.id = 'journey-controls';
+    controls.innerHTML = `
+      <div class="journey-row">
+        <span class="journey-label">Round</span>
+        <div class="journey-rounds">${rounds}</div>
+      </div>
+      <div class="journey-row">
+        <span class="journey-label">Team</span>
+        <div class="journey-team">${Shell.helpers.escapeHtml(_journeyTeamName(team))}</div>
+      </div>`;
+    rail.appendChild(controls);
+  }
+
   const picker = document.createElement('div');
   picker.id = 'ai-picker';
   picker.innerHTML =
-    '<span class="ai-pick-label">Mind of</span><span id="ai-pills"></span>';
+    `<span class="ai-pick-label">${_isJourneyMode() ? 'Team' : 'Mind of'}</span><span id="ai-pills"></span>`;
   rail.appendChild(picker);
 
   const section = document.createElement('div');
@@ -927,6 +1113,10 @@ function _renderAIPicker() {
   ).join('');
 }
 window._selectAIFromUI = (idx) => {
+  if (_isJourneyMode()) {
+    window.location = _buildPhaseUrl(_currentPhasePath(), { aiIdx: idx });
+    return;
+  }
   const prev = Shell.currentAI;
   _selectAI(idx);
   // User-initiated switch: rewind to the start of the current phase so
@@ -936,14 +1126,23 @@ window._selectAIFromUI = (idx) => {
     _jumpToStage(start);
   }
 };
+window._selectRoundFromUI = (roundIdx) => {
+  if (!_isJourneyMode()) return;
+  window.location = _buildPhaseUrl(_currentPhasePath(), { roundIdx });
+};
 
 function _selectAI(idx) {
   Shell.currentAI = idx;
   document.querySelectorAll('.ai-pill').forEach(p =>
     p.classList.toggle('ap-active', parseInt(p.dataset.aiidx) === idx));
-  const ai = Shell.aiList[idx] || Shell.aiList[0];
+  const ai = Shell.aiList.find(a => a.idx === idx) || Shell.aiList[0];
   const av = document.getElementById('thinking-avatar');
-  if (av) { av.textContent = ['A','B','C'][idx] || '·'; av.style.background = ai.color; }
+  if (av) {
+    const initials = String(ai.label || ai.name || '').trim()
+      .split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase();
+    av.textContent = initials || ['A', 'B', 'C'][idx] || '·';
+    av.style.background = ai.color;
+  }
   const tt = document.getElementById('thinking-title');
   if (tt) tt.textContent = ai.label;
   _renderThinking();
