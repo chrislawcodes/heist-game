@@ -503,7 +503,7 @@ function _updatePhasenav(gameId, events) {
       return `<span class="phase-item phase-active">${p.label}</span>${sep}`;
     }
     if (p.reachable) {
-      return `<a class="phase-item phase-done" href="/${p.path}?game=${gameId}&review=1">${p.label}</a>${sep}`;
+      return `<a class="phase-item phase-done" href="/${p.path}?game=${gameId}">${p.label}</a>${sep}`;
     }
     return `<span class="phase-item">${p.label}</span>${sep}`;
   }).join('');
