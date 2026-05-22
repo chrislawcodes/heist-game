@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import contextlib
-import os
 import sys
 import time
 import traceback
@@ -21,9 +20,6 @@ from heist.state import Character, Crew, TurnLog
 EmitPerAIFn = Callable[[int, dict], None]
 EmitBroadcastFn = Callable[[dict], None]
 SnapshotFn = Callable[[dict], None] | None
-
-TURN_DELAY_SECONDS = float(os.environ.get("HEIST_TURN_DELAY", "10"))
-_last_turn_end_at: float | None = None
 
 _TRADECRAFT = """\
 What you know about this work:
@@ -103,11 +99,6 @@ def _call(
     ai_idx: int,
     emit_per_ai: EmitPerAIFn | None = None,
 ) -> AgentTurn:
-    global _last_turn_end_at
-    if emit_per_ai and TURN_DELAY_SECONDS > 0 and _last_turn_end_at is not None:
-        remaining = TURN_DELAY_SECONDS - (time.monotonic() - _last_turn_end_at)
-        if remaining > 0:
-            time.sleep(remaining)
     if emit_per_ai:
         emit_per_ai(ai_idx, {
             "type": "turn_start",
@@ -311,7 +302,6 @@ def run_auction(
     snapshot_fn: SnapshotFn = None,
     max_rounds: int = 8,
 ) -> AuctionResult:
-    global _last_turn_end_at
     pool: list[Character] = list(ROSTER)
     crews: dict[int, list[Character]] = {i: [] for i in range(len(ais))}
     bankrolls: dict[int, int] = {i: BANKROLL for i in range(len(ais))}
@@ -408,7 +398,6 @@ def run_auction(
                 "response": turn.text,
                 "ai_idx": ai_idx,
             })
-            _last_turn_end_at = time.monotonic()
 
         if not bids_by_ai:
             break

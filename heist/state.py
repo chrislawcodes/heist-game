@@ -112,6 +112,7 @@ class SceneResult:
     narration: str
     reasoning: str
     decision: dict | None = None
+    outcome: str | None = None  # "CLEAN"/"SQUEAK"/"FAIL"/"CAUGHT"; None for non-challenge scenes
 
 
 @dataclass(frozen=True)

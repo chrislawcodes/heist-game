@@ -16,7 +16,6 @@ The AI talks in JSON for structured steps; the runner parses defensively.
 from __future__ import annotations
 
 import contextlib
-import os
 import random
 import sys
 import time
@@ -64,11 +63,6 @@ STAGE_IN_SCENE       = "in_scene"          # snapshot after every scene
 STAGE_EPILOGUE       = "epilogue"
 STAGE_DONE           = "done"
 
-# Min seconds between back-to-back AI turns when streaming to a viewer, so the
-# player can absorb each beat. Only applies when `emit` is set (i.e. server
-# mode); CLI mode is unaffected. Override with HEIST_TURN_DELAY=<seconds>.
-TURN_DELAY_SECONDS = float(os.environ.get("HEIST_TURN_DELAY", "10"))
-_last_turn_end_at: float | None = None
 _SKILL_TO_CATEGORY = {skill: category for category, skill in CHALLENGE_TO_SKILL.items()}
 
 
@@ -76,11 +70,6 @@ def _call(
     ai: HeistAI, prompt: str, label: str, logs: list[TurnLog], emit: EmitFn = None
 ) -> AgentTurn:
     """Time one AI call, log it, echo to stderr, and optionally emit turn events."""
-    global _last_turn_end_at
-    if emit and TURN_DELAY_SECONDS > 0 and _last_turn_end_at is not None:
-        remaining = TURN_DELAY_SECONDS - (time.monotonic() - _last_turn_end_at)
-        if remaining > 0:
-            time.sleep(remaining)
     if emit:
         emit({"type": "turn_start", "label": label, "prompt": prompt})
     t0 = time.monotonic()
@@ -114,7 +103,6 @@ def _call(
     if emit:
         emit({"type": "turn_end", "label": label, "seconds": elapsed,
               "response": turn.text, "parsed": parsed})
-        _last_turn_end_at = time.monotonic()
     return turn
 
 
@@ -514,7 +502,14 @@ def _snapshot(
 
 
 def _broadcast_scene_done(
-    emit: EmitFn, scene: Scene, state: HeistState, result: SceneResult
+    emit: EmitFn,
+    scene: Scene,
+    state: HeistState,
+    result: SceneResult,
+    *,
+    heat_delta: int,
+    caught_member_id: int | None,
+    loot_secured: int,
 ) -> None:
     if emit is None:
         return
@@ -531,7 +526,12 @@ def _broadcast_scene_done(
         "reasoning": result.reasoning,
         "decision": result.decision,
         "success": result.success,
+        "outcome": result.outcome,
+        "heat_delta": heat_delta,
         "heat": state.heat,
+        "caught_member_id": caught_member_id,
+        "loot_secured": loot_secured,
+        "secured_take": state.secured_take,
         "aborted": state.aborted,
         "escape_success": state.escape_success,
         "escape_difficulty": state.escape_difficulty,
@@ -614,10 +614,23 @@ def _run_scene_loop(
         scene = scenes[idx]
         if state.aborted and scene.type != "escape":
             continue
+        heat_before = state.heat
+        take_before = state.secured_take
+        caught_count_before = len(state.caught_member_ids)
         result = _execute_scene(scene, state, ai, logs, emit, rng)
+        heat_delta = state.heat - heat_before
+        loot_secured = state.secured_take - take_before
+        caught_member_id: int | None = None
+        if len(state.caught_member_ids) > caught_count_before:
+            caught_member_id = state.caught_member_ids[caught_count_before]
         state.scene_results.append(result)
         extras["scene_narrations"].append(result)
-        _broadcast_scene_done(emit, scene, state, result)
+        _broadcast_scene_done(
+            emit, scene, state, result,
+            heat_delta=heat_delta,
+            caught_member_id=caught_member_id,
+            loot_secured=loot_secured,
+        )
         if on_scene is not None:
             on_scene(result)
         _snapshot(
@@ -691,6 +704,7 @@ def run_one_job(
         snapshot_fn, strategy, rng, start_idx=0,
     )
     _finalize_reward(state)
+    _emit_heist_complete(emit, state)
 
     ep_turn = _call(ai, _epilogue_prompt(state), "epilogue", logs, emit)
     extras["epilogue"] = ep_turn.text
@@ -781,6 +795,7 @@ def run_heist(
 
     # 6. Escape already handled inside loop → compute reward
     _finalize_reward(state)
+    _emit_heist_complete(emit, state)
 
     # 7. Epilogue
     ep_turn = _call(ai, _epilogue_prompt(state), "epilogue", logs, emit)
@@ -938,6 +953,7 @@ def resume_heist(
         raise ValueError(f"unknown resume stage: {stage!r}")
 
     _finalize_reward(state)
+    _emit_heist_complete(emit, state)
 
     if not extras.get("epilogue"):
         ep_turn = _call(ai, _epilogue_prompt(state), "epilogue", logs, emit)
@@ -993,6 +1009,7 @@ def _execute_scene(
     decision: dict | None = None
     success: bool | None = None
     outcome_summary: str
+    scene_outcome: Outcome | None = None
 
     if bool(assign_parsed.get("abort", False)):
         state.aborted = True
@@ -1005,6 +1022,7 @@ def _execute_scene(
             narration="",
             reasoning=assignment_reasoning,
             decision=decision,
+            outcome=None,
         )
 
     if scene.type == "decision":
@@ -1016,6 +1034,7 @@ def _execute_scene(
         state.bonus_pursued = pursue
         if pursue:
             outcome, outcome_summary = _resolve_challenge_scene(scene, assigned)
+            scene_outcome = outcome
             success = outcome_is_pass(outcome)
             state.bonus_succeeded = success
             if outcome != Outcome.CLEAN:
@@ -1045,6 +1064,7 @@ def _execute_scene(
             outcome_summary = "Crew declined the bonus opportunity."
     elif scene.type in ("challenge", "hidden_depth"):
         outcome, outcome_summary = _resolve_challenge_scene(scene, assigned)
+        scene_outcome = outcome
         success = outcome_is_pass(outcome)
         if outcome != Outcome.CLEAN:
             state.heat += 1
@@ -1084,6 +1104,7 @@ def _execute_scene(
         narration=narration,
         reasoning=assignment_reasoning,
         decision=decision,
+        outcome=scene_outcome.name if scene_outcome is not None else None,
     )
 
 
@@ -1160,3 +1181,18 @@ def _execute_escape(
 def _finalize_reward(state: HeistState) -> None:
     free = [m for m in state.crew.members if m.id not in state.caught_member_ids]
     state.final_take = state.secured_take if free else 0
+
+
+def _emit_heist_complete(emit: EmitFn, state: HeistState) -> None:
+    if emit is None:
+        return
+    free_ids = [m.id for m in state.crew.members if m.id not in state.caught_member_ids]
+    emit({
+        "type": "heist_complete",
+        "final_take": state.final_take,
+        "secured_take": state.secured_take,
+        "escape_success": state.escape_success,
+        "aborted": state.aborted,
+        "caught_member_ids": list(state.caught_member_ids),
+        "free_member_ids": free_ids,
+    })
