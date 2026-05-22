@@ -692,6 +692,16 @@ window.initShell = async function({ gameId, onEvent } = {}) {
         color: ['var(--ai-a)','var(--ai-b)','var(--ai-c)'][i] || 'var(--ai-a)',
       }));
       while (_aiStreams.length < Shell.aiList.length) _aiStreams.push([]);
+    } else if (targetGame && targetGame.ai_name) {
+      // Per-AI campaign sub-game: single AI whose name is stored directly on
+      // the game record. Events have ai_idx:null so the inference block won't
+      // fire — patch the default aiList entry here instead.
+      const colorIdx = targetGame.ai_idx ?? 0;
+      Shell.aiList[0] = {
+        idx: 0,
+        label: targetGame.ai_name,
+        color: ['var(--ai-a)','var(--ai-b)','var(--ai-c)'][colorIdx] || 'var(--ai-a)',
+      };
     }
     // For campaign rounds: find the shared hiring sub-game and the per-AI
     // campaign games so we can (a) link the phasenav Hiring tab to the right
