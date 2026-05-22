@@ -892,6 +892,15 @@ window.initShell = async function({ gameId, campaignId, aiIdx, roundIdx, onEvent
     try {
       const data = await fetch(`/api/games/${targetGame.id}/events`).then(r => r.json());
       _REPLAY_EVENTS = data.events || [];
+      // Journey mode: a per-round HEIST sub-game is single-AI and tags every
+      // event ai_idx:null, but Shell.currentAI holds the team's campaign index.
+      // Re-attribute those null events to the selected team so the per-AI render
+      // filter (aiIdx === Shell.currentAI) matches. The shared auction sub-game
+      // tags its events 0/1/2, so when any tagged ai_idx is present we leave the
+      // stream untouched.
+      if (Shell.journeyMode && !_REPLAY_EVENTS.some(e => e.ai_idx != null)) {
+        for (const e of _REPLAY_EVENTS) e.ai_idx = Shell.currentAI;
+      }
       Shell.replayEvents = _REPLAY_EVENTS;
       Shell.replayAiIndices = new Set(_REPLAY_EVENTS.map(e => e.ai_idx ?? 0));
       _attachStrategyToStarts(_REPLAY_EVENTS);
