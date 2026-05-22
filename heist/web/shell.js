@@ -706,6 +706,18 @@ window.initShell = async function({ gameId, onEvent } = {}) {
       _REPLAY_EVENTS = data.events || [];
       _attachStrategyToStarts(_REPLAY_EVENTS);
       Shell.replayEvents = _REPLAY_EVENTS;
+      // Hiring sub-game records created before the `ais` field was added won't
+      // have aiList populated. Infer the count from the event stream so all
+      // crew columns and bid chips render correctly.
+      const evtMaxAI = _REPLAY_EVENTS.reduce((m, e) => Math.max(m, e.ai_idx ?? -1), -1);
+      if (evtMaxAI >= 0 && Shell.aiList.length <= evtMaxAI) {
+        for (let i = Shell.aiList.length; i <= evtMaxAI; i++) {
+          Shell.aiList.push({ idx: i, label: 'AI ' + (i + 1), color: ['var(--ai-a)','var(--ai-b)','var(--ai-c)'][i] || 'var(--ai-a)' });
+        }
+        while (_aiStreams.length < Shell.aiList.length) _aiStreams.push([]);
+        _renderAIPicker();
+        _selectAI(Shell.currentAI);
+      }
       _computeVisibleByAI();
       _replayUpdateCounter();
       _updatePhasenav(targetGame.id, _REPLAY_EVENTS);
