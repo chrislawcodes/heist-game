@@ -22,40 +22,21 @@ GET  /stream        → SSE event stream
 """
 from __future__ import annotations
 
-import contextlib
 import http.server
 import json
 import queue
-import random
 import socketserver
 import threading
 import time
-import traceback
 from pathlib import Path
 
-from heist.ai import AgentTurn
-from heist.content import ROSTER_BY_ID
+from heist import gamestate, orchestration
 from heist.logs import log
 from heist.persist import (
     delete_game_record,
     delete_runner_snapshot,
     list_pending_snapshots,
-    load_game_records,
-    save_game_record,
-    save_runner_snapshot,
 )
-
-# ── shared state ──────────────────────────────────────────────────────────────
-
-_lock = threading.Lock()
-_event_history: list[dict] = []
-_subscribers: set[queue.Queue] = set()
-_game_running = False
-
-# All games: staged, running, done, error
-# {id, created_at, status, ais:[{prompt,agent}], job, take, aborted, escape_success}
-_games: dict[int, dict] = {}
-_next_id = 1
 
 _LOBBY_HTML    = Path(__file__).parent / "lobby.html"
 _SETUP_HTML    = Path(__file__).parent / "web" / "setup.html"
@@ -67,218 +48,6 @@ _SHELL_JS      = Path(__file__).parent / "web" / "shell.js"
 _MOCKS_DIR       = Path(__file__).parent / "mocks"
 _TABS_DIR        = Path(__file__).parent / "web" / "tabs"
 _PORTRAITS_DIR   = Path(__file__).parent / "characters"
-
-
-def _broadcast(event: dict) -> None:
-    persist_game: dict | None = None
-    with _lock:
-        _event_history.append(event)
-        # Mirror into the relevant game's persistent event log so we can replay
-        # it later via /api/games/{id}/events. Route by game_id when present;
-        # fall back to the most-recently-running game for events without one.
-        target_gid = None
-        stamped_gid = event.get("game_id")
-        if stamped_gid is not None and stamped_gid in _games:
-            target_gid = stamped_gid
-        else:
-            for gid in reversed(list(_games.keys())):
-                if _games[gid].get("status") in ("running", "done"):
-                    target_gid = gid
-                    break
-        if target_gid is not None:
-            _games[target_gid].setdefault("events", []).append(event)
-            # Snapshot the dict inside the lock; persist outside it so we
-            # don't hold the lock during file I/O.
-            persist_game = dict(_games[target_gid])
-        subs = list(_subscribers)
-    log.info("broadcast", payload=event)
-    if persist_game is not None:
-        try:
-            save_game_record(persist_game)
-        except Exception as exc:
-            log.warn("save_game_record_failed", error=str(exc))
-    for q in subs:
-        q.put(event)
-
-
-def _get_game(game_id: int) -> dict | None:
-    with _lock:
-        return _games.get(game_id)
-
-
-def _update_game(game_id: int, **fields) -> None:
-    persist_game: dict | None = None
-    with _lock:
-        if game_id in _games:
-            _games[game_id].update(fields)
-            persist_game = dict(_games[game_id])
-    if persist_game is not None:
-        try:
-            save_game_record(persist_game)
-        except Exception as exc:
-            log.warn("save_game_record_failed", error=str(exc))
-
-
-def _build_ai(agent: str, *, ai_idx: int = 0, auction_mode: bool = False):
-    from heist.backends import CodexHeistAI, GeminiHeistAI
-    from heist.stub_responses import build_stub_ai
-
-    if agent == "stub":
-        if not auction_mode:
-            return build_stub_ai()
-        return _AuctionAwareStubAI(ai_idx)
-    if agent == "codex":
-        return CodexHeistAI(model="gpt-5.4")
-    if agent == "codex-mini":
-        return CodexHeistAI(model="gpt-5.4-mini")
-    if agent == "gemini":
-        return GeminiHeistAI()
-    raise RuntimeError(f"Unknown agent: {agent}")
-
-
-class _AuctionAwareStubAI:
-    """Stub AI that can handle both the legacy single-AI flow and the new
-    auction bidding prompt used by the server smoke test."""
-
-    _TARGET_SETS = [
-        [2, 6, 8, 10],
-        [9, 11, 12, 14],
-        [3, 5, 8, 10],
-        [4, 6, 8, 10],
-    ]
-
-    def __init__(self, ai_idx: int):
-        from heist.stub_responses import build_stub_ai
-
-        self._base = build_stub_ai()
-        self._target_ids = self._TARGET_SETS[ai_idx % len(self._TARGET_SETS)]
-        self.session_id = None
-
-    @property
-    def prompts_seen(self) -> list[str]:
-        return self._base.prompts_seen
-
-    def ask(self, prompt: str):
-        if "round of crew bidding" not in prompt:
-            return self._base.ask(prompt)
-
-        import json
-        import re
-
-        available_ids = {
-            int(m) for m in re.findall(r"id=(\d+)", prompt)
-        }
-        self._base._asked.append(prompt)
-        bids = []
-        for cid in self._target_ids:
-            if cid not in available_ids:
-                continue
-            char = ROSTER_BY_ID[cid]
-            bids.append({
-                "character_id": cid,
-                "bid": char.floor_cost,
-                "rationale": f"Pre-planned smoke-test target {char.name}.",
-            })
-        payload = {
-            "bids": bids,
-            "pass": not bids,
-            "reasoning": "Following the pre-planned smoke-test crew split.",
-        }
-        return AgentTurn(text=json.dumps(payload), session_id="stub-session")
-
-
-def _run_auction_coordinator(game_id: int) -> None:
-    from heist.auction import run_auction
-
-    def emit_tagged(ai_idx: int, evt: dict) -> None:
-        _broadcast({**evt, "ai_idx": ai_idx, "game_id": game_id})
-
-    def snapshot_cb(payload: dict) -> None:
-        with _lock:
-            game = _games.get(game_id)
-            ais = list(game.get("ais", [])) if game else []
-        for ai_idx, ai_cfg in enumerate(ais):
-            try:
-                save_runner_snapshot(
-                    game_id,
-                    ai_idx,
-                    {
-                        **payload,
-                        "game_id": game_id,
-                        "ai_idx": ai_idx,
-                        "agent": ai_cfg.get("agent", "stub"),
-                    },
-                )
-            except Exception as exc:
-                log.warn(
-                    "save_runner_snapshot_failed",
-                    game_id=game_id,
-                    ai_idx=ai_idx,
-                    error=str(exc),
-                )
-
-    with _lock:
-        game = _games.get(game_id)
-        if not game:
-            return
-        ais_cfg = list(game.get("ais", []))
-    try:
-        ais = [
-            _build_ai(cfg.get("agent", "stub"), ai_idx=ai_idx, auction_mode=True)
-            for ai_idx, cfg in enumerate(ais_cfg)
-        ]
-        logs_per_ai: dict[int, list] = {i: [] for i in range(len(ais))}
-        result = run_auction(
-            ais,
-            [cfg.get("prompt", "") for cfg in ais_cfg],
-            logs_per_ai,
-            emit_tagged,
-            _broadcast,
-            snapshot_fn=snapshot_cb,
-        )
-        for ai_idx, ai_cfg in enumerate(ais_cfg):
-            t = threading.Thread(
-                target=_run_game,
-                args=(
-                    ai_cfg.get("prompt", ""),
-                    ai_cfg.get("agent", "stub"),
-                    None,
-                    game_id,
-                    ai_idx,
-                ),
-                kwargs={
-                    "crew": result.crews[ai_idx],
-                    "ai_obj": ais[ai_idx],
-                },
-                daemon=True,
-            )
-            t.start()
-    except Exception as exc:
-        _broadcast({"type": "error", "message": str(exc)})
-        log.error(
-            "auction_coordinator_crashed",
-            game_id=game_id,
-            error=str(exc),
-            traceback=traceback.format_exc(),
-        )
-        persist_game: dict | None = None
-        global _game_running
-        with _lock:
-            game = _games.get(game_id)
-            if game:
-                game["status"] = "done"
-                game["ai_results"] = [
-                    {"error": str(exc)} for _ in game.get("ais", [])
-                ]
-                game["ais_remaining"] = 0
-                persist_game = dict(game)
-            _game_running = False
-        if persist_game is not None:
-            try:
-                save_game_record(persist_game)
-            except Exception as save_exc:
-                log.warn("save_game_record_failed", game_id=game_id,
-                         error=str(save_exc))
 
 
 # ── HTTP handler ──────────────────────────────────────────────────────────────
@@ -529,17 +298,20 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         })
 
     def _serve_status(self):
-        with _lock:
+        with gamestate.lock:
             self._json_ok({
-                "has_history": len(_event_history) > 0,
-                "game_running": _game_running,
+                "has_history": len(gamestate.event_history) > 0,
+                "game_running": gamestate.runtime.game_running,
             })
 
     def _serve_games(self):
-        with _lock:
+        with gamestate.lock:
             # Strip the heavy events list from the index; clients fetch them
             # explicitly via /api/games/<id>/events when they need to replay.
-            games = [{k: v for k, v in g.items() if k != "events"} for g in _games.values()]
+            games = [
+                {k: v for k, v in g.items() if k != "events"}
+                for g in gamestate.games.values()
+            ]
         self._json_ok(sorted(games, key=lambda g: g["created_at"]))
 
     def _serve_game_events(self, gid_str: str) -> None:
@@ -548,8 +320,8 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         except ValueError:
             self._json_error(400, "bad game id")
             return
-        with _lock:
-            game = _games.get(gid)
+        with gamestate.lock:
+            game = gamestate.games.get(gid)
             if not game:
                 self._json_error(404, "game not found")
                 return
@@ -557,11 +329,10 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         self._json_ok({"game_id": gid, "events": events})
 
     def _handle_new_game(self):
-        global _next_id
-        with _lock:
-            gid = _next_id
-            _next_id += 1
-            _games[gid] = {
+        with gamestate.lock:
+            gid = gamestate.runtime.next_id
+            gamestate.runtime.next_id += 1
+            gamestate.games[gid] = {
                 "id": gid,
                 "created_at": time.time(),
                 "status": "staging",
@@ -578,21 +349,20 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         game_id = body.get("game_id")
         prompt  = body.get("prompt", "")
         agent   = body.get("agent", "stub")
-        game = _get_game(game_id)
+        game = gamestate.get_game(game_id)
         if not game:
             self._json_error(404, "game not found")
             return
         if game["status"] != "staging":
             self._json_error(409, "game is not in staging")
             return
-        _update_game(game_id, ais=game["ais"] + [{"prompt": prompt, "agent": agent}])
+        gamestate.update_game(game_id, ais=game["ais"] + [{"prompt": prompt, "agent": agent}])
         self._json_ok({"ok": True})
 
     def _handle_launch(self):
-        global _game_running
         body = self._read_json()
         game_id = body.get("game_id")
-        game = _get_game(game_id)
+        game = gamestate.get_game(game_id)
         if not game:
             self._json_error(404, "game not found")
             return
@@ -602,19 +372,19 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         if not game["ais"]:
             self._json_error(400, "no AIs configured")
             return
-        with _lock:
-            if _game_running:
+        with gamestate.lock:
+            if gamestate.runtime.game_running:
                 self._json_error(409, "another game is already running")
                 return
-            _game_running = True
-            _event_history.clear()
-            _games[game_id]["status"] = "running"
-            _games[game_id]["ai_results"] = [None] * len(game["ais"])
-            _games[game_id]["ais_remaining"] = len(game["ais"])
+            gamestate.runtime.game_running = True
+            gamestate.event_history.clear()
+            gamestate.games[game_id]["status"] = "running"
+            gamestate.games[game_id]["ai_results"] = [None] * len(game["ais"])
+            gamestate.games[game_id]["ais_remaining"] = len(game["ais"])
 
         self._json_ok({"ok": True})
         t = threading.Thread(
-            target=_run_auction_coordinator,
+            target=orchestration.run_auction_coordinator,
             args=(game_id,),
             daemon=True,
         )
@@ -625,18 +395,17 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         The Wreckers) head-to-head against the same roster + job slate. Each
         gets a different strategy prompt so the player can watch contrasting
         philosophies play the same game."""
-        global _next_id, _game_running
         from heist.content import QUICK_TEST_TEAMS
-        with _lock:
-            if _game_running:
+        with gamestate.lock:
+            if gamestate.runtime.game_running:
                 self._json_error(409, "another game is already running")
                 return
-            gid = _next_id
-            _next_id += 1
+            gid = gamestate.runtime.next_id
+            gamestate.runtime.next_id += 1
             # Take a defensive copy so the persisted record doesn't share
             # references with the module-level preset.
             ais = [dict(team) for team in QUICK_TEST_TEAMS]
-            _games[gid] = {
+            gamestate.games[gid] = {
                 "id": gid,
                 "created_at": time.time(),
                 "status": "running",
@@ -649,11 +418,11 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                 "escape_success": None,
                 "quick_test": True,
             }
-            _game_running = True
-            _event_history.clear()
+            gamestate.runtime.game_running = True
+            gamestate.event_history.clear()
         self._json_ok({"game_id": gid, "ok": True})
         t = threading.Thread(
-            target=_run_auction_coordinator,
+            target=orchestration.run_auction_coordinator,
             args=(gid,),
             daemon=True,
         )
@@ -667,8 +436,8 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         except ValueError:
             self._json_error(400, "bad game id")
             return
-        with _lock:
-            game = _games.get(gid)
+        with gamestate.lock:
+            game = gamestate.games.get(gid)
             if not game:
                 self._json_error(404, "game not found")
                 return
@@ -679,7 +448,7 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                 )
                 return
             # Drop the in-memory record so future /api/games calls don't see it.
-            _games.pop(gid, None)
+            gamestate.games.pop(gid, None)
         # Best-effort cleanup of every persisted artifact for this game.
         try:
             snapshots = list_pending_snapshots(gid)
@@ -708,9 +477,9 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
 
         sub_q: queue.Queue = queue.Queue()
-        with _lock:
-            history = list(_event_history)
-            _subscribers.add(sub_q)
+        with gamestate.lock:
+            history = list(gamestate.event_history)
+            gamestate.subscribers.add(sub_q)
         log.info("stream_connected", history_len=len(history))
         connected_at = time.monotonic()
 
@@ -733,8 +502,8 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         except (BrokenPipeError, ConnectionResetError):
             pass
         finally:
-            with _lock:
-                _subscribers.discard(sub_q)
+            with gamestate.lock:
+                gamestate.subscribers.discard(sub_q)
             log.info(
                 "stream_disconnected",
                 duration_ms=int((time.monotonic() - connected_at) * 1000),
@@ -773,249 +542,10 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         pass
 
 
-# ── game runner thread ────────────────────────────────────────────────────────
-
-def _run_game(
-    strategy: str,
-    agent: str,
-    seed: int | None,
-    game_id: int,
-    ai_idx: int = 0,
-    resume_snapshot: dict | None = None,
-    crew=None,
-    ai_obj=None,
-) -> None:
-    global _game_running
-    started_at = time.monotonic()
-    log.info(
-        "game_started" if resume_snapshot is None else "game_resumed",
-        game_id=game_id,
-        ai_idx=ai_idx,
-        agent=agent,
-        prompt_len=len(strategy),
-        seed=seed,
-    )
-
-    def emit_tagged(evt: dict) -> None:
-        _broadcast({**evt, "ai_idx": ai_idx, "game_id": game_id})
-
-    def snapshot_cb(payload: dict) -> None:
-        payload = {**payload, "game_id": game_id, "ai_idx": ai_idx, "agent": agent}
-        try:
-            save_runner_snapshot(game_id, ai_idx, payload)
-        except Exception as exc:
-            log.warn("save_runner_snapshot_failed",
-                     game_id=game_id, ai_idx=ai_idx, error=str(exc))
-
-    def _record_result(result: dict) -> None:
-        """Stash this AI's outcome in game["ai_results"][ai_idx]; flip game-level
-        status to "done" once every AI has finished."""
-        global _game_running
-        persist_game: dict | None = None
-        with _lock:
-            game = _games.get(game_id)
-            if not game:
-                return
-            results = game.setdefault("ai_results", [None] * len(game.get("ais", [])))
-            if ai_idx < len(results):
-                results[ai_idx] = result
-            # Keep top-level summary fields backed by AI 0 (for lobby display).
-            if ai_idx == 0 and "error" not in result:
-                game.update({
-                    "job": result.get("job"),
-                    "take": result.get("take"),
-                    "aborted": result.get("aborted"),
-                    "escape_success": result.get("escape_success"),
-                })
-            game["ais_remaining"] = max(0, game.get("ais_remaining", 1) - 1)
-            if game["ais_remaining"] == 0:
-                game["status"] = "done"
-                _game_running = False
-            persist_game = dict(game)
-        if persist_game is not None:
-            try:
-                save_game_record(persist_game)
-            except Exception as exc:
-                log.warn("save_game_record_failed",
-                         game_id=game_id, error=str(exc))
-
-    try:
-        from heist.runner import resume_heist, run_heist
-        from heist.serialize import state_to_dict
-
-        ai = ai_obj
-        if ai is None:
-            try:
-                ai = _build_ai(agent)
-            except RuntimeError as exc:
-                err = str(exc)
-                emit_tagged({"type": "error", "message": err})
-                log.error("game_crashed", game_id=game_id, ai_idx=ai_idx, error=err)
-                _record_result({"error": err})
-                return
-
-        if resume_snapshot is not None:
-            # Re-attach the codex session so the CLI picks up the in-flight
-            # conversation. If the session has expired on disk, the next AI
-            # call will fail and we mark this AI errored — same path as any
-            # other AI failure, no special-case logic needed.
-            sid = resume_snapshot.get("session_id")
-            if sid and hasattr(ai, "session_id"):
-                ai.session_id = sid
-            state, extras = resume_heist(
-                resume_snapshot, ai, emit=emit_tagged, snapshot_fn=snapshot_cb,
-            )
-        else:
-            # Different seed per AI so parallel runs diverge meaningfully.
-            rng_seed = seed if seed is not None else random.randint(0, 1 << 30) + ai_idx
-            rng = random.Random(rng_seed)
-            state, extras = run_heist(
-                strategy, ai, crew=crew, rng=rng, emit=emit_tagged, snapshot_fn=snapshot_cb,
-            )
-
-        emit_tagged({
-            "type": "game_done",
-            "state": state_to_dict(state),
-            "extras": {
-                "casting_summary": extras.get("casting_summary", ""),
-                "epilogue": extras.get("epilogue", ""),
-                "strategy": extras.get("strategy", ""),
-            },
-        })
-        log.info(
-            "game_ended",
-            game_id=game_id,
-            ai_idx=ai_idx,
-            take=state.final_take,
-            aborted=state.aborted,
-            escape_success=state.escape_success,
-            duration_ms=int((time.monotonic() - started_at) * 1000),
-        )
-        _record_result({
-            "job": state.job.name,
-            "take": state.final_take,
-            "aborted": state.aborted,
-            "escape_success": state.escape_success,
-        })
-        # Snapshot served its purpose — clean up so the recovery path doesn't
-        # try to re-resume a finished game.
-        try:
-            delete_runner_snapshot(game_id, ai_idx)
-        except Exception as exc:
-            log.warn("delete_snapshot_failed",
-                     game_id=game_id, ai_idx=ai_idx, error=str(exc))
-    except Exception as exc:
-        emit_tagged({"type": "error", "message": str(exc)})
-        log.error(
-            "game_crashed",
-            game_id=game_id,
-            ai_idx=ai_idx,
-            error=str(exc),
-            traceback=traceback.format_exc(),
-            duration_ms=int((time.monotonic() - started_at) * 1000),
-        )
-        _record_result({"error": str(exc)})
-        with contextlib.suppress(Exception):
-            delete_runner_snapshot(game_id, ai_idx)
-
-
 # ── server entry point ────────────────────────────────────────────────────────
 
 class _ThreadingServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
     daemon_threads = True
-
-
-def _recover_games() -> tuple[int, int]:
-    """Reload games + snapshots from ``./state/``, spawn resume threads for
-    any AI that was mid-run when the server stopped. Returns
-    (games_recovered, ai_threads_resuming)."""
-    global _next_id, _game_running
-    records = load_game_records()
-    if not records:
-        return (0, 0)
-
-    games_recovered = 0
-    ai_resuming = 0
-    auction_restart: list[int] = []
-    pending: list[tuple[int, int, dict, dict]] = []  # (gid, ai_idx, snap, ai_cfg)
-
-    with _lock:
-        for gid, record in records.items():
-            _games[gid] = record
-            _next_id = max(_next_id, gid + 1)
-            games_recovered += 1
-
-            if record.get("status") != "running":
-                continue
-
-            ais = record.get("ais", [])
-            results = record.get("ai_results") or [None] * len(ais)
-            # Pad in case of a stale file.
-            if len(results) < len(ais):
-                results = results + [None] * (len(ais) - len(results))
-
-            snapshots = list_pending_snapshots(gid)
-            if not snapshots or any(
-                snap.get("stage", "").startswith("auction_round_")
-                or snap.get("stage") == "auction_complete"
-                for snap in snapshots.values()
-            ):
-                auction_restart.append(gid)
-                _game_running = True
-                continue
-
-            still_remaining = 0
-            for ai_idx, ai_cfg in enumerate(ais):
-                if results[ai_idx] is not None:
-                    continue
-                if ai_idx in snapshots:
-                    pending.append((gid, ai_idx, snapshots[ai_idx], ai_cfg))
-                    still_remaining += 1
-                else:
-                    # No snapshot — game crashed before this AI made any
-                    # observable progress. Mark it errored and move on.
-                    results[ai_idx] = {"error": "no snapshot — crashed before first turn"}
-
-            record["ai_results"] = results
-            record["ais_remaining"] = still_remaining
-            if still_remaining == 0:
-                record["status"] = "done"
-            else:
-                _game_running = True
-
-            ai_resuming += still_remaining
-
-    # Persist any status flips we made above (errored AIs, status→done).
-    for gid in records:
-        try:
-            with _lock:
-                snap = dict(_games[gid])
-            save_game_record(snap)
-        except Exception as exc:
-            log.warn("save_game_record_failed", game_id=gid, error=str(exc))
-
-    for gid in auction_restart:
-        log.info("game_recovered_auction", game_id=gid)
-        t = threading.Thread(
-            target=_run_auction_coordinator,
-            args=(gid,),
-            daemon=True,
-        )
-        t.start()
-
-    for gid, ai_idx, snap, ai_cfg in pending:
-        log.info("game_recovered", game_id=gid, ai_idx=ai_idx,
-                 stage=snap.get("stage"), scene_idx=snap.get("scene_idx"))
-        t = threading.Thread(
-            target=_run_game,
-            args=(ai_cfg.get("prompt", ""), ai_cfg.get("agent", "stub"),
-                  None, gid, ai_idx),
-            kwargs={"resume_snapshot": snap},
-            daemon=True,
-        )
-        t.start()
-
-    return (games_recovered, ai_resuming)
 
 
 def serve(port: int = 8000, web_dir: Path | None = None) -> None:
@@ -1038,7 +568,7 @@ def serve(port: int = 8000, web_dir: Path | None = None) -> None:
         _TABS_DIR      = d / "web" / "tabs"
         print(f"Assets → {d}")
 
-    games_recovered, ai_resuming = _recover_games()
+    games_recovered, ai_resuming = orchestration.recover_games()
     server = _ThreadingServer(("", port), _Handler)
     print(f"Heist → http://localhost:{port}")
     if games_recovered > 0:
