@@ -3,7 +3,7 @@ strips the collaboration rule or the 'Hard needs High' teaching out, CI
 catches it before the next run regresses to the pre-Option-B behavior."""
 
 from heist.content import MUSEUM
-from heist.runner import (
+from heist.prompts import (
     _TRADECRAFT,
     _bid_prompt,
     _job_prompt,

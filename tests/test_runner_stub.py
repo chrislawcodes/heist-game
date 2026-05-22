@@ -66,7 +66,7 @@ def test_every_job_runs_cleanly_with_stub(job_name):
 
 def test_zero_take_on_failed_escape(monkeypatch):
     """If the escape fails, final_take must be 0 even if scenes succeeded."""
-    from heist.runner import _finalize_reward
+    from heist.resolution import _finalize_reward
     from heist.state import (
         ChallengeLevel,
         Character,
@@ -97,7 +97,7 @@ def test_zero_take_on_failed_escape(monkeypatch):
 
 
 def test_zero_take_on_abort():
-    from heist.runner import _finalize_reward
+    from heist.resolution import _finalize_reward
     from heist.state import (
         ChallengeLevel,
         Character,

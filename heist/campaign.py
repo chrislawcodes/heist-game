@@ -9,12 +9,12 @@ from typing import Any
 from heist.ai import HeistAI
 from heist.content import BANKROLL
 from heist.logs import log
+from heist.prompts import _summary_prompt
 from heist.runner import (
     EmitFn,
     TurnLog,
     _call,
     _draft_crew,
-    _summary_prompt,
     run_one_job,
 )
 from heist.state import Campaign, HeistState, RoundResult
