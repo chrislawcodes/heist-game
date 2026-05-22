@@ -6,7 +6,8 @@ import json
 import pytest
 
 import heist.persist as persist_mod
-from heist import gamestate, orchestration, server as server_mod
+from heist import gamestate, orchestration
+from heist import server as server_mod
 
 
 @pytest.fixture()
