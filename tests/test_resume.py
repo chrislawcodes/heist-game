@@ -7,8 +7,6 @@ from __future__ import annotations
 
 import random
 
-import pytest
-
 from heist.content import DEFAULT_PROMPT
 from heist.runner import resume_heist, run_heist
 from heist.serialize import (
@@ -18,13 +16,6 @@ from heist.serialize import (
 )
 from heist.state import HeistState
 from heist.stub_responses import build_stub_ai
-
-
-@pytest.fixture(autouse=True)
-def _no_turn_delay(monkeypatch):
-    """Disable inter-turn pacing in resume tests — it's irrelevant here and
-    would slow the suite down by orders of magnitude."""
-    monkeypatch.setattr("heist.runner.TURN_DELAY_SECONDS", 0.0)
 
 
 def test_state_roundtrip_is_structurally_equal():

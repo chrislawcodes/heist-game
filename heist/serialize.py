@@ -93,6 +93,7 @@ def scene_result_to_dict(r: SceneResult) -> dict:
         "narration": r.narration,
         "reasoning": r.reasoning,
         "decision": r.decision,
+        "outcome": r.outcome,
     }
 
 
@@ -172,6 +173,7 @@ def scene_result_from_dict(d: dict) -> SceneResult:
         narration=d.get("narration", ""),
         reasoning=d.get("reasoning", ""),
         decision=d.get("decision"),
+        outcome=d.get("outcome"),
     )
 
 
