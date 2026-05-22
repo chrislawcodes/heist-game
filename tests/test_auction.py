@@ -19,11 +19,6 @@ def _char(cid: int):
     return ROSTER_BY_ID[cid]
 
 
-@pytest.fixture(autouse=True)
-def _no_turn_delay(monkeypatch):
-    monkeypatch.setattr("heist.auction.TURN_DELAY_SECONDS", 0.0)
-
-
 def test_resolve_round_uncontested_win():
     winners, ties = _resolve_round({0: [(_char(10), 700_000)]})
     assert winners == [(0, _char(10), 700_000)]

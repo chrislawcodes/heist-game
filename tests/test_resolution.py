@@ -9,6 +9,7 @@ from heist.content import ROSTER_BY_ID
 from heist.mechanics import Outcome, outcome_is_pass, resolve_outcome
 from heist.runner import (
     _catch_member_from_assigned,
+    _emit_heist_complete,
     _execute_escape,
     _execute_scene,
     _finalize_reward,
@@ -263,3 +264,98 @@ def test_abort_sets_aborted_and_routes_to_escape():
     assert state.escape_success is True
     assert [r.scene.type for r in state.scene_results] == ["challenge", "escape"]
     assert not any("scene_1_narrate" in prompt for prompt in ai.prompts_seen)
+
+
+# ── new event-field tests ────────────────────────────────────────────────────
+
+
+def test_scene_done_event_carries_outcome_and_deltas():
+    """scene_done event must include outcome, heat_delta, caught_member_id,
+    loot_secured, and secured_take."""
+    crew = Crew([ROSTER_BY_ID[1]])  # member 1 has hacker LOW
+    job = _job({"electronic": 50_000})
+    state = _state(crew=crew, job=job)
+    scene = Scene(
+        number=1, type="challenge", title="Test",
+        challenge_skill="hacker", challenge_level=ChallengeLevel.LOW,
+        is_core=True, context="", category="electronic",
+    )
+    ai = StubHeistAI([
+        '{"assigned_member_ids": [1], "reasoning": "assign"}',
+        "stub narration",
+    ])
+    emitted: list[dict] = []
+    _run_scene_loop(
+        [scene], state, ai, [], {"scene_narrations": []},
+        emit=emitted.append, on_scene=None, snapshot_fn=None,
+        strategy="", rng=random.Random(1),
+    )
+    scene_done_events = [e for e in emitted if e["type"] == "scene_done"]
+    assert len(scene_done_events) == 1
+    ev = scene_done_events[0]
+    # CLEAN outcome: hacker LOW vs LOW challenge → CLEAN
+    assert ev["outcome"] == "CLEAN"
+    assert ev["heat_delta"] == 0
+    assert ev["caught_member_id"] is None
+    assert ev["loot_secured"] == 50_000
+    assert ev["secured_take"] == 50_000
+
+
+def test_scene_done_event_caught_and_heat_delta_on_caught_outcome():
+    """CAUGHT outcome increments heat and records caught_member_id."""
+    # member 3 has hacker NONE — will get CAUGHT vs HARD challenge
+    crew = Crew([ROSTER_BY_ID[3]])
+    job = _job({"electronic": 100_000})
+    state = _state(crew=crew, job=job)
+    scene = Scene(
+        number=1, type="challenge", title="Test",
+        challenge_skill="hacker", challenge_level=ChallengeLevel.HARD,
+        is_core=True, context="", category="electronic",
+    )
+    ai = StubHeistAI([
+        '{"assigned_member_ids": [3], "reasoning": "assign"}',
+        '{"abort": false, "reasoning": "push on"}',
+        "stub narration",
+    ])
+    emitted: list[dict] = []
+    _run_scene_loop(
+        [scene], state, ai, [], {"scene_narrations": []},
+        emit=emitted.append, on_scene=None, snapshot_fn=None,
+        strategy="", rng=random.Random(1),
+    )
+    ev = next(e for e in emitted if e["type"] == "scene_done")
+    assert ev["outcome"] == "CAUGHT"
+    assert ev["heat_delta"] == 1
+    assert ev["caught_member_id"] == 3
+    assert ev["loot_secured"] == 0
+
+
+def test_heist_complete_event_fires_with_final_take():
+    """_emit_heist_complete emits a heist_complete event with final_take."""
+    crew = Crew([
+        _char(1, "A", {"driver": SkillLevel.HIGH}, 700_000),
+    ])
+    state = _state(crew=crew, secured_take=500_000)
+    _finalize_reward(state)
+    emitted: list[dict] = []
+    _emit_heist_complete(emitted.append, state)
+    assert len(emitted) == 1
+    ev = emitted[0]
+    assert ev["type"] == "heist_complete"
+    assert ev["final_take"] == 500_000
+    assert ev["secured_take"] == 500_000
+    assert ev["caught_member_ids"] == []
+    assert 1 in ev["free_member_ids"]
+
+
+def test_heist_complete_final_take_zero_when_all_caught():
+    """final_take is 0 when all crew members are caught."""
+    crew = Crew([_char(1, "A", {"muscle": SkillLevel.LOW}, 100_000)])
+    state = _state(crew=crew, caught=[1], secured_take=999_000)
+    _finalize_reward(state)
+    emitted: list[dict] = []
+    _emit_heist_complete(emitted.append, state)
+    ev = emitted[0]
+    assert ev["final_take"] == 0
+    assert ev["free_member_ids"] == []
+    assert ev["caught_member_ids"] == [1]
