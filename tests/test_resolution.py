@@ -7,12 +7,14 @@ import pytest
 from heist.ai import StubHeistAI
 from heist.content import ROSTER_BY_ID
 from heist.mechanics import Outcome, outcome_is_pass, resolve_outcome
-from heist.runner import (
+from heist.resolution import (
     _catch_member_from_assigned,
+    _finalize_reward,
+)
+from heist.runner import (
     _emit_heist_complete,
     _execute_escape,
     _execute_scene,
-    _finalize_reward,
     _run_scene_loop,
 )
 from heist.state import (
