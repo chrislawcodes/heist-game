@@ -553,7 +553,12 @@ function replayStep() {
     if (!visibleEvt || (_isCurrentAIEvent(visibleEvt) && !_isReplaySkipEvent(visibleEvt))) break;
   }
   _replayUpdateCounter();
-  if (_currentStage() >= total && _REPLAY_TIMER) replayToggle();
+  if (_currentStage() >= total) {
+    // Advance to the next journey phase BEFORE stopping the timer, so play mode
+    // carries the autoplay flag onto the next page. No-op outside journey mode.
+    _journeyMaybeAdvanceAtEnd();
+    if (_REPLAY_TIMER) replayToggle();
+  }
 }
 
 function replayToggle() {
@@ -725,6 +730,18 @@ function _phaseStartStage(phase) {
     if (pred(_REPLAY_EVENTS[i])) return n;
   }
   return null;
+}
+
+// Journey mode: each phase's sub-game stream lacks the NEXT phase's in-stream
+// trigger (the auction sub-game has no `casting_summary`; the round-heist
+// sub-game has no `game_done`), so the normal page-driven phase nav can't fire
+// across the sub-game boundary. Advance to the next journey phase when THIS
+// phase's replay finishes. Job → Heist still happens in-stream on `scene_start`.
+function _journeyMaybeAdvanceAtEnd() {
+  if (!Shell.journeyMode) return;
+  const nextAtEnd = { hiring: 'job', heist: 'epilogue' };
+  const next = nextAtEnd[_currentPhasePath()];
+  if (next) _atPhaseEnd(Shell.phaseUrl(next));
 }
 
 // Expose for HTML onclick attributes and cross-page calls
