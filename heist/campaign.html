@@ -776,7 +776,9 @@ body {
   let previousState = null;
   let selectedAiIdx = 0;
   let viewedRound = 0;
-  let autoMode = true;
+  // Open on round 1 (viewedRound 0). The "Auto" button enables live-follow,
+  // which jumps to the current round.
+  let autoMode = false;
   let pollTimer = null;
 
   // ── Mind of AI ──────────────────────────────────────────────────────────────
