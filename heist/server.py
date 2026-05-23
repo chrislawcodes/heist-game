@@ -28,7 +28,9 @@ import queue
 import socketserver
 import threading
 import time
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from heist import gamestate, orchestration
 from heist.logs import log
@@ -356,6 +358,7 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             payload.append({
                 "id": int(game["id"]),
                 "status": game.get("status", "running"),
+                "name": game.get("name") or None,
                 "num_rounds": int(game.get("num_rounds", 5)),
                 "created_at": float(game.get("created_at", 0.0)),
                 "current_round": current_round,
@@ -700,6 +703,9 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         The Wreckers (codex-mini), and The Ghost (gemini) — three contrasting
         philosophies competing across 3 rounds."""
         from heist.content import QUICK_TEST_CAMPAIGN, QUICK_TEST_CAMPAIGN_ROUNDS
+        _pt = ZoneInfo("America/Los_Angeles")
+        _now = datetime.now(_pt)
+        _campaign_name = _now.strftime("%A %B %-d, %-I:%M %p PT")
         with gamestate.lock:
             gid = gamestate.runtime.next_id
             gamestate.runtime.next_id += 1
@@ -710,6 +716,7 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                 "created_at": time.time(),
                 "status": "running",
                 "is_campaign": True,
+                "name": _campaign_name,
                 "num_rounds": num_rounds,
                 "ais_remaining": len(ais),
                 "ais_cfg": ais,

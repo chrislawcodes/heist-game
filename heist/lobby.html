@@ -312,9 +312,11 @@ function renderCampaigns(campaigns) {
       if ((b.banked || 0) !== (a.banked || 0)) return (b.banked || 0) - (a.banked || 0);
       return (a.ai_idx || 0) - (b.ai_idx || 0);
     })[0];
-    const title = campaign.status === 'done' && titleAi
-      ? esc(titleAi.ai_name)
-      : `Campaign #${campaign.id}`;
+    const title = campaign.name
+      ? esc(campaign.name)
+      : campaign.status === 'done' && titleAi
+        ? esc(titleAi.ai_name)
+        : `Campaign #${campaign.id}`;
     const leader = titleAi && currentRound > 0
       ? `
         <div class="leader-name">${esc(titleAi.ai_name)}</div>
