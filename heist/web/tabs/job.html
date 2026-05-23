@@ -499,7 +499,8 @@
     });
 
     // ── crew name ─────────────────────────────────────────────────────────────
-    const aiName = (Shell.aiList[aiIdx] || {}).name || ('AI ' + aiIdx);
+    const aiRec = Shell.aiList[aiIdx] || {};
+    const aiName = aiRec.label || aiRec.name || aiRec.team_name || ('Crew ' + (aiIdx + 1));
     $$('crew-name').textContent = aiName + "'s Crew";
 
     // ── hidden depth ──────────────────────────────────────────────────────────

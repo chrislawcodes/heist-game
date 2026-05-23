@@ -67,6 +67,7 @@ class Job:
     escape_modifier: int
     hidden_depth: list[HiddenDepthElement]
     reward_amounts: list[tuple[str, int]]
+    tier: str = ""
     # PHASE 4 FORWARD-COMPAT — intentionally empty until Phase 4 ships.
     # Each challenge in a job's profile will carry a hidden 1–10 score under
     # its public bucket. Resolution: crew skill_score >= challenge_score →
@@ -160,7 +161,24 @@ class Campaign:
     notoriety: int = 0
     attempted_job_names: set[str] = field(default_factory=set)
     round_results: list[RoundResult] = field(default_factory=list)
+    num_ais: int = 1
+    # Rolling slate state. Managed by heist/slate.py each round.
+    # current_slate: list of job names currently on offer
+    # rounds_on_slate: how many rounds each job has been sitting unchosen
+    slate_state: dict = field(default_factory=lambda: {
+        "current_slate": [],
+        "rounds_on_slate": {},
+    })
+    between_round_log: list[dict] = field(default_factory=list)
 
     @property
     def round_idx(self) -> int:
         return len(self.round_results)
+
+    @property
+    def current_round(self) -> int:
+        return min(self.round_idx + 1, self.rounds_total)
+
+    @property
+    def total_rounds(self) -> int:
+        return self.rounds_total

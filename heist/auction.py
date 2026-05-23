@@ -21,6 +21,8 @@ EmitPerAIFn = Callable[[int, dict], None]
 EmitBroadcastFn = Callable[[dict], None]
 SnapshotFn = Callable[[dict], None] | None
 
+_BID_MAX_RETRIES = 2
+
 _TRADECRAFT = """\
 What you know about this work:
 
@@ -91,6 +93,27 @@ def _round_bid_prompt(
     )
 
 
+def _bid_correction_prompt(
+    error: str, pool: list[Character], bankroll: int
+) -> str:
+    pool_lines = "\n".join(_format_char_for_bid(c) for c in pool)
+    return (
+        f"Your bid was rejected: {error}\n\n"
+        "Reminder: bid amounts are full dollar values matching or exceeding "
+        "each character's floor (e.g., floor=$700000 means bid at least "
+        "700000, not 700 or 7000).\n\n"
+        f"Your remaining bankroll: ${bankroll}\n\n"
+        f"Still available:\n{pool_lines}\n\n"
+        "Please correct your bids and reply with ONLY JSON:\n"
+        "{\n"
+        '  "bids": [{"character_id": <int>, "bid": <int>>=floor, '
+        '"rationale": "<why>"}],\n'
+        '  "pass": <bool>,\n'
+        '  "reasoning": "<short summary>"\n'
+        "}"
+    )
+
+
 def _call(
     ai: HeistAI,
     prompt: str,
@@ -119,7 +142,19 @@ def _call(
             error=str(exc),
             traceback=traceback.format_exc(),
         )
-        raise
+        # Recovery: the backend already retried this call AI_MAX_ATTEMPTS times
+        # (see heist/backends.py); reaching here means every attempt failed. A
+        # dead/hung call must NOT freeze the synchronized campaign conductor, so
+        # instead of propagating (which aborts the whole auction) we record the
+        # elapsed time and return a no-bid fallback. The caller then emits
+        # turn_end normally and this AI simply skips this bid round — it stays
+        # eligible next round (same as exhausting the bid-correction retries).
+        elapsed = time.monotonic() - t0
+        logs.append(TurnLog(label=label, seconds=elapsed))
+        return AgentTurn(
+            text='{"pass": false, "bids": []}',
+            session_id=getattr(ai, "session_id", None),
+        )
     elapsed = time.monotonic() - t0
     logs.append(TurnLog(label=label, seconds=elapsed))
     print(f"  [round {label}: {elapsed:.1f}s]", file=sys.stderr)
@@ -130,7 +165,11 @@ def _call(
     log.info(
         "ai_call",
         label=label,
+        # elapsed_ms wraps the whole ai.ask (incl. any retries + pauses);
+        # attempt_ms is the clean latency of the single attempt that succeeded.
         elapsed_ms=int(elapsed * 1000),
+        attempts=getattr(ai, "last_attempts", 1),
+        attempt_ms=getattr(ai, "last_attempt_ms", int(elapsed * 1000)),
         prompt_len=len(prompt),
         response_len=len(turn.text),
         parsed_ok=parsed_ok,
@@ -301,19 +340,35 @@ def run_auction(
     emit_broadcast: EmitBroadcastFn,
     snapshot_fn: SnapshotFn = None,
     max_rounds: int = 8,
+    *,
+    initial_crews: dict[int, list[Character]] | None = None,
+    initial_bankrolls: dict[int, int] | None = None,
+    pool_override: list[Character] | None = None,
 ) -> AuctionResult:
-    pool: list[Character] = list(ROSTER)
-    crews: dict[int, list[Character]] = {i: [] for i in range(len(ais))}
-    bankrolls: dict[int, int] = {i: BANKROLL for i in range(len(ais))}
+    pool: list[Character] = list(pool_override) if pool_override is not None else list(ROSTER)
+    crews: dict[int, list[Character]] = (
+        {i: list(initial_crews[i]) for i in range(len(ais))}
+        if initial_crews is not None
+        else {i: [] for i in range(len(ais))}
+    )
+    effective_initial_bankrolls: dict[int, int] = (
+        {i: initial_bankrolls[i] for i in range(len(ais))}
+        if initial_bankrolls is not None
+        else {i: BANKROLL for i in range(len(ais))}
+    )
+    bankrolls: dict[int, int] = dict(effective_initial_bankrolls)
     passed: set[int] = set()
     rounds_log: list[AuctionRoundRecord] = []
     last_result_per_ai: dict[int, dict[str, list[str]]] = {}
-    min_floor = min(c.floor_cost for c in ROSTER)
+    min_floor = min((c.floor_cost for c in pool), default=0) if pool else 0
 
     for ai_idx in range(len(ais)):
         logs_per_ai.setdefault(ai_idx, [])
 
     for round_num in range(1, max_rounds + 1):
+        # AIs are active this round if they still need crew, haven't chosen to
+        # stop bidding (passed), can afford at least the cheapest character,
+        # and there are still characters to bid on.
         active = [
             i for i in range(len(ais))
             if len(crews[i]) < 4
@@ -342,38 +397,99 @@ def run_auction(
                 ai_idx,
                 emit_per_ai,
             )
-            valid_bids: list[tuple[Character, int]]
-            did_pass: bool
-            try:
-                parsed = parse_json_block(turn.text)
-            except Exception as exc:
-                log.warn(
-                    "invalid_round_json",
-                    ai_idx=ai_idx,
-                    round_num=round_num,
-                    error=str(exc),
-                )
-                parsed = {"bids": [], "pass": True, "reasoning": ""}
-                valid_bids, did_pass = [], True
-            else:
+            valid_bids: list[tuple[Character, int]] = []
+            did_pass: bool = False
+            parsed: dict[str, object] = {}
+
+            # Bid validation with correction loop.
+            #
+            # On any parse or business-rule failure (e.g. bids below floor,
+            # over bankroll, unknown character id) we send the exact error back
+            # to the AI as a correction prompt and retry up to _BID_MAX_RETRIES
+            # times. This recovers the common hallucination where the AI writes
+            # bid amounts in the wrong unit (e.g. $800 instead of $800,000).
+            #
+            # Failure modes and how each is handled:
+            #
+            #   • Malformed JSON: parse_json_block raises → send correction,
+            #     retry. If all retries exhausted, parsed stays {} and
+            #     valid_bids stays [] — the AI skips this round.
+            #
+            #   • Business rule violation (below floor, over bankroll, etc.):
+            #     _validate_round_bids raises ValueError with a human-readable
+            #     message → same correction-and-retry flow.
+            #
+            #   • Explicit pass ("pass": true): _validate_round_bids returns
+            #     ([], True) — did_pass becomes True and the AI is added to
+            #     `passed`, removing it from all future rounds. This is the
+            #     ONLY path that permanently ends an AI's bidding.
+            #
+            # Exhausting retries skips the round but does NOT add to `passed`.
+            # The AI will appear in `active` again next round and bid fresh.
+            for attempt in range(_BID_MAX_RETRIES + 1):
+                try:
+                    parsed = parse_json_block(turn.text)
+                except Exception as exc:
+                    error_msg = f"Response was not valid JSON: {exc}"
+                    log.warn(
+                        "invalid_round_json",
+                        ai_idx=ai_idx,
+                        round_num=round_num,
+                        attempt=attempt,
+                        error=error_msg,
+                    )
+                    parsed = {}
+                    if attempt < _BID_MAX_RETRIES:
+                        turn = _call(
+                            ais[ai_idx],
+                            _bid_correction_prompt(
+                                error_msg, pool, bankrolls[ai_idx]
+                            ),
+                            f"bid_round_{round_num}_retry_{attempt + 1}",
+                            logs_per_ai[ai_idx],
+                            ai_idx,
+                            emit_per_ai,
+                        )
+                        continue
+                    break  # all retries exhausted — skip this round
                 try:
                     valid_bids, did_pass = _validate_round_bids(
                         parsed, pool, crews[ai_idx], bankrolls[ai_idx]
                     )
+                    break  # valid response — exit retry loop
                 except ValueError as exc:
+                    error_msg = str(exc)
                     log.warn(
                         "invalid_round_bids",
                         ai_idx=ai_idx,
                         round_num=round_num,
-                        error=str(exc),
+                        attempt=attempt,
+                        error=error_msg,
                     )
-                    valid_bids, did_pass = [], True
+                    if attempt < _BID_MAX_RETRIES:
+                        turn = _call(
+                            ais[ai_idx],
+                            _bid_correction_prompt(
+                                error_msg, pool, bankrolls[ai_idx]
+                            ),
+                            f"bid_round_{round_num}_retry_{attempt + 1}",
+                            logs_per_ai[ai_idx],
+                            ai_idx,
+                            emit_per_ai,
+                        )
+                        continue
+                    # All retries exhausted. Skip this round — do NOT add to
+                    # `passed`. The AI gets another chance next round.
+                    break
+
             parsed_bids = parsed.get("bids", [])
             if not isinstance(parsed_bids, list):
                 parsed_bids = []
-            if did_pass or not valid_bids:
+            # Only an explicit "pass": true adds the AI to `passed` (permanent).
+            # Invalid bids / exhausted retries leave the AI eligible next round.
+            if did_pass:
                 passed.add(ai_idx)
-            else:
+            elif valid_bids:
                 bids_by_ai[ai_idx] = valid_bids
             emit_per_ai(ai_idx, {
                 "type": "turn_end",
@@ -385,11 +501,14 @@ def run_auction(
                         {
                             "character_id": char.id,
                             "bid": bid,
-                            "rationale": parsed_bids[idx].get("rationale", ""),
+                            "rationale": (
+                                parsed_bids[idx].get("rationale", "")
+                                if idx < len(parsed_bids) else ""
+                            ),
                         }
                         for idx, (char, bid) in enumerate(valid_bids)
                     ],
-                    "pass": bool(parsed.get("pass", False)) or not valid_bids,
+                    "pass": did_pass,
                     "reasoning": parsed.get("reasoning", ""),
                     "remaining_roster": [c.id for c in pool],
                     "your_crew_so_far": [c.id for c in crews[ai_idx]],
@@ -398,9 +517,6 @@ def run_auction(
                 "response": turn.text,
                 "ai_idx": ai_idx,
             })
-
-        if not bids_by_ai:
-            break
 
         winners, ties = _resolve_round(bids_by_ai)
         for ai_idx, char, bid in winners:
@@ -483,7 +599,7 @@ def run_auction(
 
     return AuctionResult(
         crews=final_crews,
-        bankrolls_spent={i: BANKROLL - bankrolls[i] for i in range(len(ais))},
+        bankrolls_spent={i: effective_initial_bankrolls[i] - bankrolls[i] for i in range(len(ais))},
         rounds=rounds_log,
         logs_per_ai=logs_per_ai,
     )

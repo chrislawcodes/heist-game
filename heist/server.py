@@ -28,7 +28,9 @@ import queue
 import socketserver
 import threading
 import time
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from heist import gamestate, orchestration
 from heist.logs import log
@@ -36,6 +38,7 @@ from heist.persist import (
     delete_game_record,
     delete_runner_snapshot,
     list_pending_snapshots,
+    save_game_record,
 )
 
 _LOBBY_HTML    = Path(__file__).parent / "lobby.html"
@@ -44,6 +47,7 @@ _HIRING_HTML   = Path(__file__).parent / "hiring.html"
 _JOB_HTML      = Path(__file__).parent / "job.html"
 _HEIST_HTML    = Path(__file__).parent / "heist.html"
 _EPILOGUE_HTML = Path(__file__).parent / "epilogue.html"
+_CAMPAIGN_HTML = Path(__file__).parent / "campaign.html"
 _SHELL_JS      = Path(__file__).parent / "web" / "shell.js"
 _MOCKS_DIR       = Path(__file__).parent / "mocks"
 _TABS_DIR        = Path(__file__).parent / "web" / "tabs"
@@ -94,6 +98,8 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             self._serve_file(_HEIST_HTML)
         elif p == "/epilogue":
             self._serve_file(_EPILOGUE_HTML)
+        elif p == "/campaign" or p.startswith("/campaign/"):
+            self._serve_file(_CAMPAIGN_HTML)
         elif p == "/shell.js":
             self._serve_js(_SHELL_JS)
         elif p == "/mocks" or p == "/mocks/":
@@ -112,6 +118,12 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             self._serve_status()
         elif p == "/api/games":
             self._serve_games()
+        elif p == "/api/campaigns":
+            self._serve_campaigns()
+        elif p.startswith("/api/campaign/") and p.endswith("/state"):
+            self._serve_campaign_state(p[len("/api/campaign/"):-len("/state")])
+        elif p.startswith("/api/campaign-journey/"):
+            self._serve_campaign_journey(p[len("/api/campaign-journey/"):])
         elif p.startswith("/api/games/") and p.endswith("/events"):
             self._serve_game_events(p[len("/api/games/"):-len("/events")])
         else:
@@ -124,12 +136,16 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         try:
             if p == "/api/new-game":
                 self._handle_new_game()
+            elif p == "/api/new-campaign":
+                self._handle_new_campaign()
             elif p == "/api/add-ai":
                 self._handle_add_ai()
             elif p == "/api/launch":
                 self._handle_launch()
             elif p == "/api/quick-game":
                 self._handle_quick_game()
+            elif p == "/api/quick-campaign":
+                self._handle_quick_campaign()
             else:
                 self.send_response(404)
                 self.end_headers()
@@ -142,7 +158,9 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         try:
             # /api/games/<id>
             if p.startswith("/api/games/") and "/" not in p[len("/api/games/"):]:
-                self._handle_delete_game(p[len("/api/games/"):])
+                qs = self.path.split("?", 1)[1] if "?" in self.path else ""
+                force = "force=1" in qs
+                self._handle_delete_game(p[len("/api/games/"):], force=force)
             else:
                 self.send_response(404)
                 self.end_headers()
@@ -314,6 +332,162 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             ]
         self._json_ok(sorted(games, key=lambda g: g["created_at"]))
 
+    def _serve_campaigns(self):
+        with gamestate.lock:
+            records = [
+                dict(game)
+                for game in gamestate.games.values()
+                if game.get("is_campaign") is True and not game.get("is_campaign_sub")
+            ]
+
+        payload: list[dict] = []
+        for game in records:
+            game_states = game.get("game_states") or []
+            current_round = max(
+                (len(gs.get("round_results", []) or []) for gs in game_states),
+                default=0,
+            )
+            ais: list[dict] = []
+            for idx, gs in enumerate(game_states):
+                ais.append({
+                    "ai_idx": int(gs.get("ai_idx", idx)),
+                    "ai_name": gs.get("ai_name", f"AI {idx + 1}"),
+                    "banked": int(gs.get("banked_loot", gs.get("banked", 0))),
+                    "status": gs.get("status", "waiting"),
+                })
+            payload.append({
+                "id": int(game["id"]),
+                "status": game.get("status", "running"),
+                "name": game.get("name") or None,
+                "num_rounds": int(game.get("num_rounds", 5)),
+                "created_at": float(game.get("created_at", 0.0)),
+                "current_round": current_round,
+                "ais": ais,
+            })
+        payload.sort(key=lambda row: row["created_at"], reverse=True)
+        self._json_ok(payload)
+
+    def _serve_campaign_state(self, gid_str: str) -> None:
+        try:
+            gid = int(gid_str)
+        except ValueError:
+            self._json_error(404, "not found")
+            return
+        with gamestate.lock:
+            game = gamestate.games.get(gid)
+            if not game:
+                self._json_error(404, "not found")
+                return
+            game = dict(game)
+
+        from heist.content import ROSTER
+        from heist.serialize import campaign_from_dict, campaign_state_to_dict
+
+        campaign_payload = game.get("campaign_state")
+        game_states = (
+            game.get("game_states")
+            or game.get("ais_states")
+            or game.get("campaign_game_states")
+        )
+        if campaign_payload is None and isinstance(game.get("campaign"), dict):
+            campaign_payload = game["campaign"]
+        if (
+            campaign_payload is None
+            and {"rounds_total", "bankroll", "banked_loot"} <= set(game.keys())
+        ):
+            campaign_payload = game
+        if not isinstance(campaign_payload, dict):
+            self._json_error(404, "not found")
+            return
+        if {"round", "total_rounds", "standings", "wire"} <= set(campaign_payload.keys()):
+            self._json_ok(campaign_payload)
+            return
+        if game_states is None:
+            self._json_error(404, "not found")
+            return
+
+        campaign = campaign_from_dict(campaign_payload)
+        game_current_stage = game.get("current_stage", "done")
+        game_current_round_idx = int(game.get("current_round_idx", 0))
+        payload = campaign_state_to_dict(
+            campaign, game_states, ROSTER,
+            current_stage=game_current_stage,
+            current_round_idx=game_current_round_idx,
+        )
+        self._json_ok(payload)
+
+    def _serve_campaign_journey(self, gid_str: str) -> None:
+        try:
+            gid = int(gid_str)
+        except ValueError:
+            self._json_error(404, "not found")
+            return
+
+        with gamestate.lock:
+            game = gamestate.games.get(gid)
+            if not game or game.get("is_campaign") is not True:
+                self._json_error(404, "not found")
+                return
+            game = dict(game)
+
+        game_states = list(game.get("game_states") or [])
+        num_rounds = int(game.get("num_rounds", len(game_states)))
+        current_round_idx = int(game.get("current_round_idx", 0))
+
+        def _outcome_for(round_results: list, round_idx: int) -> dict:
+            if round_idx < len(round_results):
+                entry = round_results[round_idx]
+                if isinstance(entry, dict):
+                    take = int(entry.get("take", 0))
+                    escape_success = entry.get("escape_success")
+                    aborted = bool(entry.get("aborted", False))
+                else:
+                    take = int(getattr(entry, "take", 0))
+                    escape_success = getattr(entry, "escape_success", None)
+                    aborted = bool(getattr(entry, "aborted", False))
+                return {
+                    "take": take,
+                    "escape_success": escape_success,
+                    "aborted": aborted,
+                }
+            return {"take": 0, "escape_success": None, "aborted": False}
+
+        teams: list[dict] = []
+        for idx, gs in enumerate(game_states):
+            round_game_ids = list(gs.get("round_game_ids", []) or [])
+            hiring_game_ids = list(gs.get("hiring_game_ids", []) or [])
+            round_results = list(gs.get("round_results", []) or [])
+            rounds: list[dict] = []
+            for round_idx in range(num_rounds):
+                rounds.append({
+                    "round_idx": round_idx,
+                    "hire_sub_game_id": (
+                        hiring_game_ids[round_idx]
+                        if round_idx < len(hiring_game_ids)
+                        else None
+                    ),
+                    "heist_sub_game_id": (
+                        round_game_ids[round_idx]
+                        if round_idx < len(round_game_ids)
+                        else None
+                    ),
+                    "outcome": _outcome_for(round_results, round_idx),
+                })
+            teams.append({
+                "ai_idx": int(gs.get("ai_idx", idx)),
+                "team_name": gs.get("ai_name", f"AI {idx + 1}"),
+                "banked": int(gs.get("banked_loot", gs.get("banked", 0))),
+                "rounds": rounds,
+            })
+
+        teams.sort(key=lambda row: row["ai_idx"])
+        self._json_ok({
+            "campaign_id": gid,
+            "num_rounds": num_rounds,
+            "current_round_idx": current_round_idx,
+            "teams": teams,
+        })
+
     def _serve_game_events(self, gid_str: str) -> None:
         try:
             gid = int(gid_str)
@@ -343,6 +517,102 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                 "escape_success": None,
             }
         self._json_ok({"game_id": gid})
+
+    def _handle_new_campaign(self):
+        try:
+            body = self._read_json()
+        except Exception:
+            self._json_error(400, "invalid campaign payload")
+            return
+
+        def bad(msg: str) -> None:
+            self._json_error(400, msg)
+
+        num_rounds = body.get("num_rounds", 5)
+        if (
+            not isinstance(num_rounds, int)
+            or isinstance(num_rounds, bool)
+            or num_rounds < 1
+            or num_rounds > 20
+        ):
+            bad("num_rounds must be an int between 1 and 20")
+            return
+
+        ais = body.get("ais", [])
+        if not isinstance(ais, list) or not (1 <= len(ais) <= 6):
+            bad("ais must be a non-empty list with 1 to 6 entries")
+            return
+
+        normalized_ais: list[dict] = []
+        for i, ai_cfg in enumerate(ais):
+            if not isinstance(ai_cfg, dict):
+                bad(f"ai {i + 1} must be an object")
+                return
+            prompt = ai_cfg.get("prompt")
+            if not isinstance(prompt, str) or not prompt.strip():
+                bad(f"ai {i + 1} prompt must be a non-empty string")
+                return
+            name = ai_cfg.get("name", f"AI {i + 1}")
+            if not isinstance(name, str) or not name.strip():
+                name = f"AI {i + 1}"
+            agent = ai_cfg.get("agent", "stub")
+            if not isinstance(agent, str) or not agent.strip():
+                agent = "stub"
+            normalized_ais.append({
+                "name": name,
+                "prompt": prompt,
+                "agent": agent,
+            })
+
+        with gamestate.lock:
+            gid = gamestate.runtime.next_id
+            gamestate.runtime.next_id += 1
+            game = {
+                "id": gid,
+                "created_at": time.time(),
+                "status": "running",
+                "is_campaign": True,
+                "num_rounds": num_rounds,
+                "ais_remaining": len(normalized_ais),
+                "ais_cfg": normalized_ais,
+                "current_stage": "starting",
+                "current_round_idx": 0,
+                "campaign_state": {
+                    "rounds_total": num_rounds,
+                    "banked_loot": 0,
+                    "bankroll": 0,
+                    "notoriety": 0,
+                    "standing_crew": [],
+                    "attempted_job_names": [],
+                    "round_results": [],
+                    "between_round_log": [],
+                },
+                "game_states": [
+                    {
+                        "ai_idx": i,
+                        "ai_name": ai["name"],
+                        "ai_game_id": None,
+                        "status": "waiting",
+                        "banked_loot": 0,
+                        "notoriety": 0,
+                        "standing_crew": [],
+                        "round_results": [],
+                    }
+                    for i, ai in enumerate(normalized_ais)
+                ],
+            }
+            gamestate.games[gid] = game
+
+        save_game_record(dict(game))
+
+        t = threading.Thread(
+            target=orchestration.run_campaign_conductor,
+            args=(gid, num_rounds),
+            daemon=True,
+        )
+        t.start()
+
+        self._json_ok({"campaign_id": gid})
 
     def _handle_add_ai(self):
         body = self._read_json()
@@ -428,9 +698,60 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         )
         t.start()
 
-    def _handle_delete_game(self, gid_str: str) -> None:
-        """Remove a non-running game: drop it from the in-memory dict and
-        delete both the persisted record and any per-AI runner snapshots."""
+    def _handle_quick_campaign(self) -> None:
+        """One-click preset: 3-round campaign with The Operators (codex-mini),
+        The Wreckers (codex-mini), and The Ghost (gemini) — three contrasting
+        philosophies competing across 3 rounds."""
+        from heist.content import QUICK_TEST_CAMPAIGN, QUICK_TEST_CAMPAIGN_ROUNDS
+        _pt = ZoneInfo("America/Los_Angeles")
+        _now = datetime.now(_pt)
+        _campaign_name = _now.strftime("%A %B %-d, %-I:%M %p PT")
+        with gamestate.lock:
+            gid = gamestate.runtime.next_id
+            gamestate.runtime.next_id += 1
+            ais = [dict(team) for team in QUICK_TEST_CAMPAIGN]
+            num_rounds = QUICK_TEST_CAMPAIGN_ROUNDS
+            gamestate.games[gid] = {
+                "id": gid,
+                "created_at": time.time(),
+                "status": "running",
+                "is_campaign": True,
+                "name": _campaign_name,
+                "num_rounds": num_rounds,
+                "ais_remaining": len(ais),
+                "ais_cfg": ais,
+                "current_stage": "starting",
+                "current_round_idx": 0,
+                "quick_test": True,
+                "campaign_state": {
+                    "rounds_total": num_rounds, "banked_loot": 0,
+                    "bankroll": 0, "notoriety": 0, "standing_crew": [],
+                    "attempted_job_names": [], "round_results": [],
+                    "between_round_log": [],
+                },
+                "game_states": [
+                    {"ai_idx": i, "ai_name": ai["name"], "ai_game_id": None,
+                     "status": "waiting", "banked_loot": 0, "notoriety": 0,
+                     "standing_crew": [], "round_results": []}
+                    for i, ai in enumerate(ais)
+                ],
+            }
+        try:
+            save_game_record(dict(gamestate.games[gid]))
+        except Exception as exc:
+            log.warn("quick_campaign_persist_failed", error=str(exc))
+        self._json_ok({"campaign_id": gid, "ok": True})
+        t = threading.Thread(
+            target=orchestration.run_campaign_conductor,
+            args=(gid, num_rounds),
+            daemon=True,
+        )
+        t.start()
+
+    def _handle_delete_game(self, gid_str: str, *, force: bool = False) -> None:
+        """Remove a game: drop it from the in-memory dict and delete both the
+        persisted record and any per-AI runner snapshots. Pass force=True to
+        delete a still-running game (useful for stuck campaigns)."""
         try:
             gid = int(gid_str)
         except ValueError:
@@ -441,10 +762,10 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             if not game:
                 self._json_error(404, "game not found")
                 return
-            if game.get("status") == "running":
+            if game.get("status") == "running" and not force:
                 self._json_error(
                     409,
-                    "game is running — wait for it to finish (or kill the server) before deleting",
+                    "game is running — pass ?force=1 to delete it anyway",
                 )
                 return
             # Drop the in-memory record so future /api/games calls don't see it.
@@ -555,7 +876,8 @@ def serve(port: int = 8000, web_dir: Path | None = None) -> None:
     # read fresh on every request so this takes effect immediately.
     if web_dir is not None:
         global _LOBBY_HTML, _SETUP_HTML, _HIRING_HTML, _JOB_HTML
-        global _HEIST_HTML, _EPILOGUE_HTML, _SHELL_JS, _MOCKS_DIR, _TABS_DIR
+        global _HEIST_HTML, _EPILOGUE_HTML, _CAMPAIGN_HTML
+        global _SHELL_JS, _MOCKS_DIR, _TABS_DIR
         d = web_dir.resolve()
         _LOBBY_HTML    = d / "lobby.html"
         _SETUP_HTML    = d / "web" / "setup.html"
@@ -563,6 +885,7 @@ def serve(port: int = 8000, web_dir: Path | None = None) -> None:
         _JOB_HTML      = d / "job.html"
         _HEIST_HTML    = d / "heist.html"
         _EPILOGUE_HTML = d / "epilogue.html"
+        _CAMPAIGN_HTML = d / "campaign.html"
         _SHELL_JS      = d / "web" / "shell.js"
         _MOCKS_DIR     = d / "mocks"
         _TABS_DIR      = d / "web" / "tabs"

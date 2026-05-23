@@ -148,13 +148,17 @@ body {
 <script src="/shell.js"></script>
 <script>
 (async function() {
-  const gameId = new URLSearchParams(location.search).get('game');
+  const params = new URLSearchParams(location.search);
+  const gameId = params.get('game');
 
   try { await loadTabFragment('hiring'); } catch (e) { console.error('hiring fragment failed:', e); }
   if (window.HiringTab) HiringTab.mount(document.getElementById('main'), { shell: Shell });
 
   await initShell({
     gameId,
+    campaignId: params.get('campaign'),
+    aiIdx: params.get('ai'),
+    roundIdx: params.get('round'),
     onEvent(e) {
       if (e.type === '_reset') {
         if (window.HiringTab) HiringTab.reset();
@@ -164,7 +168,7 @@ body {
       // Navigate to /job AFTER hiring wraps (casting_summary) but BEFORE the
       // AI commits — user sees the full job slate first.
       if (e.type === 'turn_end' && e.label === 'casting_summary') {
-        Shell.atPhaseEnd(`/job?game=${gameId}`);
+        Shell.atPhaseEnd(Shell.phaseUrl('job'));
       }
     }
   });

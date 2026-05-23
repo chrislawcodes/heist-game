@@ -43,23 +43,31 @@ def test_each_primary_skill_has_at_least_three_specialists():
         assert primaries.get(skill, 0) >= 3, f"{skill}: {primaries.get(skill, 0)} primaries"
 
 
-def test_seven_jobs_present():
-    assert len(JOBS) == 7
+def test_fifteen_jobs_present():
+    assert len(JOBS) == 15
     names = {j.name for j in JOBS}
     assert names == {
         "The Museum Gala",
         "The Armored Car",
-        "The Corporate Server Farm",
-        "The Penthouse Caper",
         "The Cargo Yard",
+        "Corner Pharmacy",
+        "The Penthouse Caper",
+        "The Corporate Server Farm",
         "The Diplomatic Reception",
+        "Art Forgery Ring",
+        "Private Airfield",
         "The Casino Vault",
+        "City Hall Records",
+        "Harbor Container Swap",
+        "Federal Reserve Branch",
+        "Billionaire's Compound",
+        "The Mint",
     }
 
 
 def test_each_job_has_hidden_depth_and_rewards():
     for j in JOBS:
-        assert 4 <= len(j.hidden_depth) <= 6
+        assert 2 <= len(j.hidden_depth) <= 6
         assert 2 <= len(j.reward_amounts) <= 3
         for label, amount in j.reward_amounts:
             assert j.reward_range[0] <= amount <= j.reward_range[1], (

@@ -57,13 +57,16 @@ def test_settle_round_no_capture_on_success():
 
 
 def test_settle_round_capture_on_failed_escape():
+    # Per design: a failed escape catches exactly one member; the rest escape with the loot.
     members = ROSTER[:2]
     campaign = _make_campaign(crew_members=members)
     state = _make_state(Crew(list(members)), escape_success=False)
+    state.caught_member_ids = [members[0].id]  # one member is caught
 
     settle_round(campaign, state)
 
-    assert campaign.standing_crew == []
+    assert len(campaign.standing_crew) == 1
+    assert campaign.standing_crew[0].id == members[1].id
 
 
 def test_settle_round_notoriety_accumulates_and_decays():
@@ -79,9 +82,11 @@ def test_settle_round_notoriety_accumulates_and_decays():
 
 
 def test_settle_round_crew_wipe_ends_campaign():
+    # Crew wipe can happen when all members are caught across scenes + escape.
     members = ROSTER[:4]
     campaign = _make_campaign(crew_members=members)
     state = _make_state(Crew(list(members)), escape_success=False)
+    state.caught_member_ids = [m.id for m in members]  # all caught
 
     ended = settle_round(campaign, state)
 

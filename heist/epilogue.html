@@ -108,6 +108,27 @@ body {
   font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
   color: var(--muted); margin-bottom: 10px;
 }
+.ep-standings-btn {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 18px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(232,160,48,0.35);
+  background: rgba(232,160,48,0.12);
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+.ep-standings-btn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(232,160,48,0.6);
+  background: rgba(232,160,48,0.18);
+}
 
 /* ── right rail ── */
 #rail {
@@ -173,7 +194,9 @@ body {
 <script src="/shell.js"></script>
 <script>
 (async function() {
-  const gameId = new URLSearchParams(location.search).get('game');
+  const params = new URLSearchParams(location.search);
+  const gameId = params.get('game');
+  let campaignGameId = params.get('campaign') ? Number(params.get('campaign')) : null;
 
   function esc(s) {
     return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -196,8 +219,43 @@ body {
       (s.bonus_pursued != null
         ? `<div class="ep-row"><span class="ep-row-key">Bonus</span><span class="ep-row-val">${s.bonus_pursued ? (s.bonus_success ? 'Pursued — succeeded' : 'Pursued — failed') : 'Not pursued'}</span></div>`
         : '') +
+      (campaignGameId
+        ? `<a class="ep-standings-btn" href="/campaign?game=${encodeURIComponent(campaignGameId)}">See Standings →</a>`
+        : '') +
       (epilogueText
         ? `<div class="ep-epilogue"><div class="ep-epilogue-label">Epilogue</div>${esc(epilogueText)}</div>`
+        : '');
+  }
+
+  // Campaign round sub-games emit `heist_complete` (top-level outcome fields)
+  // instead of `game_done` (nested state). Render the round outcome from it.
+  function renderFromHeistComplete(e) {
+    if (!e) return;
+    const events = Shell.replayEvents || [];
+    const aiIdx = e.ai_idx ?? 0;
+    const ok = !e.aborted && e.escape_success !== false;
+    const take = e.final_take != null ? '$' + Number(e.final_take).toLocaleString() : '—';
+    // Heat + job name aren't on heist_complete; recover them from the stream.
+    let heat = 0, jobName = '—';
+    for (const ev of events) {
+      if ((ev.ai_idx ?? 0) !== aiIdx) continue;
+      if (ev.type === 'scene_done' && ev.heat != null) heat = ev.heat;
+      if (ev.type === 'job_known' && ev.job) jobName = ev.job.name;
+    }
+    const caught = (e.caught_member_ids || [])
+      .map(id => (Shell.roster || []).find(c => c.id === id))
+      .filter(Boolean).map(c => c.name);
+    const card = document.getElementById('ep-card');
+    card.innerHTML =
+      `<div class="${ok ? 'ep-heading-ok' : 'ep-heading-fail'}">${ok ? '✓ Heist Complete' : '✗ Heist Failed'}</div>` +
+      `<div class="ep-job">${esc(jobName)}</div>` +
+      `<div class="ep-take">${esc(take)}</div>` +
+      `<div class="ep-row"><span class="ep-row-key">Escape</span><span class="ep-row-val">${e.escape_success ? 'Succeeded' : 'Failed'}</span></div>` +
+      `<div class="ep-row"><span class="ep-row-key">Aborted</span><span class="ep-row-val">${e.aborted ? 'Yes' : 'No'}</span></div>` +
+      `<div class="ep-row"><span class="ep-row-key">Final heat</span><span class="ep-row-val">${heat}</span></div>` +
+      `<div class="ep-row"><span class="ep-row-key">Caught</span><span class="ep-row-val">${caught.length ? esc(caught.join(', ')) : 'None'}</span></div>` +
+      (campaignGameId
+        ? `<a class="ep-standings-btn" href="/campaign?game=${encodeURIComponent(campaignGameId)}">See Standings →</a>`
         : '');
   }
 
@@ -210,18 +268,39 @@ body {
         return;
       }
     }
+    // Fallback: campaign round sub-game emits heist_complete, not game_done.
+    for (const ev of events) {
+      if (ev.type === 'heist_complete' && (ev.ai_idx ?? 0) === aiIdx) {
+        if (ev.campaign_id != null) campaignGameId = ev.campaign_id;
+        renderFromHeistComplete(ev);
+        return;
+      }
+    }
   }
 
   await initShell({
     gameId,
+    campaignId: params.get('campaign'),
+    aiIdx: params.get('ai'),
+    roundIdx: params.get('round'),
     onEvent(e) {
       if (e.type === '_reset') return;  // no tab to reset
       // Re-render on game_done (handles both live and replay)
       if (e.type === 'game_done' && (e.ai_idx ?? 0) === Shell.currentAI) {
+        if (e.campaign_id != null) campaignGameId = e.campaign_id;
         renderFromEvent(e);
+      } else if (e.type === 'heist_complete' && (e.ai_idx ?? 0) === Shell.currentAI) {
+        if (e.campaign_id != null) campaignGameId = e.campaign_id;
+        renderFromHeistComplete(e);
       }
     }
   });
+
+  try {
+    const games = await fetch('/api/games').then(r => r.json());
+    const match = games.find(g => String(g.id) === String(gameId));
+    if (match && match.campaign_id != null) campaignGameId = match.campaign_id;
+  } catch {}
 
   // Register re-render on AI switch
   Shell.onAISelected(idx => renderForAI(idx));

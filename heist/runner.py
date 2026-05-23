@@ -109,7 +109,11 @@ def _call(
     log.info(
         "ai_call",
         label=label,
+        # elapsed_ms wraps the whole ai.ask (incl. any retries + pauses);
+        # attempt_ms is the clean latency of the single attempt that succeeded.
         elapsed_ms=int(elapsed * 1000),
+        attempts=getattr(ai, "last_attempts", 1),
+        attempt_ms=getattr(ai, "last_attempt_ms", int(elapsed * 1000)),
         prompt_len=len(prompt),
         response_len=len(turn.text),
         parsed_ok=parsed is not None,

@@ -9,6 +9,7 @@ import random
 import threading
 import time
 import traceback
+from typing import Any
 
 from heist import gamestate
 from heist.ai import AgentTurn
@@ -63,7 +64,7 @@ class _AuctionAwareStubAI:
         return self._base.prompts_seen
 
     def ask(self, prompt: str):
-        if "round of crew bidding" not in prompt:
+        if "round of crew bidding" not in prompt and "bid was rejected" not in prompt:
             return self._base.ask(prompt)
 
         import json
@@ -280,8 +281,12 @@ def _run_game(
                 strategy, ai, crew=crew, rng=rng, emit=emit_tagged, snapshot_fn=snapshot_cb,
             )
 
+        with gamestate.lock:
+            _campaign_id = gamestate.games.get(game_id, {}).get("campaign_id")
         emit_tagged({
             "type": "game_done",
+            "game_id": game_id,
+            "campaign_id": _campaign_id,
             "state": state_to_dict(state),
             "extras": {
                 "casting_summary": extras.get("casting_summary", ""),
@@ -416,3 +421,534 @@ def recover_games() -> tuple[int, int]:
         t.start()
 
     return (games_recovered, ai_resuming)
+
+
+# ── campaign conductor ────────────────────────────────────────────────────────
+
+def _campaign_ended(camp: Any) -> bool:
+    from heist.campaign import NOTORIETY_CRITICAL
+    return len(camp.standing_crew) == 0 or camp.notoriety >= NOTORIETY_CRITICAL
+
+
+def _crew_from_game_state(gs: dict) -> list:
+    """Extract Character objects from a game_state dict (post-auction snapshot)."""
+    from heist.content import ROSTER_BY_ID as _RBI
+    from heist.state import Character as _Char
+    crew_raw = gs.get("crew", {})
+    if isinstance(crew_raw, dict):
+        members_raw = crew_raw.get("members", [])
+    else:
+        members_raw = list(crew_raw or [])
+    result: list[Any] = []
+    for m in members_raw:
+        if isinstance(m, _Char):
+            result.append(m)
+        elif isinstance(m, dict):
+            cid = m.get("char_id") or m.get("id")
+            if cid is not None:
+                char = _RBI.get(int(cid))
+                if char:
+                    result.append(char)
+    return result
+
+
+def _build_game_states_snapshot(
+    campaign_id: int,
+    campaigns: list,
+    ais_cfg: list[dict],
+    ais: list,
+    round_gids_per_ai: list,
+    heist_states: list,
+) -> list[dict]:
+    """Build a list of per-AI state snapshots for passing to wire/reflection calls."""
+    from heist.serialize import campaign_to_dict
+    result: list[dict] = []
+    for i, camp in enumerate(campaigns):
+        if camp is None:
+            result.append({
+                "ai_idx": i,
+                "ai_name": ais_cfg[i].get("name", f"AI {i + 1}"),
+                "ai": ais[i] if i < len(ais) else None,
+                "standing_crew": [],
+                "banked_loot": 0,
+                "notoriety": 0,
+                "round_results": [],
+            })
+        else:
+            d = campaign_to_dict(camp)
+            state = heist_states[i] if i < len(heist_states) else None
+            if state is not None:
+                d["job_name"] = state.job.name
+                d["take"] = state.final_take
+                d["escape_success"] = state.escape_success
+                d["caught_member_ids"] = list(state.caught_member_ids)
+            d["ai_idx"] = i
+            d["ai_name"] = ais_cfg[i].get("name", f"AI {i + 1}")
+            d["ai"] = ais[i] if i < len(ais) else None
+            d["round_game_ids"] = list(round_gids_per_ai[i])
+            result.append(d)
+    return result
+
+
+def run_campaign_conductor(campaign_id: int, num_rounds: int) -> None:
+    """One thread that runs all AIs through each round in lockstep.
+
+    Stages per round: opening_wire → hiring → heist → reflection.
+    Updates game['current_stage'] and game['current_round_idx'] after each stage.
+    """
+    from heist.campaign import _opening_wire_call, _reflection_call, settle_round
+    from heist.content import BANKROLL, ROSTER  # noqa: F401 used below
+    from heist.persist import save_game_record
+    from heist.runner import TurnLog, run_one_job
+    from heist.serialize import campaign_to_dict, crew_to_dict
+    from heist.state import Campaign as CampaignType
+    from heist.state import Crew as CrewType
+    from heist.state import HeistState
+
+    with gamestate.lock:
+        game = gamestate.games.get(campaign_id)
+        if not game:
+            return
+        ais_cfg = list(game.get("ais_cfg", []))
+
+    num_ais = len(ais_cfg)
+    strategies = [cfg.get("prompt", "") for cfg in ais_cfg]
+
+    try:
+        ais = [_build_ai(cfg.get("agent", "stub"), ai_idx=i) for i, cfg in enumerate(ais_cfg)]
+    except Exception as exc:
+        log.error(
+            "campaign_conductor_build_failed",
+            campaign_id=campaign_id,
+            error=str(exc),
+        )
+        persist_game: dict = {}
+        with gamestate.lock:
+            game = gamestate.games.get(campaign_id)
+            if game:
+                game["status"] = "done"
+                game["ais_remaining"] = 0
+                persist_game = dict(game)
+        import contextlib as _cl
+        with _cl.suppress(Exception):
+            save_game_record(persist_game)
+        gamestate.broadcast({"type": "campaign_done", "campaign_id": campaign_id})
+        return
+
+    campaigns: list[CampaignType | None] = [None] * num_ais
+    heist_states: list[HeistState | None] = [None] * num_ais
+    logs_per_ai: list[list[TurnLog]] = [[] for _ in range(num_ais)]
+    round_gids_per_ai: list[list[int]] = [[] for _ in range(num_ais)]
+    current_round_sub_gids: list[int | None] = [None] * num_ais
+    hiring_gids: list[int | None] = [None] * num_rounds
+
+    def emit_for_ai(ai_idx: int, evt: dict) -> None:
+        gamestate.broadcast({**evt, "ai_idx": ai_idx, "campaign_id": campaign_id})
+
+    def set_stage(stage: str, round_idx: int) -> None:
+        gamestate.update_game(campaign_id, current_stage=stage, current_round_idx=round_idx)
+        gamestate.broadcast({
+            "type": "campaign_stage",
+            "campaign_id": campaign_id,
+            "stage": stage,
+            "round_idx": round_idx,
+        })
+
+    def snapshot_all(*, finished: bool = False) -> None:
+        persist_game_snap: dict | None = None
+        with gamestate.lock:
+            game = gamestate.games.get(campaign_id)
+            if not game:
+                return
+            for i, camp in enumerate(campaigns):
+                if camp is None:
+                    continue
+                entry = {
+                    **campaign_to_dict(camp),
+                    "ai_idx": i,
+                    "ai_name": ais_cfg[i].get("name", f"AI {i + 1}"),
+                    "round_game_ids": list(round_gids_per_ai[i]),
+                    "hiring_game_ids": list(hiring_gids),
+                    "ai_game_id": round_gids_per_ai[i][-1] if round_gids_per_ai[i] else None,
+                    "status": "done" if finished else "running",
+                }
+                game["game_states"][i] = entry
+            if finished:
+                game["status"] = "done"
+                game["ais_remaining"] = 0
+            persist_game_snap = dict(game)
+        if persist_game_snap is not None:
+            try:
+                save_game_record(persist_game_snap)
+            except Exception as exc:
+                log.warn("save_game_record_failed", game_id=campaign_id, error=str(exc))
+
+    def open_round_sub_game(ai_idx: int, round_idx: int) -> int:
+        with gamestate.lock:
+            rgid = gamestate.runtime.next_id
+            gamestate.runtime.next_id += 1
+            current_round_sub_gids[ai_idx] = rgid
+            gamestate.games[rgid] = {
+                "id": rgid,
+                "created_at": time.time(),
+                "status": "running",
+                "is_campaign_sub": True,
+                "campaign_id": campaign_id,
+                "parent_campaign_id": campaign_id,
+                "hidden_from_lobby": True,
+                "ai_idx": ai_idx,
+                "ai_name": ais_cfg[ai_idx].get("name", f"AI {ai_idx + 1}"),
+                "round_idx": round_idx,
+                "hire_sub_game_id": hiring_gids[round_idx],
+                "heist_sub_game_id": rgid,
+                "events": [],
+            }
+        hgid = hiring_gids[round_idx]
+        if hgid is not None:
+            with gamestate.lock:
+                sub = gamestate.games.get(hgid)
+                if sub is not None:
+                    heist_ids = list(sub.get("heist_sub_game_ids", []))
+                    heist_ids.append(rgid)
+                    sub["heist_sub_game_ids"] = heist_ids
+                    if sub.get("heist_sub_game_id") is None:
+                        sub["heist_sub_game_id"] = rgid
+                    persist = dict(sub)
+                else:
+                    persist = None
+            if persist is not None:
+                try:
+                    save_game_record(persist)
+                except Exception as exc:
+                    log.warn("save_game_record_failed", game_id=hgid, error=str(exc))
+        return rgid
+
+    def close_round_sub_game(ai_idx: int) -> int | None:
+        rgid = current_round_sub_gids[ai_idx]
+        if rgid is None:
+            return None
+        persist: dict | None = None
+        with gamestate.lock:
+            sub = gamestate.games.get(rgid)
+            if sub:
+                sub["status"] = "done"
+                persist = dict(sub)
+        current_round_sub_gids[ai_idx] = None
+        if persist is not None:
+            try:
+                save_game_record(persist)
+            except Exception as exc:
+                log.warn("save_game_record_failed", game_id=rgid, error=str(exc))
+        round_gids_per_ai[ai_idx].append(rgid)
+        return rgid
+
+    def open_hiring_sub_game(round_idx: int) -> int:
+        with gamestate.lock:
+            hgid = gamestate.runtime.next_id
+            gamestate.runtime.next_id += 1
+            hiring_gids[round_idx] = hgid
+            gamestate.games[hgid] = {
+                "id": hgid,
+                "created_at": time.time(),
+                "status": "running",
+                "is_hiring_sub": True,
+                "campaign_id": campaign_id,
+                "parent_campaign_id": campaign_id,
+                "hidden_from_lobby": True,
+                "round_idx": round_idx,
+                "hire_sub_game_id": hgid,
+                "heist_sub_game_id": None,
+                "heist_sub_game_ids": [],
+                "ai_idx": None,
+                "ai_name": None,
+                # Shell.js reads `ais` to populate aiList → chip columns.
+                # Without this field, Shell.aiList stays [] and no bid
+                # markers or crew columns render in the hiring viewer.
+                "ais": [
+                    {"name": cfg.get("name", f"AI {i + 1}")}
+                    for i, cfg in enumerate(ais_cfg)
+                ],
+                "events": [],
+            }
+        return hgid
+
+    def close_hiring_sub_game(round_idx: int) -> None:
+        hgid = hiring_gids[round_idx]
+        if hgid is None:
+            return
+        persist: dict | None = None
+        with gamestate.lock:
+            sub = gamestate.games.get(hgid)
+            if sub:
+                sub["status"] = "done"
+                persist = dict(sub)
+        if persist is not None:
+            try:
+                save_game_record(persist)
+            except Exception as exc:
+                log.warn("save_hiring_sub_game_failed", game_id=hgid, error=str(exc))
+
+    def make_emit_fn(ai_idx: int):
+        def emit_fn(evt: dict) -> None:
+            rgid = current_round_sub_gids[ai_idx]
+            tagged = {**evt, "ai_idx": ai_idx, "campaign_id": campaign_id}
+            if rgid is not None:
+                tagged["game_id"] = rgid
+            gamestate.broadcast(tagged)
+        return emit_fn
+
+    def run_initial_auction() -> None:
+        from heist.auction import run_auction
+
+        def emit_tagged(ai_idx: int, evt: dict) -> None:
+            hgid = hiring_gids[0]
+            tagged = {**evt, "ai_idx": ai_idx, "campaign_id": campaign_id}
+            if hgid is not None:
+                tagged["game_id"] = hgid
+            gamestate.broadcast(tagged)
+
+        def emit_and_save(evt: dict) -> None:
+            hgid = hiring_gids[0]
+            broadcast_evt = {**evt, "campaign_id": campaign_id}
+            if hgid is not None:
+                broadcast_evt["game_id"] = hgid
+            gamestate.broadcast(broadcast_evt)
+            if evt.get("type") == "auction_round_resolved":
+                with gamestate.lock:
+                    game = gamestate.games.get(campaign_id)
+                    if game:
+                        for i_str, char_ids in evt.get("crews_after", {}).items():
+                            idx = int(i_str)
+                            if idx < len(game["game_states"]):
+                                game["game_states"][idx]["standing_crew"] = char_ids
+                snapshot_all()
+
+        result = run_auction(
+            ais, strategies,
+            {i: list(logs_per_ai[i]) for i in range(num_ais)},
+            emit_tagged, emit_and_save,
+        )
+        with gamestate.lock:
+            game = gamestate.games.get(campaign_id)
+            if not game:
+                return
+            for i in range(num_ais):
+                crew = result.crews.get(i)
+                if crew is not None:
+                    game["game_states"][i]["crew"] = crew_to_dict(crew)
+                    game["game_states"][i]["standing_crew"] = [m.id for m in crew.members]
+        # Initialize Campaign objects from hired crews
+        for i in range(num_ais):
+            with gamestate.lock:
+                game = gamestate.games.get(campaign_id)
+                gs = game["game_states"][i] if game else {}
+            crew_members = _crew_from_game_state(gs)
+            crew_cost = sum(c.floor_cost for c in crew_members)
+            campaigns[i] = CampaignType(
+                rounds_total=num_rounds,
+                bankroll=BANKROLL - crew_cost,
+                banked_loot=0,
+                standing_crew=list(crew_members),
+                notoriety=0,
+                attempted_job_names=set(),
+                round_results=[],
+            )
+
+    def run_rehire_auction() -> None:
+        from heist.auction import run_auction
+
+        all_standing_ids: set[int] = set()
+        for camp in campaigns:
+            if camp is not None:
+                for c in camp.standing_crew:
+                    all_standing_ids.add(c.id)
+        available_pool = [c for c in ROSTER if c.id not in all_standing_ids]
+
+        initial_crews_map: dict[int, list] = {}
+        initial_bankrolls_map: dict[int, int] = {}
+        for i, camp in enumerate(campaigns):
+            if camp is not None:
+                initial_crews_map[i] = list(camp.standing_crew)
+                initial_bankrolls_map[i] = camp.banked_loot
+            else:
+                initial_crews_map[i] = []
+                initial_bankrolls_map[i] = 0
+
+        def emit_tagged(ai_idx: int, evt: dict) -> None:
+            hgid = hiring_gids[last_round_idx]
+            tagged = {**evt, "ai_idx": ai_idx, "campaign_id": campaign_id}
+            if hgid is not None:
+                tagged["game_id"] = hgid
+            gamestate.broadcast(tagged)
+
+        def emit_and_save(evt: dict) -> None:
+            hgid = hiring_gids[last_round_idx]
+            broadcast_evt = {**evt, "campaign_id": campaign_id}
+            if hgid is not None:
+                broadcast_evt["game_id"] = hgid
+            gamestate.broadcast(broadcast_evt)
+            if evt.get("type") == "auction_round_resolved":
+                with gamestate.lock:
+                    game = gamestate.games.get(campaign_id)
+                    if game:
+                        for i_str, char_ids in evt.get("crews_after", {}).items():
+                            idx = int(i_str)
+                            if idx < len(game["game_states"]):
+                                game["game_states"][idx]["standing_crew"] = char_ids
+                snapshot_all()
+
+        result = run_auction(
+            ais, strategies,
+            {i: list(logs_per_ai[i]) for i in range(num_ais)},
+            emit_tagged, emit_and_save,
+            initial_crews=initial_crews_map,
+            initial_bankrolls=initial_bankrolls_map,
+            pool_override=available_pool,
+        )
+        for i, camp in enumerate(campaigns):
+            if camp is None:
+                continue
+            newly_hired_crew = result.crews.get(i)
+            if newly_hired_crew is None:
+                continue
+            spent = result.bankrolls_spent.get(i, 0)
+            camp.standing_crew = list(newly_hired_crew.members)
+            camp.banked_loot -= spent
+            with gamestate.lock:
+                game = gamestate.games.get(campaign_id)
+                if game:
+                    game["game_states"][i]["crew"] = crew_to_dict(newly_hired_crew)
+                    game["game_states"][i]["standing_crew"] = [
+                        m.id for m in newly_hired_crew.members
+                    ]
+
+    last_round_idx = 0
+    try:
+        for round_idx in range(num_rounds):
+            last_round_idx = round_idx
+
+            # ── Stage 1: Opening Wire ────────────────────────────────────────
+            set_stage("opening_wire", round_idx)
+            game_states_snapshot = _build_game_states_snapshot(
+                campaign_id, campaigns, ais_cfg, ais, round_gids_per_ai, heist_states,
+            )
+            for i in range(num_ais):
+                camp = campaigns[i]
+                if camp is not None and not _campaign_ended(camp):
+                    _opening_wire_call(
+                        camp, i, round_idx, ais[i],
+                        game_states_snapshot, logs_per_ai[i],
+                        make_emit_fn(i),
+                    )
+                elif camp is None and round_idx == 0:
+                    # Before first auction, campaigns are None — still generate wire
+                    pass
+            snapshot_all()
+
+            # ── Stage 2: Hiring ──────────────────────────────────────────────
+            set_stage("hiring", round_idx)
+            open_hiring_sub_game(round_idx)
+            if round_idx == 0:
+                run_initial_auction()
+            else:
+                run_rehire_auction()
+            close_hiring_sub_game(round_idx)
+            snapshot_all()
+
+            # ── Stage 3: Heist (parallel — each AI's heist is independent) ────
+            # Each AI runs its own crew/job/scenes against its own Campaign
+            # object and its own backend instance, writing only to its own
+            # per-AI index (sub-game, logs, heist_states) under gamestate.lock.
+            # So the heists run concurrently; we join them all before moving on,
+            # which keeps the stage barrier (reflection waits for every heist).
+            set_stage("heist", round_idx)
+
+            def _run_heist(i: int, round_idx: int = round_idx) -> None:
+                camp = campaigns[i]
+                if camp is None or _campaign_ended(camp) or not camp.standing_crew:
+                    return
+                rng = random.Random()
+                rgid = open_round_sub_game(i, round_idx)
+                emit_fn = make_emit_fn(i)
+                crew_evt = {
+                    "type": "crew_known",
+                    "crew": crew_to_dict(CrewType(members=list(camp.standing_crew))),
+                    "game_id": rgid,
+                    "campaign_id": campaign_id,
+                    "ai_idx": i,
+                }
+                gamestate.broadcast(crew_evt)
+                try:
+                    result = run_one_job(
+                        strategies[i], ais[i], camp, rng=rng, emit=emit_fn,
+                    )
+                except Exception as exc:
+                    log.error(
+                        "campaign_conductor_heist_failed",
+                        campaign_id=campaign_id,
+                        ai_idx=i,
+                        round=round_idx,
+                        error=str(exc),
+                        traceback=traceback.format_exc(),
+                    )
+                    result = None
+                close_round_sub_game(i)
+                heist_states[i] = result[0] if result is not None else None
+
+            heist_threads = [
+                threading.Thread(
+                    target=_run_heist,
+                    args=(i,),
+                    name=f"heist-c{campaign_id}-r{round_idx}-ai{i}",
+                )
+                for i in range(num_ais)
+            ]
+            for t in heist_threads:
+                t.start()
+            for t in heist_threads:
+                t.join()
+            snapshot_all()
+
+            # ── Stage 4: Reflection + settle ─────────────────────────────────
+            set_stage("reflection", round_idx)
+            game_states_after = _build_game_states_snapshot(
+                campaign_id, campaigns, ais_cfg, ais, round_gids_per_ai, heist_states,
+            )
+            any_ended = False
+            for i in range(num_ais):
+                camp = campaigns[i]
+                state = heist_states[i]
+                if camp is None or state is None:
+                    continue
+                _reflection_call(
+                    camp, i, round_idx, ais[i],
+                    game_states_after, logs_per_ai[i],
+                    make_emit_fn(i),
+                )
+                ended = settle_round(camp, state)
+                if ended:
+                    any_ended = True
+            snapshot_all()
+
+            gamestate.broadcast({
+                "type": "campaign_round_done",
+                "campaign_id": campaign_id,
+                "round_idx": round_idx,
+            })
+
+            if any_ended:
+                break
+
+        set_stage("done", last_round_idx)
+        snapshot_all(finished=True)
+        gamestate.broadcast({"type": "campaign_done", "campaign_id": campaign_id})
+
+    except Exception as exc:
+        log.error(
+            "campaign_conductor_crashed",
+            campaign_id=campaign_id,
+            error=str(exc),
+            traceback=traceback.format_exc(),
+        )
+        snapshot_all(finished=True)
+        gamestate.broadcast({"type": "campaign_done", "campaign_id": campaign_id})

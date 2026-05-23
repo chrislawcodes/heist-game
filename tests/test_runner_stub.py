@@ -84,7 +84,8 @@ def test_zero_take_on_failed_escape(monkeypatch):
                                   "social": ChallengeLevel.NONE},
               0,
               [HiddenDepthElement("x", "x", "complication", {})],
-              [("std", 1_000_000)])
+              [("std", 1_000_000)],
+              tier="")
     el = job.hidden_depth[0]
     state = HeistState(
         crew=Crew([char]), job=job,
@@ -115,7 +116,8 @@ def test_zero_take_on_abort():
                                   "social": ChallengeLevel.NONE},
               0,
               [HiddenDepthElement("x", "x", "complication", {})],
-              [("std", 1_000_000)])
+              [("std", 1_000_000)],
+              tier="")
     el = job.hidden_depth[0]
     state = HeistState(
         crew=Crew([char]), job=job,

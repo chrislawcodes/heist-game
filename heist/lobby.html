@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Heist</title>
 <style>
 :root {
@@ -17,315 +18,385 @@
   --blue: #5898e0;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { min-height: 100%; }
 body {
-  background: var(--bg); color: var(--text);
+  background:
+    radial-gradient(900px 420px at 50% -140px, rgba(232,160,48,0.08), transparent 60%),
+    radial-gradient(760px 320px at 18% 10%, rgba(88,152,224,0.08), transparent 55%),
+    radial-gradient(860px 360px at 82% 18%, rgba(82,196,122,0.05), transparent 55%),
+    var(--bg);
+  color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   min-height: 100vh;
-  display: flex; flex-direction: column; align-items: center;
-  padding: 0 24px 64px;
+  padding: 32px 24px 56px;
 }
-
-/* ── header ── */
-header {
-  width: 100%; max-width: 720px;
-  padding: 48px 0 40px;
-  display: flex; flex-direction: column; align-items: center; gap: 10px;
+.shell {
+  width: min(1080px, 100%);
+  margin: 0 auto;
 }
-.logo {
-  font-size: 11px; font-weight: 700; letter-spacing: 5px;
-  text-transform: uppercase; color: var(--accent);
+.hero {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 0 28px;
+}
+.brand {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: var(--accent);
 }
 .tagline {
-  font-size: 13px; color: var(--muted); letter-spacing: 0.02em;
+  font-size: 14px;
+  color: var(--muted);
 }
-
-/* ── start button ── */
-.start-btn {
-  display: inline-flex; align-items: center; gap: 8px;
-  background: var(--accent); color: #000;
-  font-weight: 700; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase;
-  padding: 12px 28px; border: none; border-radius: 6px;
-  cursor: pointer; text-decoration: none;
-  transition: background 0.15s;
-  margin-top: 8px;
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
 }
-.start-btn:hover { background: #f0b840; }
-
-.start-row { display: flex; gap: 10px; align-items: center; margin-top: 8px; }
-.quick-btn {
-  display: inline-flex; align-items: center; gap: 8px;
-  background: transparent; color: var(--text);
-  font-weight: 600; font-size: 12px; letter-spacing: 1px;
-  padding: 11px 18px; border: 1px solid var(--border); border-radius: 6px;
-  cursor: pointer; text-decoration: none;
-  transition: border-color 0.15s, color 0.15s;
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
 }
-.quick-btn:hover { border-color: var(--accent); color: var(--accent); }
-
-/* ── games section ── */
+.btn:hover { transform: translateY(-1px); }
+.btn-primary {
+  background: var(--accent);
+  color: #0a0a0a;
+  border: 1px solid var(--accent);
+}
+.btn-secondary {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+.btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
 .section {
-  width: 100%; max-width: 720px;
-  margin-top: 48px;
+  margin-top: 18px;
 }
 .section-label {
-  font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
-  color: var(--muted); margin-bottom: 14px;
+  margin-bottom: 12px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--muted);
 }
-
-/* ── game list ── */
 .game-list {
-  display: flex; flex-direction: column; gap: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 .game-row {
-  background: var(--panel); border: 1px solid var(--border);
-  border-radius: 8px; padding: 16px 20px;
-  display: flex; align-items: center; gap: 16px;
-  cursor: pointer; text-decoration: none; color: inherit;
-  transition: border-color 0.15s, background 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(19,19,22,0.96), rgba(17,17,20,0.96));
 }
-.game-row:hover { border-color: #3a3a4a; background: var(--panel2); }
-
-.game-status {
-  flex-shrink: 0;
-  width: 80px;
-}
+.game-row:hover { border-color: #34343d; background: var(--panel2); }
+.game-status { flex: 0 0 auto; width: 92px; }
 .status-pill {
-  display: inline-flex; align-items: center; gap: 5px;
-  font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
-  padding: 3px 9px; border-radius: 3px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  border: 1px solid transparent;
 }
-.status-staging { background: #1a1a0e; color: var(--accent); }
-.status-running { background: #0c1a2e; color: var(--blue); }
-.status-done    { background: #0c2018; color: var(--green); }
-.status-failed  { background: #2e0c0c; color: var(--red); }
-.status-error   { background: #2e0c0c; color: var(--red); }
-
 .status-dot {
-  width: 6px; height: 6px; border-radius: 50%; background: currentColor;
-  animation: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.status-running {
+  color: var(--blue);
+  background: rgba(88,152,224,0.1);
+  border-color: rgba(88,152,224,0.28);
 }
 .status-running .status-dot { animation: blink 1.2s ease-in-out infinite; }
-@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
-
-.game-info { flex: 1; display: flex; flex-direction: column; gap: 4px; }
-.game-job  { font-size: 14px; font-weight: 600; color: var(--text); }
-.game-sub  { font-size: 12px; color: var(--muted); }
-
-.game-take {
-  font-family: monospace; font-size: 16px; font-weight: 700;
-  color: var(--accent); flex-shrink: 0;
+.status-done {
+  color: var(--green);
+  background: rgba(82,196,122,0.1);
+  border-color: rgba(82,196,122,0.22);
 }
-.game-take.failed { color: var(--red); font-size: 13px; }
-
-.game-chevron {
-  flex-shrink: 0; font-size: 14px; color: var(--muted);
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
 }
-
+.game-info {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.game-title {
+  font-size: 16px;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+.game-sub {
+  font-size: 12px;
+  color: var(--muted);
+}
+.game-banked {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  min-width: 140px;
+  text-align: right;
+}
+.leader-name {
+  font-size: 14px;
+  font-weight: 750;
+  color: var(--accent);
+}
+.banked-label {
+  font-size: 12px;
+  color: var(--muted);
+}
+.game-banked.empty {
+  color: var(--muted);
+  font-size: 20px;
+  font-weight: 600;
+  align-self: center;
+}
 .game-actions {
-  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 .action-link {
-  font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
-  color: var(--accent); text-decoration: none; padding: 5px 10px;
-  border: 1px solid var(--accent); border-radius: 4px;
-  transition: background 0.15s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
 }
 .action-link:hover { background: rgba(232,160,48,0.1); }
-.action-btn {
-  font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
-  background: var(--accent); color: #000; border: none; border-radius: 4px;
-  padding: 5px 12px; cursor: pointer; transition: background 0.15s;
-}
-.action-btn:hover { background: #f0b840; }
-
-/* Secondary destructive action — sits next to Replay / + Add AI. */
 .action-delete {
-  font-size: 16px; line-height: 1; font-weight: 700;
-  width: 26px; height: 26px;
-  display: inline-flex; align-items: center; justify-content: center;
-  background: transparent; color: var(--muted);
-  border: 1px solid var(--border); border-radius: 4px;
-  cursor: pointer; transition: color 0.15s, border-color 0.15s, background 0.15s;
-  padding: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
 }
-.action-delete:hover { color: var(--red); border-color: var(--red); background: rgba(224,80,80,0.08); }
-.action-delete:disabled { opacity: 0.4; cursor: not-allowed; }
-.action-delete:disabled:hover { color: var(--muted); border-color: var(--border); background: transparent; }
-
-/* ── empty state ── */
+.action-delete:hover { border-color: var(--red); color: var(--red); }
+.action-delete-running { opacity: 0.5; }
+.action-delete-running:hover { border-color: var(--accent) !important; color: var(--accent) !important; opacity: 1; }
+.action-delete:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
 .empty-state {
-  background: var(--panel); border: 1px solid var(--border);
-  border-radius: 8px; padding: 32px 24px;
-  text-align: center; color: var(--muted); font-size: 13px;
-  line-height: 1.6;
+  padding: 34px 20px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  text-align: center;
+  color: var(--muted);
+  line-height: 1.7;
 }
-.empty-state strong { color: var(--text); font-weight: 600; }
+.empty-state strong { color: var(--text); }
+@media (max-width: 760px) {
+  body { padding: 20px 14px 40px; }
+  .game-row {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .game-status { width: auto; }
+  .game-banked {
+    align-items: flex-start;
+    text-align: left;
+    min-width: 0;
+    width: 100%;
+    order: 4;
+  }
+  .game-actions {
+    width: 100%;
+    justify-content: flex-start;
+    order: 5;
+  }
+}
 </style>
 </head>
 <body>
-
-<header>
-  <div class="logo">Heist</div>
-  <div class="tagline">Write the strategy. Watch the crew work.</div>
-  <div class="start-row">
-    <button class="start-btn" onclick="newGame()">+ Start New Game</button>
-    <button class="quick-btn" onclick="quickTest()" title="Stage and launch 2× Codex (mini) with the default prompt">▶ Quick Test</button>
-  </div>
-</header>
-
-<div class="section">
-  <div class="section-label">Games</div>
-  <div class="game-list" id="game-list">
-    <div class="empty-state">
-      <strong>No games yet.</strong><br>
-      Hit "Start New Game" to plan your first heist.
+<div class="shell">
+  <header class="hero">
+    <div class="brand">HEIST</div>
+    <div class="tagline">Write the strategy. Watch the crew work.</div>
+    <div class="hero-actions">
+      <button class="btn btn-primary" onclick="newCampaign()">+ New Campaign</button>
+      <button class="btn btn-secondary" onclick="quickTest()" title="Launch a 3-round campaign: The Operators (Codex) vs The Wreckers (Codex) vs The Ghost (Gemini)">▶ Quick Test</button>
     </div>
-  </div>
+  </header>
+
+  <section class="section">
+    <div class="section-label">CAMPAIGNS</div>
+    <div class="game-list" id="campaign-list">
+      <div class="empty-state">
+        <strong>No campaigns yet.</strong><br>
+        Hit + New Campaign to get started.
+      </div>
+    </div>
+  </section>
 </div>
 
 <script>
+function esc(value) {
+  const div = document.createElement('div');
+  div.textContent = value == null ? '' : String(value);
+  return div.innerHTML;
+}
+
 function timeAgo(ts) {
-  const secs = Math.floor(Date.now() / 1000 - ts);
-  if (secs < 60)  return 'just now';
+  const secs = Math.floor(Date.now() / 1000 - Number(ts || 0));
+  if (secs < 60) return 'just now';
   if (secs < 3600) return Math.floor(secs / 60) + 'm ago';
   if (secs < 86400) return Math.floor(secs / 3600) + 'h ago';
   return Math.floor(secs / 86400) + 'd ago';
 }
 
-function renderGames(games) {
-  const el = document.getElementById('game-list');
-  if (!games.length) {
-    el.innerHTML = `<div class="empty-state"><strong>No games yet.</strong><br>Hit "Start New Game" to plan your first heist.</div>`;
+function renderCampaigns(campaigns) {
+  const el = document.getElementById('campaign-list');
+  if (!campaigns.length) {
+    el.innerHTML = `
+      <div class="empty-state">
+        <strong>No campaigns yet.</strong><br>
+        Hit + New Campaign to get started.
+      </div>`;
     return;
   }
 
-  // Most recent first
-  const sorted = [...games].slice().reverse();
-  el.innerHTML = sorted.map(g => {
-    const isStaging = g.status === 'staging';
-    const isRunning = g.status === 'running';
-    const isDone    = g.status === 'done';
-    const isClean   = isDone && !g.aborted && g.escape_success !== false;
+  el.innerHTML = campaigns.map(campaign => {
+    const aiCount = (campaign.ais || []).length;
+    const currentRound = Number(campaign.current_round || 0);
+    const totalRounds = Number(campaign.num_rounds || 5);
+    const titleAi = [...(campaign.ais || [])].sort((a, b) => {
+      if ((b.banked || 0) !== (a.banked || 0)) return (b.banked || 0) - (a.banked || 0);
+      return (a.ai_idx || 0) - (b.ai_idx || 0);
+    })[0];
+    const title = campaign.name
+      ? esc(campaign.name)
+      : campaign.status === 'done' && titleAi
+        ? esc(titleAi.ai_name)
+        : `Campaign #${campaign.id}`;
+    const leader = titleAi && currentRound > 0
+      ? `
+        <div class="leader-name">${esc(titleAi.ai_name)}</div>
+        <div class="banked-label">$${Number(titleAi.banked || 0).toLocaleString()} banked</div>`
+      : `<div class="game-banked empty">—</div>`;
+    const pillClass = campaign.status === 'done' ? 'status-done' : 'status-running';
+    const pillLabel = campaign.status === 'done' ? 'Done' : 'Running';
+    const deleteBtn = campaign.status === 'running'
+      ? `<button class="action-delete action-delete-running" onclick="deleteCampaign(${campaign.id}, '${esc(title).replace(/'/g, "\\'")}', true)" title="Force-delete this running campaign">✕</button>`
+      : `<button class="action-delete" onclick="deleteCampaign(${campaign.id}, '${esc(title).replace(/'/g, "\\'")}')" title="Delete this campaign">✕</button>`;
 
-    const pillCls  = isStaging ? 'status-staging' : isRunning ? 'status-running' : isClean ? 'status-done' : 'status-failed';
-    const pillText = isStaging ? 'Staging' : isRunning ? 'Running' : isClean ? 'Complete' : 'Failed';
-
-    const aiCount  = (g.ais || []).length;
-    const jobName  = g.job || (isRunning ? 'In progress…' : isStaging ? 'Not started' : 'Unknown');
-    const sub      = timeAgo(g.created_at);
-
-    let takeHtml = '';
-    if (isClean && g.take != null) {
-      takeHtml = `<div class="game-take">$${Number(g.take).toLocaleString()}</div>`;
-    } else if (isDone) {
-      takeHtml = `<div class="game-take failed">$0</div>`;
-    }
-
-    // Delete button: present on every non-running game. Running games can't be
-    // deleted cleanly (their threads are mid-codex-call) so we render it disabled.
-    const deleteBtn = isRunning
-      ? `<button class="action-delete" disabled title="Can't delete while a game is running — wait for it to finish.">✕</button>`
-      : `<button class="action-delete" onclick="deleteGame(${g.id}, '${esc(jobName).replace(/'/g, "\\'")}')" title="Delete this game">✕</button>`;
-
-    let actionHtml = '';
-    if (isStaging) {
-      actionHtml = `
+    return `
+      <div class="game-row">
+        <div class="game-status">
+          <span class="status-pill ${pillClass}">
+            <span class="status-dot"></span>${pillLabel}
+          </span>
+        </div>
+        <div class="game-info">
+          <div class="game-title">${title}</div>
+          <div class="game-sub">Round ${currentRound} / ${totalRounds} · ${aiCount} AI${aiCount === 1 ? '' : 's'} · ${timeAgo(campaign.created_at)}</div>
+        </div>
+        ${leader}
         <div class="game-actions">
-          <a class="action-link" href="/setup?game=${g.id}">+ Add AI</a>
-          ${aiCount > 0 ? `<button class="action-btn" onclick="launchGame(${g.id})">▶ Launch</button>` : ''}
+          <a class="action-link" href="/campaign?game=${campaign.id}">War Room -></a>
           ${deleteBtn}
-        </div>`;
-    } else if (isDone) {
-      actionHtml = `
-        <div class="game-actions">
-          <a class="action-link" href="/hiring?game=${g.id}">↻ Replay</a>
-          ${deleteBtn}
-        </div>`;
-    } else if (isRunning) {
-      actionHtml = `<div class="game-actions">${deleteBtn}</div>`;
-    }
-
-    // Every status now has at least one nested button (delete), so the row
-    // is always a <div>. Game-info clicking is wired separately to keep
-    // running games still navigable to the live viewer.
-    const navHref = isRunning ? `/hiring?game=${g.id}` : (isDone ? `/hiring?game=${g.id}` : '');
-    const rowTag = `<div class="game-row"${navHref ? ` onclick="if(event.target.closest('button,a'))return; window.location='${navHref}'"` : ''}`;
-    const rowClose = `</div>`;
-
-    return `${rowTag}>
-      <div class="game-status">
-        <span class="status-pill ${pillCls}">
-          <span class="status-dot"></span>${pillText}
-        </span>
-      </div>
-      <div class="game-info">
-        <div class="game-job">${esc(jobName)}</div>
-        <div class="game-sub">Game #${g.id} · ${aiCount} AI${aiCount !== 1 ? 's' : ''} · ${sub}</div>
-      </div>
-      ${takeHtml}
-      ${actionHtml || `<div class="game-chevron">›</div>`}
-    ${rowClose}`;
+        </div>
+      </div>`;
   }).join('');
 }
 
-function esc(s) {
-  const d = document.createElement('div');
-  d.textContent = s == null ? '' : String(s);
-  return d.innerHTML;
-}
-
-async function newGame() {
-  try {
-    const resp = await fetch('/api/new-game', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
-    const data = await resp.json();
-    window.location = `/setup?game=${data.game_id}`;
-  } catch (e) {
-    alert('Could not create game: ' + e.message);
-  }
+async function newCampaign() {
+  window.location = '/setup';
 }
 
 async function quickTest() {
   try {
-    const resp = await fetch('/api/quick-game', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
-    if (!resp.ok) { const d = await resp.json(); throw new Error(d.error || resp.status); }
-    const data = await resp.json();
-    window.location = `/hiring?game=${data.game_id}`;
-  } catch (e) {
-    alert('Quick test failed: ' + e.message);
-  }
-}
-
-async function launchGame(id) {
-  try {
-    const resp = await fetch('/api/launch', {
+    const resp = await fetch('/api/quick-campaign', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ game_id: id }),
+      body: '{}',
     });
-    if (!resp.ok) { const d = await resp.json(); throw new Error(d.error || resp.status); }
-    window.location = `/hiring?game=${id}`;
-  } catch (e) {
-    alert('Launch failed: ' + e.message);
+    if (!resp.ok) {
+      const data = await resp.json();
+      throw new Error(data.error || resp.status);
+    }
+    const data = await resp.json();
+    window.location = `/campaign?game=${data.campaign_id}`;
+  } catch (err) {
+    alert('Quick test failed: ' + err.message);
   }
 }
 
-async function deleteGame(id, jobName) {
-  const label = jobName && jobName !== 'Unknown' ? `"${jobName}"` : `game #${id}`;
-  if (!confirm(`Delete ${label}? This wipes the record and any saved snapshots — can't be undone.`)) return;
+async function deleteCampaign(id, label, running = false) {
+  const name = label && label !== 'Campaign #' + id ? `"${label}"` : `campaign #${id}`;
+  const warning = running
+    ? `Force-delete ${name}? It's still running — this will kill it mid-campaign. Can't be undone.`
+    : `Delete ${name}? This wipes the record and any saved snapshots — can't be undone.`;
+  if (!confirm(warning)) return;
   try {
-    const resp = await fetch(`/api/games/${id}`, { method: 'DELETE' });
-    if (!resp.ok) { const d = await resp.json(); throw new Error(d.error || resp.status); }
+    const url = `/api/games/${id}` + (running ? '?force=1' : '');
+    const resp = await fetch(url, { method: 'DELETE' });
+    if (!resp.ok) {
+      const data = await resp.json();
+      throw new Error(data.error || resp.status);
+    }
     refresh();
-  } catch (e) {
-    alert('Delete failed: ' + e.message);
+  } catch (err) {
+    alert('Delete failed: ' + err.message);
   }
 }
 
 async function refresh() {
   try {
-    const resp = await fetch('/api/games');
-    const games = await resp.json();
-    renderGames(games);
+    const games = await fetch('/api/games').then(r => r.json());
+    window.__visibleGames = (games || []).filter(game => !game.hidden_from_lobby);
+  } catch {}
+  try {
+    const campaigns = await fetch('/api/campaigns').then(r => r.json());
+    renderCampaigns(campaigns);
   } catch {}
 }
 
