@@ -244,6 +244,17 @@ const Shell = {
     escapeHtml(s) {
       return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     },
+    thoughtCardHtml(kind, title, bodyHtml, opts) {
+      const esc = Shell.helpers.escapeHtml;
+      const { id = '', hired = false, failed = false } = opts || {};
+      const idAttr = id ? ` id="${esc(id)}"` : '';
+      return `<div class="thought-line tk-${kind}"${idAttr}>` +
+        `<div class="thought-kind">${esc(title)}</div>` +
+        `<div class="thought-body">${bodyHtml ?? ''}</div>` +
+        (hired  ? '<div class="thought-hired-badge">✓ Hired</div>'  : '') +
+        (failed ? '<div class="thought-failed-badge">✗ Failed</div>' : '') +
+        `</div>`;
+    },
     renderMd(text) {
       if (!text) return '';
       let s = String(text).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -1207,18 +1218,19 @@ function _prependThought(t) {
   if (!stream) return;
   stream.querySelector('.thinking-empty')?.remove();
   if (t.id) { const ex = document.getElementById('thought-' + t.id); if (ex) ex.remove(); }
-  const line = document.createElement('div');
-  line.className = `thought-line tk-${t.kind}`;
-  if (t.id) line.id = 'thought-' + t.id;
   const showHired  = t.kind === 'bid' && !t.failed && t.charId != null
     && _hiredMarks[t.aiIdx] && _hiredMarks[t.aiIdx].has(t.charId);
   const showFailed = t.kind === 'bid' && t.failed;
-  line.innerHTML =
-    `<div class="thought-kind">${Shell.helpers.escapeHtml(t.title)}</div>` +
-    `<div class="thought-body">${t.body}</div>` +
-    (showHired  ? '<div class="thought-hired-badge">✓ Hired</div>'  : '') +
-    (showFailed ? '<div class="thought-failed-badge">✗ Failed</div>' : '');
-  stream.insertBefore(line, stream.firstChild);
+  const lineHtml = Shell.helpers.thoughtCardHtml(t.kind, t.title, t.body, {
+    id: t.id ? 'thought-' + t.id : '',
+    hired: showHired,
+    failed: showFailed,
+  });
+  const wrap = document.createElement('div');
+  wrap.innerHTML = lineHtml;
+  const card = wrap.firstElementChild;
+  if (!card) return;
+  stream.insertBefore(card, stream.firstChild);
   stream.scrollTop = 0;
 }
 
@@ -1293,19 +1305,21 @@ function _renderThinking() {
   }
   const hiredHere = _hiredMarks[Shell.currentAI];
   items.forEach(t => {
-    const line = document.createElement('div');
-    line.className = `thought-line tk-${t.kind}`;
-    line.style.animation = 'none';
-    if (t.id) line.id = 'thought-' + t.id;
     const showHired  = t.kind === 'bid' && !t.failed && t.charId != null
       && (t.hired || (hiredHere && hiredHere.has(t.charId)));
     const showFailed = t.kind === 'bid' && t.failed;
-    line.innerHTML =
-      `<div class="thought-kind">${Shell.helpers.escapeHtml(t.title)}</div>` +
-      `<div class="thought-body">${t.body}</div>` +
-      (showHired  ? '<div class="thought-hired-badge">✓ Hired</div>'  : '') +
-      (showFailed ? '<div class="thought-failed-badge">✗ Failed</div>' : '');
-    stream.appendChild(line);
+    const lineHtml = Shell.helpers.thoughtCardHtml(t.kind, t.title, t.body, {
+      id: t.id ? 'thought-' + t.id : '',
+      hired: showHired,
+      failed: showFailed,
+    });
+    const wrap = document.createElement('div');
+    wrap.innerHTML = lineHtml;
+    const card = wrap.firstElementChild;
+    if (card) {
+      card.style.animation = 'none';
+      stream.appendChild(card);
+    }
   });
 }
 
