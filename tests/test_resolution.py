@@ -149,6 +149,38 @@ def test_scene_resolution_failing(
     assert state.caught_member_ids == expected_caught
 
 
+@pytest.mark.parametrize(
+    "member,challenge_level,expected_caught",
+    [
+        (ROSTER_BY_ID[3], ChallengeLevel.MEDIUM, []),
+        (ROSTER_BY_ID[11], ChallengeLevel.HARD, [11]),
+    ],
+)
+def test_bonus_resolution_failing_adds_only_one_heat(
+    member, challenge_level, expected_caught
+):
+    """Bonus FAIL / CAUGHT scenes should add exactly one heat, same as core scenes."""
+    crew = Crew([member])
+    job = _job({"electronic": 123_000})
+    state = _state(crew=crew, job=job)
+    scene = Scene(
+        number=1, type="decision", title="Bonus",
+        challenge_skill="hacker", challenge_level=challenge_level,
+        is_core=False, context="", category="electronic",
+    )
+    ai = StubHeistAI([
+        f'{{"assigned_member_ids": [{member.id}], "reasoning": "assign"}}',
+        '{"pursue": true, "reasoning": "go for it"}',
+        '{"abort": false, "reasoning": "push on"}',
+        "stub narration",
+    ])
+    result = _execute_scene(scene, state, ai, [], None, random.Random(1))
+    assert result.success is False
+    assert state.heat == 1
+    assert state.secured_take == 0
+    assert state.caught_member_ids == expected_caught
+
+
 def test_caught_member_prefers_skill_holder_then_lowest_floor_cost():
     lead = _char(1, "Lead", {"hacker": SkillLevel.LOW}, 900_000)
     cheap = _char(2, "Cheap", {"safecracker": SkillLevel.LOW}, 100_000)

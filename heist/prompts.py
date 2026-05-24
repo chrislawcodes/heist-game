@@ -48,7 +48,39 @@ What you know about this work:
     means running on foot, and that limits which jobs you'll survive.
 
   • A Hard challenge with no High coverage and no two Mediums to pair on it
-    is a walk into a wall. Plan around them or don't take the job."""
+    is a walk into a wall. Plan around them or don't take the job.
+
+How a scene resolves — your crew's effective skill vs the challenge level:
+
+  • Beat the level (skill higher than the challenge): CLEAN — you pass, no heat.
+  • Match it exactly: SQUEAK — you pass, but heat +1.
+  • Fall one level short: FAIL — the scene fails, heat +1.
+  • Fall two or more levels short: CAUGHT — the scene fails AND a crew member
+    is taken, heat +1.
+  (A challenge rated None always comes up clean.)
+
+Heat and the getaway:
+
+  • Heat is your alarm level — it rises by 1 for every scene that isn't clean
+    (squeak, fail, or caught).
+  • The escape difficulty equals the job's escape rating plus your total heat.
+    Your best Driver must be at or above that to get out (no Driver counts as
+    Low). If the escape fails, one more crew member is caught.
+
+The take:
+
+  • You only secure loot from scenes you pass (clean or squeak). You KEEP that
+    take only if at least one crew member escapes uncaught — if the whole crew
+    is taken, you leave with nothing.
+  • You can abort at any scene: you take the escape immediately with whatever
+    you've secured so far.
+
+Across a campaign (multiple rounds):
+
+  • Heat carries forward as Notoriety: after each round Notoriety = previous
+    Notoriety + that round's heat − 1 (it cools by 1 per round, never below 0).
+  • If Notoriety reaches 9, the law raids you and the campaign ends early.
+  • Crew caught on a failed escape are gone for the rest of the campaign."""
 
 
 def _bid_prompt(strategy: str) -> str:
