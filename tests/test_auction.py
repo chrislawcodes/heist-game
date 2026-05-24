@@ -130,17 +130,24 @@ def test_round_bid_prompt_mentions_available_pool():
         [_char(2)],
         1800,
         2,
+        2,
+        [{"name": "Crew 2", "hired": 1, "bankroll": 1_500_000}],
         {"won": ["Rook"], "lost": ["Slim"], "tied": []},
     )
     assert "smoke strategy" in prompt
     assert "round 2" in prompt
+    assert "1 of 2" in prompt
+    assert "Rival crews this round:" in prompt
+    assert "Crew 2: hired 1, $1,500,000 left" in prompt
     assert "Available characters" in prompt
 
 
 class _AuctionStubAI:
-    def __init__(self, target_ids: list[int]):
+    def __init__(self, target_ids: list[int], *, name: str | None = None):
         self.target_ids = target_ids
         self.prompts_seen: list[str] = []
+        if name is not None:
+            self.team_name = name
 
     def ask(self, prompt: str) -> AgentTurn:
         self.prompts_seen.append(prompt)
@@ -336,8 +343,8 @@ def test_run_auction_recovers_from_raising_ai_call():
 
 def test_run_auction_end_to_end_with_stub_ais():
     ais = [
-        _AuctionStubAI([2, 6, 8, 10]),
-        _AuctionStubAI([9, 11, 12, 14]),
+        _AuctionStubAI([2, 6, 8, 10], name="Aegis"),
+        _AuctionStubAI([9, 11, 12, 14], name="Ghost"),
     ]
     logs_per_ai: dict[int, list[TurnLog]] = {0: [], 1: []}
     turn_events: list[dict] = []
@@ -362,3 +369,6 @@ def test_run_auction_end_to_end_with_stub_ais():
     assert any(evt["type"] == "auction_round_resolved" for evt in broadcast_events)
     assert any(evt["type"] == "crew_known" for evt in turn_events)
     assert all(logs_per_ai[idx] for idx in logs_per_ai)
+    assert "1 of 2" in ais[0].prompts_seen[0]
+    assert "Rival crews this round:" in ais[0].prompts_seen[0]
+    assert "Ghost: hired 0, $2,000,000 left" in ais[0].prompts_seen[0]

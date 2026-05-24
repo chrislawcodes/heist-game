@@ -14,6 +14,7 @@ from typing import Any
 from heist.ai import AgentTurn, HeistAI, parse_json_block
 from heist.content import BANKROLL, ROSTER, ROSTER_BY_ID
 from heist.logs import log
+from heist.prompts import _TRADECRAFT
 from heist.serialize import crew_to_dict
 from heist.state import Character, Crew, TurnLog
 
@@ -23,34 +24,19 @@ SnapshotFn = Callable[[dict], None] | None
 
 _BID_MAX_RETRIES = 2
 
-_TRADECRAFT = """\
-What you know about this work:
-
-  • Every job is a profile of four challenge types — Electronic (cameras,
-    networks, electronic locks), Physical (vaults, safes, structural),
-    Confrontation (guards, armed response), and Social (blending in, talking
-    your way through). Each one rates None, Low, Medium, or Hard.
-
-  • Crew members have skill ratings in those areas — Low, Medium, or High.
-    A specialist hits their level. A Hard challenge needs a High to clear
-    alone, no exceptions.
-
-  • Two crew members with skill in the same area work above the sum of their
-    parts: pair them and you act at one level higher than the higher one,
-    capped at High. Two Mediums together hit High. Two Lows together hit
-    Medium. This is the move that makes a tight budget work — and it's how
-    you cover a Hard area without paying for a $1,100 High specialist.
-
-  • The exit always matters. A High Driver covers any escape; no driver
-    means running on foot, and that limits which jobs you'll survive.
-
-  • A Hard challenge with no High coverage and no two Mediums to pair on it
-    is a walk into a wall. Plan around them or don't take the job."""
 
 
 def _format_char_for_bid(c: Character) -> str:
     skills = ", ".join(f"{s} {lvl.name}" for s, lvl in c.skills.items())
     return f"  - id={c.id}, name={c.name!r}, skills=({skills}), floor=${c.floor_cost}"
+
+
+def _ai_display_name(ai: HeistAI, ai_idx: int) -> str:
+    for attr in ("display_name", "team_name", "name", "label", "ai_name"):
+        value = getattr(ai, attr, None)
+        if isinstance(value, str) and value.strip():
+            return value
+    return f"Crew {ai_idx + 1}"
 
 
 def _round_bid_prompt(
@@ -59,10 +45,19 @@ def _round_bid_prompt(
     crew_so_far: list[Character],
     bankroll: int,
     round_num: int,
+    num_crews: int,
+    rivals: list[dict[str, Any]],
     last_result: dict[str, list[str]] | None,
 ) -> str:
     have = [f"{c.name} (cost ${c.floor_cost})" for c in crew_so_far]
     pool_lines = [_format_char_for_bid(c) for c in pool]
+    rival_section = ""
+    if rivals:
+        rival_lines = [
+            f"  - {rival['name']}: hired {rival['hired']}, ${rival['bankroll']:,} left"
+            for rival in rivals
+        ]
+        rival_section = "\nRival crews this round:\n" + "\n".join(rival_lines) + "\n"
     last_section = ""
     if last_result is not None:
         last_section = (
@@ -73,10 +68,15 @@ def _round_bid_prompt(
         )
     return (
         f"You are the Heist AI, round {round_num} of crew bidding.\n\n"
+        f"You are 1 of {num_crews} crews bidding for the SAME roster. "
+        "Highest unique bid wins a character; if crews tie on one, all those "
+        "bids are refunded and the character returns next round — so the more "
+        "crews, the more contested the pool.\n\n"
         f"{_TRADECRAFT}\n\n"
         f"Player's strategy:\n---\n{strategy}\n---\n\n"
         f"Your crew so far ({len(crew_so_far)}/4):\n  {have or '(none yet)'}\n"
         f"Your bankroll: ${bankroll}\n"
+        f"{rival_section}"
         f"{last_section}\n"
         f"Available characters (these are the ones still in the pool):\n"
         + "\n".join(pool_lines)
@@ -361,6 +361,11 @@ def run_auction(
     rounds_log: list[AuctionRoundRecord] = []
     last_result_per_ai: dict[int, dict[str, list[str]]] = {}
     min_floor = min((c.floor_cost for c in pool), default=0) if pool else 0
+    num_crews = len(ais)
+    ai_names = {
+        ai_idx: _ai_display_name(ai, ai_idx)
+        for ai_idx, ai in enumerate(ais)
+    }
 
     for ai_idx in range(len(ais)):
         logs_per_ai.setdefault(ai_idx, [])
@@ -381,12 +386,23 @@ def run_auction(
 
         bids_by_ai: dict[int, list[tuple[Character, int]]] = {}
         for ai_idx in active:
+            rivals = [
+                {
+                    "name": ai_names[other_idx],
+                    "hired": len(crews[other_idx]),
+                    "bankroll": bankrolls[other_idx],
+                }
+                for other_idx in range(len(ais))
+                if other_idx != ai_idx
+            ]
             prompt = _round_bid_prompt(
                 strategies[ai_idx],
                 pool,
                 crews[ai_idx],
                 bankrolls[ai_idx],
                 round_num,
+                num_crews,
+                rivals,
                 last_result_per_ai.get(ai_idx),
             )
             turn = _call(

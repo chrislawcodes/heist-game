@@ -39,6 +39,13 @@ def test_tradecraft_block_teaches_driver_rule():
     assert "running on foot" in text
 
 
+def test_tradecraft_block_includes_real_scene_rules():
+    text = _TRADECRAFT
+    assert "How a scene resolves" in text
+    assert "Heat and the getaway" in text
+    assert "Across a campaign" in text
+
+
 def test_bid_prompt_contains_tradecraft():
     prompt = _bid_prompt("test strategy")
     assert _TRADECRAFT in prompt

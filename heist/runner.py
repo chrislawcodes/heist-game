@@ -780,7 +780,6 @@ def _execute_scene(
                 state.bonus_amount = (lo + hi) // 2
                 state.secured_take += state.bonus_amount
             elif not success:
-                state.heat += 1
                 _, abort_parsed = _call_json(
                     ai, _abort_decision_prompt(scene, outcome_summary),
                     f"scene_{scene.number}_abort", logs, emit,
