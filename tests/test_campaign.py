@@ -81,6 +81,21 @@ def test_settle_round_notoriety_accumulates_and_decays():
     assert campaign.notoriety == 1
 
 
+def test_settle_round_records_notoriety_window_and_caught_ids():
+    members = ROSTER[:2]
+    campaign = _make_campaign(crew_members=members, notoriety=4)
+    caught_id = members[0].id
+    state = _make_state(Crew(list(members)), heat=3)
+    state.caught_member_ids = [caught_id]
+
+    settle_round(campaign, state, notoriety_decay=2)
+
+    rr = campaign.round_results[0]
+    assert rr.notoriety_before == 4
+    assert rr.notoriety_after == 5
+    assert rr.caught_member_ids == [caught_id]
+
+
 def test_settle_round_crew_wipe_ends_campaign():
     # Crew wipe can happen when all members are caught across scenes + escape.
     members = ROSTER[:4]

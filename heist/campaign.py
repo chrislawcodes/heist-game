@@ -107,6 +107,7 @@ def settle_round(
 ) -> bool:
     """Update campaign in-place after one round. Returns True = end campaign."""
     campaign.banked_loot += state.final_take
+    notoriety_before = campaign.notoriety
     campaign.notoriety = max(0, campaign.notoriety + state.heat - notoriety_decay)
 
     # Remove only the captured members from standing crew.
@@ -130,6 +131,9 @@ def settle_round(
         aborted=state.aborted,
         escape_success=state.escape_success,
         heat=state.heat,
+        notoriety_before=notoriety_before,
+        notoriety_after=campaign.notoriety,
+        caught_member_ids=list(state.caught_member_ids),
     ))
     campaign.attempted_job_names.add(state.job.name)
     played = state.job.name

@@ -6,6 +6,8 @@ from heist.campaign import _opening_wire_call
 from heist.content import ROSTER, ROSTER_BY_ID
 from heist.serialize import (
     _coverage_from_crew,
+    _round_result_from_any,
+    _round_result_to_dict,
     campaign_from_dict,
     campaign_state_to_dict,
     campaign_to_dict,
@@ -135,6 +137,52 @@ def test_between_round_log_roundtrip_preserves_data():
     assert restored.between_round_log == camp.between_round_log
     assert restored.round_results == camp.round_results
     assert getattr(restored, "game_id", None) == 77
+
+
+def test_round_result_serialization_handles_new_fields_and_old_payloads():
+    rr = RoundResult(
+        2,
+        "Museum Gala",
+        500_000,
+        False,
+        True,
+        1,
+        4,
+        5,
+        [7, 8],
+    )
+
+    payload = _round_result_to_dict(rr)
+    assert payload["notoriety_before"] == 4
+    assert payload["notoriety_after"] == 5
+    assert payload["caught_member_ids"] == [7, 8]
+    assert _round_result_from_any(payload) == rr
+
+    old_payload = {
+        "round_idx": 3,
+        "job_name": "Old Job",
+        "take": 123,
+        "aborted": False,
+        "escape_success": True,
+        "heat": 2,
+    }
+    restored_old = _round_result_from_any(old_payload)
+    assert restored_old.notoriety_before == 0
+    assert restored_old.notoriety_after == 0
+    assert restored_old.caught_member_ids == []
+
+    legacy_obj = SimpleNamespace(
+        round_idx=4,
+        job_name="Legacy Object",
+        take=321,
+        aborted=True,
+        escape_success=None,
+        heat=9,
+    )
+    restored_obj = _round_result_from_any(legacy_obj)
+    assert restored_obj.notoriety_before == 0
+    assert restored_obj.notoriety_after == 0
+    assert restored_obj.caught_member_ids == []
 
 
 def test_opening_wire_call_falls_back_to_active_speaker():
@@ -297,3 +345,85 @@ def test_campaign_state_to_dict_round_game_ids_zip():
     rr = state["standings"][0]["round_results"]
     assert rr[0]["game_id"] == 101
     assert rr[1]["game_id"] == 102
+
+
+def test_campaign_state_to_dict_includes_per_round_rank_changes():
+    camp = _campaign()
+    game_states = [
+        _entry(
+            0,
+            "Aegis",
+            250,
+            [1, 4, 7, 13],
+            status="done",
+            round_results=[
+                {
+                    "round_idx": 0,
+                    "job_name": "Museum Gala",
+                    "take": 100,
+                    "aborted": False,
+                    "escape_success": True,
+                },
+                {
+                    "round_idx": 1,
+                    "job_name": "Armored Car",
+                    "take": 150,
+                    "aborted": False,
+                    "escape_success": True,
+                },
+            ],
+        ),
+        _entry(
+            1,
+            "Ghost",
+            200,
+            [2, 5, 8, 14],
+            status="done",
+            round_results=[
+                {
+                    "round_idx": 0,
+                    "job_name": "Museum Gala",
+                    "take": 200,
+                    "aborted": False,
+                    "escape_success": True,
+                },
+                {
+                    "round_idx": 1,
+                    "job_name": "Armored Car",
+                    "take": 0,
+                    "aborted": False,
+                    "escape_success": True,
+                },
+            ],
+        ),
+        _entry(
+            2,
+            "Nova",
+            50,
+            [3, 6, 9, 16],
+            status="done",
+            round_results=[
+                {
+                    "round_idx": 0,
+                    "job_name": "Museum Gala",
+                    "take": 50,
+                    "aborted": False,
+                    "escape_success": True,
+                },
+            ],
+        ),
+    ]
+
+    state = campaign_state_to_dict(camp, game_states, ROSTER)
+    rows = {row["ai_name"]: row for row in state["standings"]}
+
+    assert rows["Ghost"]["round_results"][0]["rank_after"] == 1
+    assert rows["Ghost"]["round_results"][0]["rank_delta"] == 0
+    assert rows["Aegis"]["round_results"][0]["rank_after"] == 2
+    assert rows["Aegis"]["round_results"][0]["rank_delta"] == 0
+
+    assert rows["Aegis"]["round_results"][1]["rank_after"] == 1
+    assert rows["Aegis"]["round_results"][1]["rank_delta"] == 1
+    assert rows["Ghost"]["round_results"][1]["rank_after"] == 2
+    assert rows["Ghost"]["round_results"][1]["rank_delta"] == -1
+    assert len(rows["Nova"]["round_results"]) == 1
