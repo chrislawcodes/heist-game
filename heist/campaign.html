@@ -574,10 +574,11 @@ body {
 /* Reflection rail */
 .tabs {
   display: flex;
-  gap: 6px;
-  padding: 12px 12px 10px;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 10px 12px 8px;
   flex-shrink: 0;
-  overflow-x: auto;
+  overflow: visible;
   border-bottom: 1px solid var(--border);
   background: rgba(18,18,20,0.96);
 }
@@ -587,8 +588,8 @@ body {
   background: var(--panel2);
   color: var(--muted);
   border-radius: 999px;
-  padding: 7px 10px;
-  font-size: 11px;
+  padding: 6px 9px;
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.3px;
   white-space: nowrap;
@@ -702,7 +703,6 @@ body {
           <div class="panel-sub">Sorted by banked loot.</div>
         </div>
         <div class="scroll">
-          <div id="campaign-reflection"></div>
           <div class="standings-list" id="standings"></div>
         </div>
       </section>
@@ -741,77 +741,17 @@ body {
   const standingsEl = document.getElementById('standings');
   const tabsEl = document.getElementById('tabs');
   const railEl = document.getElementById('rail');
-  const reflectionEl = document.getElementById('campaign-reflection');
   const metaEl = document.getElementById('meta');
   const statusPill = document.getElementById('status-pill');
   const centerSub = document.getElementById('center-sub');
 
   let previousState = null;
-  let selectedAiIdx = 0;
+  let selectedAiIdx = null;
   let viewedRound = 0;
-  // Open on round 1 (viewedRound 0). The "Auto" button enables live-follow,
-  // which jumps to the current round.
+  // Open on the pre-round baseline (viewedRound 0). The "Auto" button
+  // enables live-follow, which jumps to the current round.
   let autoMode = false;
   let pollTimer = null;
-
-  // ── Mind of AI ──────────────────────────────────────────────────────────────
-  // _thoughtCache: key `${aiIdx}:${gameId}` → { thoughts: [...], done: bool }
-  const _thoughtCache = {};
-  const _thoughtFetchPending = {};
-
-  function eventsToThoughts(events) {
-    const thoughts = [];
-    for (const e of events) {
-      if (e.type !== 'turn_end') continue;
-      const label  = e.label  || '';
-      const parsed = e.parsed || {};
-      const resp   = e.response || '';
-      if (label === 'job_pick') {
-        let bodyHtml = '';
-        if (parsed.why_this || parsed.why_not) {
-          if (parsed.why_this) bodyHtml += `<div class="thought-sub-head">Why this job</div>${esc(parsed.why_this)}`;
-          if (parsed.why_not) bodyHtml += `<div class="thought-sub-head">Why not the others</div>${esc(parsed.why_not)}`;
-        } else if (parsed.reasoning || parsed.job_name) {
-          bodyHtml = esc(parsed.reasoning || parsed.job_name || '—');
-        }
-        thoughts.push({ kind: 'job', title: 'Job pick', bodyHtml: bodyHtml || '—' });
-      } else if (/^scene_\d+_(?:escape_)?assign$/.test(label)) {
-        const num   = (label.match(/^scene_(\d+)/) || [])[1] || '?';
-        const title = parsed.abort ? `Scene ${num} — abort` : `Scene ${num} — assignment`;
-        thoughts.push({ kind: 'scene', title, bodyHtml: esc(parsed.reasoning || '—') });
-      } else if (/^scene_\d+_(?:escape_)?narrate$/.test(label) && resp) {
-        const num = (label.match(/^scene_(\d+)/) || [])[1] || '?';
-        thoughts.push({ kind: 'narrate', title: `Scene ${num}`, bodyHtml: esc(resp) });
-      }
-    }
-    return thoughts;
-  }
-
-  async function fetchThoughtsForRound(aiIdx, gameId) {
-    const key = `${aiIdx}:${gameId}`;
-    const cached = _thoughtCache[key];
-    if (cached && cached.done) return cached;
-    if (_thoughtFetchPending[key]) return _thoughtFetchPending[key];
-    const promise = (async () => {
-      try {
-        const data = await fetch(`/api/games/${gameId}/events`, { cache: 'no-store' }).then(r => r.json());
-        const events = data.events || [];
-        const thoughts = eventsToThoughts(events);
-        const done = events.some(e => e.type === 'turn_end' && e.label === 'epilogue');
-        _thoughtCache[key] = { thoughts, done };
-        return _thoughtCache[key];
-      } catch (err) {
-        console.warn('thought fetch failed', key, err);
-        return null;
-      }
-    })();
-    _thoughtFetchPending[key] = promise;
-    try {
-      return await promise;
-    } finally {
-      delete _thoughtFetchPending[key];
-    }
-  }
 
   function selectedRoundResult(state, aiIdx, roundIdx) {
     const row = (state.standings || []).find(s => s.ai_idx === aiIdx);
@@ -819,77 +759,43 @@ body {
     return (row.round_results || []).find(r => r.round_idx === roundIdx && r.game_id) || null;
   }
 
-  function renderCampaignReflection(state) {
-    if (!reflectionEl) return;
-    const selected = state.standings.find(s => s.ai_idx === selectedAiIdx) || state.standings[0];
-    if (!selected) {
-      reflectionEl.innerHTML = '';
-      return;
-    }
-
-    const roundReflection = (selected.reflections_by_round || []).find(r => r.round === viewedRound) || {};
-    const learnedText = roundReflection.learned || 'No reflection yet.';
-    const planText = roundReflection.plan || 'No plan yet.';
-    const roundLabel = `Round ${viewedRound + 1}`;
-    const liveText = selected.status === 'running'
-      ? 'The round is in motion.'
-      : selected.status === 'done'
-        ? 'Waiting for the next round to begin.'
-        : 'Waiting for round to start...';
-
-    reflectionEl.innerHTML = `
-      <div class="rail-card">
-        <div class="rail-label">${esc(roundLabel)} · What I learned</div>
-        <div class="rail-copy emph">${esc(learnedText)}</div>
-        <div class="rail-label">${esc(roundLabel)} · Plan</div>
-        <div class="rail-copy">${esc(planText)}</div>
-        <div class="rail-label">Live</div>
-        <div class="rail-live">${esc(liveText)}</div>
-      </div>
-    `;
-  }
-
   function renderRail(state) {
-    const selected = state.standings.find(s => s.ai_idx === selectedAiIdx) || state.standings[0];
-    if (!selected) {
+    if (!state.standings.length) {
       railEl.innerHTML = `<div class="thinking-empty">No crew available yet.</div>`;
       return;
     }
 
-    const round = selectedRoundResult(state, selected.ai_idx, viewedRound);
-    if (!round) {
-      railEl.innerHTML = `<div class="thinking-empty">No heist round available yet.</div>`;
+    if (viewedRound === 0) {
+      railEl.innerHTML = `<div class="thinking-empty">No learnings yet — step to Round 1.</div>`;
       return;
     }
 
-    const cacheKey = `${selected.ai_idx}:${round.game_id}`;
-    const cached = _thoughtCache[cacheKey];
-    const thoughts = cached ? cached.thoughts : [];
-    railEl.innerHTML = thoughts.length
-      ? thoughts.map(t => Shell.helpers.thoughtCardHtml(t.kind, t.title, t.bodyHtml || '', {})).join('')
-      : cached
-        ? `<div class="thinking-empty">No thoughts yet.</div>`
-        : `<div class="thinking-empty">Loading round thinking…</div>`;
+    const selectedCrew = selectedAiIdx == null
+      ? state.standings
+      : state.standings.filter(s => s.ai_idx === selectedAiIdx);
+    if (!selectedCrew.length) {
+      railEl.innerHTML = `<div class="thinking-empty">No crew available yet.</div>`;
+      return;
+    }
+
+    const roundLabel = `Round ${viewedRound}`;
+    const cards = selectedCrew.map(row => {
+      const reflection = (row.reflections_by_round || []).find(r => r.round === viewedRound - 1) || null;
+      const learnedText = reflection?.learned || 'No reflection yet.';
+      const planText = reflection?.plan || 'No plan yet.';
+      const bodyHtml = `
+        <div class="rail-label">${esc(row.ai_name)} · What I learned</div>
+        <div class="rail-copy emph">${esc(learnedText)}</div>
+        <div class="rail-label">${esc(row.ai_name)} · Plan</div>
+        <div class="rail-copy">${esc(planText)}</div>
+      `;
+      return Shell.helpers.thoughtCardHtml('strategy', `${roundLabel} · ${row.ai_name}`, bodyHtml, {});
+    });
+    railEl.innerHTML = cards.join('');
   }
 
   function refreshThinkingPanels(state) {
-    renderCampaignReflection(state);
     renderRail(state);
-    ensureThoughtsForVisibleRound(state);
-  }
-
-  async function ensureThoughtsForVisibleRound(state) {
-    const selected = state.standings.find(s => s.ai_idx === selectedAiIdx) || state.standings[0];
-    if (!selected) return;
-    const round = selectedRoundResult(state, selected.ai_idx, viewedRound);
-    if (!round) return;
-    const key = `${selected.ai_idx}:${round.game_id}`;
-    const cached = _thoughtCache[key];
-    if (cached && cached.done) return;
-    await fetchThoughtsForRound(selected.ai_idx, round.game_id);
-    if (previousState === state && selectedAiIdx === selected.ai_idx && viewedRound === round.round_idx) {
-      renderRail(state);
-    }
   }
 
   // Round-row click: jump to that round from the clicked AI's perspective
@@ -899,7 +805,7 @@ body {
     const roundIdx = Number(row.dataset.roundIdx);
     const aiIdx    = Number(row.dataset.aiIdx);
     autoMode = false;
-    viewedRound = roundIdx;
+    viewedRound = roundIdx + 1;
     selectedAiIdx = aiIdx;
     const state = previousState;
     if (!state) return;
@@ -1023,8 +929,7 @@ body {
     stageEl.textContent = STAGE_NAMES[stage] || stage;
     stageEl.style.color = STAGE_COLORS[stage] || 'var(--muted)';
 
-    document.getElementById('pacing-pos').textContent =
-      total ? `Round ${viewedRound + 1} / ${total}` : 'Round — / —';
+    document.getElementById('pacing-pos').textContent = `Round ${viewedRound} / ${total}`;
 
     document.getElementById('btn-prev').disabled = viewedRound <= 0;
     document.getElementById('btn-next').disabled = viewedRound >= maxRound;
@@ -1110,6 +1015,7 @@ body {
   function standingsHtml(state, animate) {
     const prevByAi = new Map((previousState?.standings || []).map((row, idx) => [row.ai_idx, { row, idx }]));
     const maxBank = Math.max(...state.standings.map(s => s.banked || 0), 0);
+    const roundZero = viewedRound === 0;
     return state.standings.map((row, idx) => {
       const prev = prevByAi.get(row.ai_idx)?.row || null;
       const prevRank = prev ? prev.rank : null;
@@ -1117,7 +1023,6 @@ body {
       const lastRound = row.last_round;
       const reflection = row.reflection || {};
       const crew = row.crew || [];
-      const latestWire = latestWireForAi(state, row.ai_idx);
       const prevCrewById = new Map((prev?.crew || []).map(m => [m.char_id || m.id, m]));
       const previousWidth = prev ? lootPct(prev.banked || 0, Math.max(...(previousState?.standings || []).map(s => s.banked || 0), 0)) : lootPct(row.banked || 0, maxBank);
       const currentWidth = lootPct(row.banked || 0, maxBank);
@@ -1125,12 +1030,13 @@ body {
       const watchLink = (row.status === 'done' || row.status === 'running') && row.ai_idx != null
         ? `<a class="watch-link" href="/hiring?campaign=${encodeURIComponent(gameId)}&ai=${encodeURIComponent(row.ai_idx)}&round=0">Watch →</a>`
         : '';
-      const lootBadge = lastRound ? `Round take ${money(lastRound.take)}` : 'No rounds yet';
+      const viewedRoundResult = roundZero ? null : selectedRoundResult(state, row.ai_idx, viewedRound - 1);
+      const lootBadge = viewedRoundResult ? `Round take ${money(viewedRoundResult.take)}` : 'No round yet';
       // Build a full-length round history padded to total_rounds.
       // AIs that were wiped early show "sat out" entries for rounds they missed.
       const playedByRound = new Map((row.round_results || []).map(r => [r.round_idx, r]));
       const totalRounds = state.total_rounds || 0;
-      const allRoundRows = Array.from({ length: totalRounds }, (_, i) => {
+      const allRoundRows = roundZero ? [] : Array.from({ length: totalRounds }, (_, i) => {
         const r = playedByRound.get(i);
         if (!r) {
           return `<div class="round-row rh-sat">
@@ -1158,9 +1064,38 @@ body {
         <span class="rh-links">${hireLink}${watchLink}</span>
       </div>`;
       });
-      const roundHistoryHtml = totalRounds
+      const roundHistoryHtml = allRoundRows.length
         ? `<div class="round-history">${allRoundRows.join('')}</div>`
         : '';
+      if (roundZero) {
+        return `
+        <article class="ai-card${animate ? ' is-flip' : ''}" data-ai-idx="${row.ai_idx}" data-rank="${row.rank}">
+          <div class="card-top">
+            <div class="rank-block">
+              <div class="rank-row">
+                <div class="rank-num">Rank ${row.rank}</div>
+                <div class="ai-name">${esc(row.ai_name)}</div>
+                <div class="status-chip is-waiting">not yet played</div>
+              </div>
+              <div class="panel-sub" style="margin-top:8px;">Banked $0 · Notoriety 0</div>
+            </div>
+            <div style="text-align:right;">
+              <div class="status-chip is-waiting">baseline</div>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="panel-sub" style="margin-top:-2px;">Drafted roster</div>
+            ${coverageHtml(crew)}
+            <div>
+              <div class="panel-kicker" style="margin-bottom:10px;">Crew</div>
+              <div class="crew-grid">
+                ${crewCards}
+              </div>
+            </div>
+          </div>
+        </article>
+      `;
+      }
       return `
         <article class="ai-card${animate ? ' is-flip' : ''}" data-ai-idx="${row.ai_idx}" data-rank="${row.rank}">
           <div class="card-top">
@@ -1188,15 +1123,15 @@ body {
             <div class="stats-row">
               <div class="stat">
                 <div class="stat-key">Last round</div>
-                <div class="stat-val accent">${esc(lastRound ? `R${latestWire ? latestWire.round : state.round} · ${lastRound.job}` : 'Waiting')}</div>
+                <div class="stat-val accent">${esc(viewedRoundResult ? `R${viewedRound} · ${viewedRoundResult.job_name}` : lastRound ? `R${row.round_results?.length || state.current_round_idx || state.round || '—'} · ${lastRound.job}` : 'Waiting')}</div>
               </div>
               <div class="stat">
                 <div class="stat-key">Escape</div>
-                <div class="stat-val">${esc(lastRound ? roundEscape(lastRound) : row.status)}</div>
+                <div class="stat-val">${esc(viewedRoundResult ? roundEscape(viewedRoundResult) : lastRound ? roundEscape(lastRound) : row.status)}</div>
               </div>
               <div class="stat">
                 <div class="stat-key">Reflection</div>
-                <div class="stat-val">${esc(reflection.learned ? 'Ready' : '—')}</div>
+                <div class="stat-val">${esc(viewedRoundResult ? ((row.reflections_by_round || []).find(r => r.round === viewedRound - 1)?.learned ? 'Ready' : '—') : reflection.learned ? 'Ready' : '—')}</div>
               </div>
             </div>
 
@@ -1217,9 +1152,13 @@ body {
   }
 
   function renderTabs(state) {
-    tabsEl.innerHTML = state.standings.map(row => `
-      <button class="tab-btn${row.ai_idx === selectedAiIdx ? ' active' : ''}" data-ai-idx="${row.ai_idx}">${esc(row.ai_name)}</button>
-    `).join('');
+    const allActive = selectedAiIdx == null;
+    tabsEl.innerHTML = `
+      <button class="tab-btn${allActive ? ' active' : ''}" data-select="all">All</button>
+      ${state.standings.map(row => `
+        <button class="tab-btn${row.ai_idx === selectedAiIdx ? ' active' : ''}" data-ai-idx="${row.ai_idx}">${esc(row.ai_name)}</button>
+      `).join('')}
+    `;
     tabsEl.querySelectorAll('[data-ai-idx]').forEach(btn => {
       btn.addEventListener('click', () => {
         selectedAiIdx = Number(btn.dataset.aiIdx);
@@ -1227,6 +1166,14 @@ body {
         renderTabs(previousState || state);
       });
     });
+    const allBtn = tabsEl.querySelector('[data-select="all"]');
+    if (allBtn) {
+      allBtn.addEventListener('click', () => {
+        selectedAiIdx = null;
+        refreshThinkingPanels(previousState || state);
+        renderTabs(previousState || state);
+      });
+    }
   }
 
   function renderState(state, animate) {
@@ -1235,7 +1182,7 @@ body {
     const hasRunning = state.standings.some(s => s.status === 'running');
     statusPill.textContent = hasRunning ? 'LIVE' : 'SYNCED';
     statusPill.className = hasRunning ? 'status-pill is-live' : 'status-pill';
-    centerSub.textContent = `Round ${viewedRound + 1} wire`;
+    centerSub.textContent = viewedRound === 0 ? 'Opening wire' : `Round ${viewedRound} wire`;
 
     const prevRects = new Map();
     if (animate) {
@@ -1324,9 +1271,9 @@ body {
         return r.json();
       });
       if (!next || !next.standings) throw new Error('bad campaign payload');
-      if (!previousState) selectedAiIdx = next.standings[0]?.ai_idx ?? 0;
-      if (!next.standings.some(s => s.ai_idx === selectedAiIdx)) {
-        selectedAiIdx = next.standings[0]?.ai_idx ?? 0;
+      if (!previousState) selectedAiIdx = null;
+      if (selectedAiIdx != null && !next.standings.some(s => s.ai_idx === selectedAiIdx)) {
+        selectedAiIdx = null;
       }
       renderState(next, needsAnimation(next));
       previousState = next;
