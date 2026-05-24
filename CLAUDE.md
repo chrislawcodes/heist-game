@@ -70,10 +70,15 @@ on demand from `main` + each branch listed in `.claude/staging-branches.txt`.
 
 ```bash
 # Start the staging server (once)
-cd /Users/chrislaw/heist-game
-python -m heist serve --port 8001 --web-dir .claude/worktrees/staging/heist
+# Run from the staging WORKTREE (not the main repo) so staging's server.py is used.
+# Using --web-dir from the main repo only swaps HTML; Python endpoints come from
+# whichever directory you run from. Once all in-flight branches ship to main, you
+# can go back to running from the main repo with --web-dir.
+cd /Users/chrislaw/heist-game/.claude/worktrees/staging
+python -m heist serve --port 8001
 
 # Refresh staging whenever you want 8001 to reflect your latest feature work
+cd /Users/chrislaw/heist-game
 .claude/scripts/refresh-staging.sh
 ```
 
@@ -114,8 +119,8 @@ Default workflow for any Claude (or Codex) agent working in this repo.
 Decide → optional spec → dispatch → verify → commit → push → refresh staging → /ship
 ```
 
-- **Implementer** for substantial work: Sonnet subagent via the Agent tool with `isolation: "worktree"`. The subagent commits in its own worktree on a separate branch; the orchestrator merges that branch back. **Not** Codex CLI as an implementer — codex-mini is a *player* inside the game, not an agent that writes code here.
-- **Specs** for non-trivial dispatches live inline in the Agent tool's `prompt` parameter. They must be self-contained: the subagent has no memory of the conversation.
+- **Implementer for any medium/large coding task: Codex CLI** (`codex exec -m gpt-5.4-mini -s workspace-write`), run inside a worktree. This applies to **both backend and frontend** code — there is no "UI is operator-only" rule. After every Codex run, `git status` in the worktree (Codex doesn't always commit) and review its diff before shipping. (Codex CLI is *also* used as a *player* inside the game — separate role, both fine.)
+- **Specs** for Codex dispatches must be self-contained (Codex has no memory of the conversation). Write the spec to a file (`specs/<name>.md` or `/tmp/codex-spec.txt`) and pass it via `$(cat …)`.
 - **Inline edits** by the orchestrator for small changes (≤ ~30 lines, no design risk).
 - **Merge always via `/ship`**, never `gh pr merge` directly. `/ship` runs preflight, watches CI, fixes the squash-drift trap (see below), and squash-merges.
 
@@ -129,13 +134,16 @@ pytest -q
 
 `/ship` runs this in Step 3. Run it locally first to skip CI roundtrips.
 
-### Lanes
+### The two lanes (game architecture)
 
-| Lane | Files | Who |
-|---|---|---|
-| **UI** | `heist/hiring.html`, `heist/job.html`, `heist/heist.html`, `heist/epilogue.html`, `heist/lobby.html`, `heist/web/setup.html`, `heist/web/shell.js`, `heist/web/tabs/*.html`, `heist/mocks/*` | Operator + orchestrator. **Don't dispatch a subagent to UI files** — iteration is conversation-driven; a backgrounded agent will collide with live edits. |
-| **Backend** | `heist/server.py`, `heist/runner.py`, `heist/persist.py`, `heist/serialize.py`, `heist/scenes.py`, `heist/mechanics.py`, `agents.py`, tests | Subagent territory. Dispatch with a comprehensive spec. |
-| **Design / docs** | `heist_game_design.md`, `ARCHITECTURE.md`, `CLAUDE.md`, `README.md` | Operator. Subagents may append sections (e.g. logging recipes, persistence layout); fine to merge. |
+The game is built on two lanes, and keeping them clean is the core design rule. **This is about how the game works, not about who writes the code.**
+
+- **AI lane (the engine).** The engine generates **all** events. Every outcome and state change — a bid, the crew, a scene outcome, heat, a caught member, the take — is emitted as a discrete event. Nothing about display pacing or presentation lives in the compute path.
+- **UI lane (the browser).** The UI does nothing but pick up those events and show them to the user. It never computes game state, and it never reconstructs context the events didn't provide.
+
+**Implication for fixes:** if the UI is missing something (a name, the crew, an outcome), the fix is almost always to *emit it from the AI lane* — not to reconstruct it in the UI. A complete, self-sufficient event stream is the contract between the two lanes.
+
+(Who *writes* the code is a separate matter — see "Implementer" above: Codex handles both backend and frontend.)
 
 ### Files that conflict often in parallel work
 
@@ -144,7 +152,7 @@ pytest -q
 - `heist/web/shell.js` — both UI iteration and replay-model changes land here
 - `README.md` / `ARCHITECTURE.md` — appended sections from multiple work streams; usually auto-merges
 
-If a subagent will touch one of these, hold operator-side edits to that file until the merge.
+If a Codex task will touch one of these, don't run a second task that also edits it until the first merges.
 
 ### Squash-drift trap
 
