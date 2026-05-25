@@ -6,6 +6,8 @@ from heist.campaign import _opening_wire_call
 from heist.content import ROSTER, ROSTER_BY_ID
 from heist.serialize import (
     _coverage_from_crew,
+    _round_result_from_any,
+    _round_result_to_dict,
     campaign_from_dict,
     campaign_state_to_dict,
     campaign_to_dict,
@@ -129,12 +131,72 @@ def test_between_round_log_roundtrip_preserves_data():
             "text": "Run it back.",
         },
     })
-    camp.round_results.append(RoundResult(0, "Museum Gala", 1200000, False, True, 1))
+    camp.round_results.append(
+        RoundResult(
+            0,
+            "Museum Gala",
+            1_200_000,
+            False,
+            True,
+            1,
+            banked_after=1_200_000,
+        )
+    )
 
     restored = campaign_from_dict(campaign_to_dict(camp))
     assert restored.between_round_log == camp.between_round_log
     assert restored.round_results == camp.round_results
     assert getattr(restored, "game_id", None) == 77
+
+
+def test_round_result_serialization_handles_new_fields_and_old_payloads():
+    rr = RoundResult(
+        round_idx=2,
+        job_name="Museum Gala",
+        take=500_000,
+        aborted=False,
+        escape_success=True,
+        heat=1,
+        notoriety_before=4,
+        notoriety_after=5,
+        banked_after=6,
+        caught_member_ids=[7, 8],
+    )
+
+    payload = _round_result_to_dict(rr)
+    assert payload["notoriety_before"] == 4
+    assert payload["notoriety_after"] == 5
+    assert payload["banked_after"] == 6
+    assert payload["caught_member_ids"] == [7, 8]
+    assert _round_result_from_any(payload) == rr
+
+    old_payload = {
+        "round_idx": 3,
+        "job_name": "Old Job",
+        "take": 123,
+        "aborted": False,
+        "escape_success": True,
+        "heat": 2,
+    }
+    restored_old = _round_result_from_any(old_payload)
+    assert restored_old.notoriety_before == 0
+    assert restored_old.notoriety_after == 0
+    assert restored_old.banked_after == 0
+    assert restored_old.caught_member_ids == []
+
+    legacy_obj = SimpleNamespace(
+        round_idx=4,
+        job_name="Legacy Object",
+        take=321,
+        aborted=True,
+        escape_success=None,
+        heat=9,
+    )
+    restored_obj = _round_result_from_any(legacy_obj)
+    assert restored_obj.notoriety_before == 0
+    assert restored_obj.notoriety_after == 0
+    assert restored_obj.banked_after == 0
+    assert restored_obj.caught_member_ids == []
 
 
 def test_opening_wire_call_falls_back_to_active_speaker():
@@ -239,6 +301,7 @@ def test_campaign_state_to_dict_includes_round_results():
                     "aborted": False,
                     "escape_success": True,
                     "heat": 1,
+                    "banked_after": 500_000,
                 }
             ],
             round_game_ids=[42],
@@ -253,6 +316,7 @@ def test_campaign_state_to_dict_includes_round_results():
     assert rr[0]["escape"] == "clean"
     assert rr[0]["round_idx"] == 0
     assert rr[0]["game_id"] == 42
+    assert rr[0]["banked_after"] == 500_000
 
 
 def test_campaign_state_to_dict_round_game_ids_zip():
@@ -297,3 +361,90 @@ def test_campaign_state_to_dict_round_game_ids_zip():
     rr = state["standings"][0]["round_results"]
     assert rr[0]["game_id"] == 101
     assert rr[1]["game_id"] == 102
+
+
+def test_campaign_state_to_dict_includes_per_round_rank_changes():
+    camp = _campaign()
+    game_states = [
+        _entry(
+            0,
+            "Aegis",
+            300,
+            [1, 4, 7, 13],
+            status="done",
+            round_results=[
+                {
+                    "round_idx": 0,
+                    "job_name": "Museum Gala",
+                    "take": 9_000_000,
+                    "aborted": False,
+                    "escape_success": True,
+                    "banked_after": 100,
+                },
+                {
+                    "round_idx": 1,
+                    "job_name": "Armored Car",
+                    "take": 0,
+                    "aborted": False,
+                    "escape_success": True,
+                    "banked_after": 300,
+                },
+            ],
+        ),
+        _entry(
+            1,
+            "Ghost",
+            250,
+            [2, 5, 8, 14],
+            status="done",
+            round_results=[
+                {
+                    "round_idx": 0,
+                    "job_name": "Museum Gala",
+                    "take": 100,
+                    "aborted": False,
+                    "escape_success": True,
+                    "banked_after": 200,
+                },
+                {
+                    "round_idx": 1,
+                    "job_name": "Armored Car",
+                    "take": 10,
+                    "aborted": False,
+                    "escape_success": True,
+                    "banked_after": 250,
+                },
+            ],
+        ),
+        _entry(
+            2,
+            "Nova",
+            50,
+            [3, 6, 9, 16],
+            status="done",
+            round_results=[
+                {
+                    "round_idx": 0,
+                    "job_name": "Museum Gala",
+                    "take": 50,
+                    "aborted": False,
+                    "escape_success": True,
+                    "banked_after": 50,
+                },
+            ],
+        ),
+    ]
+
+    state = campaign_state_to_dict(camp, game_states, ROSTER)
+    rows = {row["ai_name"]: row for row in state["standings"]}
+
+    assert rows["Ghost"]["round_results"][0]["rank_after"] == 1
+    assert rows["Ghost"]["round_results"][0]["rank_delta"] == 0
+    assert rows["Aegis"]["round_results"][0]["rank_after"] == 2
+    assert rows["Aegis"]["round_results"][0]["rank_delta"] == 0
+
+    assert rows["Aegis"]["round_results"][1]["rank_after"] == 1
+    assert rows["Aegis"]["round_results"][1]["rank_delta"] == 1
+    assert rows["Ghost"]["round_results"][1]["rank_after"] == 2
+    assert rows["Ghost"]["round_results"][1]["rank_delta"] == -1
+    assert len(rows["Nova"]["round_results"]) == 1

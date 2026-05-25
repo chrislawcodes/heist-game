@@ -88,6 +88,19 @@ def _coerce_int(value: Any, default: int = 0) -> int:
         return default
 
 
+def _coerce_int_list(value: Any) -> list[int]:
+    if value is None:
+        return []
+    items = value if isinstance(value, (list, tuple, set)) else [value]
+    out: list[int] = []
+    for item in items:
+        try:
+            out.append(int(item))
+        except (TypeError, ValueError):
+            continue
+    return out
+
+
 def character_to_dict(c: Character) -> dict:
     return {
         "id": c.id,
@@ -309,6 +322,10 @@ def _round_result_to_dict(r: RoundResult) -> dict:
         "aborted": r.aborted,
         "escape_success": r.escape_success,
         "heat": r.heat,
+        "notoriety_before": r.notoriety_before,
+        "notoriety_after": r.notoriety_after,
+        "banked_after": r.banked_after,
+        "caught_member_ids": list(r.caught_member_ids),
     }
 
 
@@ -326,6 +343,10 @@ def _round_result_from_any(item: Any) -> RoundResult:
             aborted=bool(item.get("aborted", False)),
             escape_success=raw_escape,
             heat=_coerce_int(item.get("heat", 0)),
+            notoriety_before=_coerce_int(item.get("notoriety_before", 0)),
+            notoriety_after=_coerce_int(item.get("notoriety_after", 0)),
+            banked_after=_coerce_int(item.get("banked_after", 0)),
+            caught_member_ids=_coerce_int_list(item.get("caught_member_ids", [])),
         )
     raw_escape = getattr(item, "escape_success", getattr(item, "escape", None))
     if isinstance(raw_escape, str) and raw_escape in {"clean", "failed", "caught"}:
@@ -337,6 +358,10 @@ def _round_result_from_any(item: Any) -> RoundResult:
         aborted=bool(getattr(item, "aborted", False)),
         escape_success=raw_escape,
         heat=_coerce_int(getattr(item, "heat", 0)),
+        notoriety_before=_coerce_int(getattr(item, "notoriety_before", 0)),
+        notoriety_after=_coerce_int(getattr(item, "notoriety_after", 0)),
+        banked_after=_coerce_int(getattr(item, "banked_after", 0)),
+        caught_member_ids=_coerce_int_list(getattr(item, "caught_member_ids", [])),
     )
 
 
@@ -523,6 +548,11 @@ def campaign_state_to_dict(
                 job_name = r.get("job_name", r.get("job", ""))
                 take = _coerce_int(r.get("take", 0), 0)
                 escape_source = r
+                heat = _coerce_int(r.get("heat", 0), 0)
+                notoriety_before = _coerce_int(r.get("notoriety_before", 0), 0)
+                notoriety_after = _coerce_int(r.get("notoriety_after", 0), 0)
+                banked_after = _coerce_int(r.get("banked_after", 0), 0)
+                caught_member_ids = _coerce_int_list(r.get("caught_member_ids", []))
             else:
                 round_idx = _coerce_int(getattr(r, "round_idx", rr_idx), rr_idx)
                 job_name = getattr(r, "job_name", getattr(r, "job", ""))
@@ -533,6 +563,11 @@ def campaign_state_to_dict(
                     "caught": getattr(r, "caught", False),
                     "captured": getattr(r, "captured", False),
                 }
+                heat = _coerce_int(getattr(r, "heat", 0), 0)
+                notoriety_before = _coerce_int(getattr(r, "notoriety_before", 0), 0)
+                notoriety_after = _coerce_int(getattr(r, "notoriety_after", 0), 0)
+                banked_after = _coerce_int(getattr(r, "banked_after", 0), 0)
+                caught_member_ids = _coerce_int_list(getattr(r, "caught_member_ids", []))
             aborted = bool(
                 r.get("aborted", False) if isinstance(r, dict) else getattr(r, "aborted", False)
             )
@@ -542,6 +577,11 @@ def campaign_state_to_dict(
                 "take": take,
                 "aborted": aborted,
                 "escape": _escape_status_from_result(escape_source),
+                "heat": heat,
+                "notoriety_before": notoriety_before,
+                "notoriety_after": notoriety_after,
+                "banked_after": banked_after,
+                "caught_member_ids": caught_member_ids,
                 "game_id": round_game_ids[rr_idx] if rr_idx < len(round_game_ids) else None,
             })
         hiring_game_ids_list: list = _state_value(entry, "hiring_game_ids", []) or []
@@ -661,6 +701,48 @@ def campaign_state_to_dict(
             if matching is not None:
                 reflection = matching.get("reflection")
         row["reflection"] = reflection
+
+    round_indices = sorted({
+        int(rr["round_idx"])
+        for row in standings_raw
+        for rr in row["round_results"]
+        if rr.get("round_idx") is not None
+    })
+    round_results_by_ai: dict[int, dict[int, dict[str, Any]]] = {}
+    for row in standings_raw:
+        ai_idx = int(row["ai_idx"])
+        round_results_by_ai[ai_idx] = cast(dict[int, dict[str, Any]], {})
+        for rr in row["round_results"]:
+            round_idx = int(rr["round_idx"])
+            round_results_by_ai[ai_idx][round_idx] = rr
+
+    have_banked_after = any(
+        _coerce_int(rr.get("banked_after", 0), 0) > 0
+        for row in standings_raw
+        for rr in row["round_results"]
+    )
+    previous_rank_after_by_ai: dict[int, int] = {}
+    for round_idx in round_indices:
+        active_rows: list[tuple[int, int, dict[str, Any]]] = []
+        for row in standings_raw:
+            ai_idx = int(row["ai_idx"])
+            ai_round_results = round_results_by_ai[ai_idx]
+            round_result_entry = ai_round_results.get(round_idx)
+            if round_result_entry is None:
+                continue
+            if have_banked_after:
+                metric = _coerce_int(round_result_entry.get("banked_after", 0), 0)
+            else:
+                metric = _coerce_int(row.get("banked", 0), 0)
+            active_rows.append((ai_idx, metric, round_result_entry))
+        active_rows.sort(key=lambda item: (-item[1], item[0]))
+        for rank_after, (ai_idx, _, round_result_entry) in enumerate(active_rows, start=1):
+            prev_rank_after = previous_rank_after_by_ai.get(ai_idx)
+            round_result_entry["rank_after"] = rank_after
+            round_result_entry["rank_delta"] = (
+                0 if prev_rank_after is None else prev_rank_after - rank_after
+            )
+            previous_rank_after_by_ai[ai_idx] = rank_after
 
     # Collect between_round_log from all per-AI entries (the shared campaign
     # object's between_round_log is always empty in multi-AI campaigns).

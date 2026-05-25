@@ -99,6 +99,102 @@
   document.head.appendChild(style);
 })();
 
+// Shared portrait card used by the Heist scene lead and the Campaign war room.
+(function injectPortraitCardStyles() {
+  if (document.getElementById('shell-portrait-card-styles')) return;
+  const style = document.createElement('style');
+  style.id = 'shell-portrait-card-styles';
+  style.textContent = `
+.portrait-card {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: rgba(0,0,0,0.35);
+}
+.portrait-card[data-primary="hack"]  { background: linear-gradient(180deg, rgba(88,152,224,0.32) 0%, rgba(88,152,224,0.08) 100%); border-color: rgba(88,152,224,0.65); }
+.portrait-card[data-primary="safe"]  { background: linear-gradient(180deg, rgba(232,160,48,0.32) 0%, rgba(232,160,48,0.08) 100%); border-color: rgba(232,160,48,0.65); }
+.portrait-card[data-primary="musc"]  { background: linear-gradient(180deg, rgba(224,80,80,0.32) 0%, rgba(224,80,80,0.08) 100%); border-color: rgba(224,80,80,0.65); }
+.portrait-card[data-primary="soc"]   { background: linear-gradient(180deg, rgba(144,112,224,0.32) 0%, rgba(144,112,224,0.08) 100%); border-color: rgba(144,112,224,0.65); }
+.portrait-card[data-primary="drive"] { background: linear-gradient(180deg, rgba(82,196,122,0.32) 0%, rgba(82,196,122,0.08) 100%); border-color: rgba(82,196,122,0.65); }
+.pc-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: monospace;
+  font-weight: 700;
+  font-size: 46px;
+  color: rgba(255,255,255,0.30);
+}
+.portrait-card img {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.pc-cap {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  padding: 4px 6px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  text-align: center;
+  line-height: 1.2;
+}
+.portrait-card[data-primary="hack"] .pc-cap { background: var(--sk-hack); color: #0a1428; }
+.portrait-card[data-primary="safe"] .pc-cap { background: var(--sk-safe); color: #2a1c08; }
+.portrait-card[data-primary="musc"] .pc-cap { background: var(--sk-musc); color: #2a0808; }
+.portrait-card[data-primary="soc"] .pc-cap { background: var(--sk-soc); color: #1c1030; }
+.portrait-card[data-primary="drive"] .pc-cap { background: var(--sk-drive); color: #0a2018; }
+.portrait-card.portrait-card--noname .pc-cap { display: none; }
+.pc-stamp {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(224,80,80,0.18);
+  color: rgba(255,210,210,0.94);
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  transform: rotate(-12deg) scale(0.85);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+.portrait-card.captured .pc-stamp,
+.portrait-card.caught-landed .pc-stamp,
+.portrait-card.caught-now .pc-stamp {
+  opacity: 1;
+  transform: rotate(-12deg) scale(1);
+}
+.portrait-card.captured {
+  opacity: 0.25;
+  filter: grayscale(0.7);
+  border-style: dashed;
+  border-color: rgba(224,80,80,0.48) !important;
+}
+.portrait-card.caught-landed,
+.portrait-card.caught-now {
+  opacity: 1;
+  filter: none;
+}
+`;
+  document.head.appendChild(style);
+})();
+
 // ── thinking bar styles ───────────────────────────────────────────────────────
 // The AI picker (#ai-picker) and thinking stream (#thinking-section) are
 // injected into #rail by _mountThinkingBar() at initShell time. Their CSS
@@ -285,6 +381,31 @@ const Shell = {
       const p = Shell.helpers.primarySkill(c);
       const seed = (c.name || '').toLowerCase().replace(/\s+/g, '');
       return `https://api.dicebear.com/9.x/${PORTRAIT_STYLE[p]}/svg?seed=${encodeURIComponent(seed)}&backgroundColor=${PORTRAIT_BG[p]}`;
+    },
+    portraitCardHtml(c, opts) {
+      const esc = Shell.helpers.escapeHtml;
+      const {
+        charId = null,
+        captured = false,
+        widthPx = null,
+        hideName = false,
+        extraClasses = '',
+      } = opts || {};
+      const name = String(c?.name ?? '?');
+      const initials = (name.trim().slice(0, 1) || '?').toUpperCase();
+      const classes = ['portrait-card'];
+      if (captured) classes.push('captured');
+      if (hideName) classes.push('portrait-card--noname');
+      if (extraClasses) classes.push(String(extraClasses).trim());
+      const styleAttr = (widthPx != null && Number(widthPx) > 0) ? ` style="width: ${Number(widthPx)}px;"` : '';
+      const charIdAttr = charId != null ? ` data-char-id="${esc(charId)}"` : '';
+      const primary = Shell.helpers.primarySkill(c);
+      return `<div class="${classes.filter(Boolean).join(' ')}" data-primary="${primary}"${charIdAttr}${styleAttr}>
+        <div class="pc-fallback">${esc(initials)}</div>
+        <img src="${Shell.helpers.portraitUrl(c)}" alt="${esc(name)}" loading="lazy" onerror="this.style.display='none'">
+        <div class="pc-cap">${esc(name)}</div>
+        <div class="pc-stamp">CAUGHT</div>
+      </div>`;
     },
     charCardHtml(c, opts) {
       const { hideCost = false, noId = false } = opts || {};
@@ -614,14 +735,27 @@ function _updatePhasenav(gameId, events) {
     document.head.appendChild(s);
   }
 
-  const hasJob      = events.some(e => e.type === 'job_known');
-  const hasHeist    = events.some(e => e.type === 'scene_start');
-  const hasEpilogue = events.some(e => e.type === 'game_done');
+  // Reachability differs by mode. A single-game replay has every phase in one
+  // event stream, so detect them from the loaded events. In CAMPAIGN (journey)
+  // mode each round is split into a hire sub-game + a heist sub-game, so the
+  // current page's events can't see the other phases — derive reachability from
+  // the round's sub-game ids instead (job/heist/epilogue all live in that
+  // round's heist sub-game).
+  let hasHiring = true, hasJob, hasHeist, hasEpilogue;
+  if (_isJourneyMode()) {
+    const round = _journeyRoundFor(_selectedJourneyTeam(Shell.currentAI), Shell.selectedRoundIdx);
+    hasHiring = round?.hire_sub_game_id != null;
+    hasJob = hasHeist = hasEpilogue = round?.heist_sub_game_id != null;
+  } else {
+    hasJob      = events.some(e => e.type === 'job_known');
+    hasHeist    = events.some(e => e.type === 'scene_start');
+    hasEpilogue = events.some(e => e.type === 'game_done');
+  }
 
   const current = window.location.pathname.replace(/^\//, '').split('?')[0] || 'hiring';
 
   const phases = [
-    { label: 'Hiring',   path: 'hiring',   reachable: true        },
+    { label: 'Hiring',   path: 'hiring',   reachable: hasHiring   },
     { label: 'Job',      path: 'job',       reachable: hasJob      },
     { label: 'Heist',    path: 'heist',     reachable: hasHeist    },
     { label: 'Epilogue', path: 'epilogue',  reachable: hasEpilogue },
