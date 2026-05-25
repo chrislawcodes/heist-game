@@ -1052,6 +1052,7 @@ body {
   const AI_DOT_KEYS = ['accent', 'blue', 'purple', 'green', 'red'];
 
   let activeReveal = null;
+  let revealInProgress = false;
   let currentBoard = null;
   let heartbeatTimer = null;
   let loadHasError = false;
@@ -1682,6 +1683,7 @@ body {
     activeReveal.timeouts.clear();
     activeReveal.rafs.clear();
     activeReveal = null;
+    revealInProgress = false;
   }
 
   function makeToken() {
@@ -1792,11 +1794,11 @@ body {
   }
 
   async function spotlightRanks(board, token) {
-    const popDuration = prefersReducedMotion ? 90 : 250;
-    const holdDuration = prefersReducedMotion ? 60 : 350;
-    const travelDuration = prefersReducedMotion ? 140 : 250;
-    const shrinkDuration = prefersReducedMotion ? 140 : 250;
-    const popScale = prefersReducedMotion ? 1.02 : 1.5;
+    const popDuration = reduceMotion ? 90 : 250;
+    const holdDuration = reduceMotion ? 60 : 350;
+    const travelDuration = reduceMotion ? 140 : 250;
+    const shrinkDuration = reduceMotion ? 140 : 250;
+    const popScale = reduceMotion ? 1.02 : 1.5;
     const settleEase = 'cubic-bezier(0.2,0.8,0.2,1)';
     const finalRefs = board.afterOrder.map(model => board.refsByAiIdx.get(model.aiIdx)).filter(Boolean);
 
@@ -1962,7 +1964,10 @@ body {
     cancelReveal();
     const board = renderState(state, 'before');
     const token = makeToken();
-    runRoundReveal(board, token, state).catch(() => {});
+    revealInProgress = true;
+    runRoundReveal(board, token, state)
+      .catch(err => console.error('round reveal failed:', err))
+      .finally(() => { if (activeReveal === token) revealInProgress = false; });
   }
 
   function renderFinal(state) {
@@ -2047,8 +2052,12 @@ body {
       if (autoMode) {
         viewedRound = playedRounds(next);
       }
-      if (activeReveal) {
-        cancelReveal();
+      if (revealInProgress) {
+        // A round reveal is mid-play — don't let the 5s poll interrupt it.
+        // Stash the latest state; the next poll after it finishes renders fresh.
+        previousState = next;
+        loadHasError = false;
+        return;
       }
       renderFinal(next);
       loadHasError = false;
