@@ -200,6 +200,9 @@ body {
   overflow-y: auto;
   padding: 14px;
 }
+.standings-scroll {
+  position: relative;
+}
 
 /* Wire */
 .wire-round {
@@ -283,139 +286,230 @@ body {
   flex-direction: column;
   gap: 12px;
 }
+.round-card {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 20;
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+.round-card.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+.round-card-inner {
+  min-width: 288px;
+  max-width: calc(100% - 36px);
+  padding: 22px 28px 20px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgba(19,19,22,0.96);
+  text-align: center;
+  box-shadow: 0 18px 40px rgba(0,0,0,0.35);
+}
+.round-card-title {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.7px;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+.round-card-sub {
+  font-size: 11px;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
 .ai-card {
   position: relative;
   background: linear-gradient(180deg, rgba(23,23,28,0.98) 0%, rgba(18,18,20,0.98) 100%);
   border: 1px solid var(--border);
+  border-left-width: 4px;
+  border-left-color: transparent;
   border-radius: 14px;
   overflow: hidden;
   box-shadow: 0 12px 28px rgba(0,0,0,0.18);
 }
-.ai-card.is-flip {
+.ai-card.is-flip,
+.ai-card.is-reveal {
   will-change: transform, opacity;
 }
+.ai-card.winner {
+  box-shadow: 0 0 0 1px rgba(232,160,48,0.16), 0 0 24px rgba(232,160,48,0.14);
+}
+.ai-card.winner::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(120deg, rgba(232,160,48,0.10), rgba(232,160,48,0.00) 60%);
+  animation: winnerFlash 900ms ease-out;
+}
+.ai-card[data-ai-color="accent"] { border-left-color: var(--accent); }
+.ai-card[data-ai-color="blue"] { border-left-color: var(--blue); }
+.ai-card[data-ai-color="purple"] { border-left-color: var(--purple); }
+.ai-card[data-ai-color="green"] { border-left-color: var(--green); }
+.ai-card[data-ai-color="red"] { border-left-color: var(--red); }
 .card-top {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 14px;
-  padding: 14px;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
-  background:
-    radial-gradient(900px 120px at 50% 0, rgba(255,255,255,0.03), transparent 60%),
-    rgba(255,255,255,0.01);
+  grid-template-columns: 64px 10px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 14px 14px 12px;
 }
 .rank-block {
-  min-width: 0;
+  width: 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
 }
 .rank-row {
   display: flex;
   align-items: center;
   gap: 10px;
-  flex-wrap: wrap;
+  min-width: 0;
 }
 .rank-num {
-  font-size: 10px;
+  font-size: 28px;
+  line-height: 1;
   font-weight: 900;
-  letter-spacing: 2px;
-  text-transform: uppercase;
+  font-family: monospace;
+  color: var(--text);
+}
+.rank-num.winner {
+  color: var(--accent);
+}
+.rank-change {
+  margin-top: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
+  padding: 2px 7px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  opacity: 0;
+  transform: translateY(-3px) scale(0.96);
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+.rank-change.show {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+.rank-change.up {
+  background: rgba(82,196,122,0.12);
+  color: var(--green);
+}
+.rank-change.dn {
+  background: rgba(224,80,80,0.10);
+  color: var(--red);
+}
+.rank-change.same {
+  background: transparent;
   color: var(--muted);
+}
+.ai-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.ai-dot.accent { background: var(--accent); }
+.ai-dot.blue { background: var(--blue); }
+.ai-dot.purple { background: var(--purple); }
+.ai-dot.green { background: var(--green); }
+.ai-dot.red { background: var(--red); }
+.name-col {
+  min-width: 0;
 }
 .ai-name {
   font-size: 19px;
   font-weight: 780;
   letter-spacing: -0.02em;
   min-width: 0;
+  line-height: 1.1;
 }
-.status-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  color: var(--muted);
-  padding: 4px 8px;
-  border-radius: 999px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.06);
+.total-col {
+  min-width: 160px;
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
 }
-.status-chip.is-done { color: var(--green); background: rgba(82,196,122,0.08); border-color: rgba(82,196,122,0.15); }
-.status-chip.is-running { color: var(--blue); background: rgba(88,152,224,0.08); border-color: rgba(88,152,224,0.15); }
-.status-chip.is-waiting { color: var(--muted); }
-.rank-pill.animate { animation: pillPop 0.3s ease 0.6s both; }
-@keyframes pillPop {
-  0% { opacity: 0; transform: scale(1.3); }
-  100% { opacity: 1; transform: scale(1); }
+.total-val {
+  font-size: 22px;
+  line-height: 1;
+  font-weight: 900;
+  font-family: monospace;
+  color: var(--accent);
 }
-
-.loot-meta {
-  padding: 0 14px 14px;
-}
-.loot-row {
+.total-meta {
   display: flex;
   align-items: center;
-  gap: 12px;
-}
-.loot-bar {
-  position: relative;
-  height: 10px;
-  flex: 1;
-  border-radius: 999px;
-  overflow: hidden;
-  background: rgba(255,255,255,0.07);
-}
-.loot-fill {
-  height: 100%;
-  width: 0%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, rgba(232,160,48,0.95), rgba(232,160,48,0.55));
-  transition: width 800ms ease-out;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: nowrap;
 }
 .take-badge {
+  min-width: 78px;
+  text-align: right;
   font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  color: var(--accent);
-  flex-shrink: 0;
-  opacity: 1;
+  font-weight: 700;
+  font-family: monospace;
+  color: var(--green);
+  opacity: 0;
+  transform: translateY(-2px);
 }
-.take-badge.animate { animation: takeFade 0.4s ease 0.7s both; }
-@keyframes takeFade {
-  from { opacity: 0; transform: translateY(-2px); }
-  to { opacity: 1; transform: translateY(0); }
+.take-badge.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+.heat-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.heat-label {
+  color: var(--muted);
+  opacity: 0.75;
+}
+.heat-value {
+  font-family: monospace;
+  font-weight: 800;
+}
+.heat-value.n-low {
+  color: var(--green);
+}
+.heat-value.n-med {
+  color: var(--accent);
+}
+.heat-value.n-high {
+  color: var(--red);
+}
+.heat-value.pulse {
+  animation: barPulse 900ms ease-in-out infinite;
 }
 .card-body {
   padding: 0 14px 14px;
   display: grid;
   gap: 14px;
 }
-.stats-row {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-.stat {
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.05);
-  border-radius: 10px;
-  padding: 10px 10px 9px;
-}
-.stat-key {
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  color: var(--muted);
-  margin-bottom: 6px;
-}
-.stat-val {
-  font-size: 14px;
-  font-weight: 800;
-  color: var(--text);
-}
-.stat-val.accent { color: var(--accent); }
 .coverage {
   display: flex;
   flex-direction: column;
@@ -496,15 +590,16 @@ body {
 .rh-hire-link:hover { opacity: 1; }
 
 .crew-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
-  gap: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 .crew-card {
   position: relative;
-  border-radius: 10px;
+  width: 120px;
+  border-radius: 6px;
   overflow: hidden;
-  border: 1px solid rgba(255,255,255,0.06);
+  border: 1px solid var(--border);
   background: var(--panel2);
 }
 .crew-card[data-primary="hack"] { border-color: rgba(88,152,224,0.55); }
@@ -531,44 +626,61 @@ body {
   color: rgba(255,255,255,0.22);
   font-family: monospace;
 }
-.crew-card .name-strip {
-  min-height: 34px;
-  padding: 5px 8px 6px;
+.captured-stamp {
+  position: absolute;
+  inset: 0;
   display: flex;
-  align-items: flex-end;
-  font-size: 11px;
+  align-items: center;
+  justify-content: center;
+  background: rgba(224,80,80,0.18);
+  color: rgba(255,210,210,0.94);
+  font-size: 14px;
   font-weight: 800;
-  line-height: 1.25;
-  color: #fff;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  transform: rotate(-12deg) scale(0.85);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease, transform 180ms ease;
 }
-.crew-card[data-primary="hack"] .name-strip { background: var(--sk-hack); color: #0a1428; }
-.crew-card[data-primary="safe"] .name-strip { background: var(--sk-safe); color: #2a1c08; }
-.crew-card[data-primary="musc"] .name-strip { background: var(--sk-musc); color: #2a0808; }
-.crew-card[data-primary="soc"] .name-strip { background: var(--sk-soc); color: #1c1030; }
-.crew-card[data-primary="drive"] .name-strip { background: var(--sk-drive); color: #0a2018; }
-.crew-card[data-captured="true"] {
+.crew-card.captured .captured-stamp,
+.crew-card.caught-now .captured-stamp,
+.crew-card.caught-landed .captured-stamp {
+  opacity: 1;
+  transform: rotate(-12deg) scale(1);
+}
+.crew-card.captured {
   opacity: 0.25;
-  filter: grayscale(1);
+  filter: grayscale(0.7);
   border-style: dashed;
-  border-color: rgba(224,80,80,0.7);
+  border-color: rgba(224,80,80,0.48) !important;
 }
-.crew-card.newly-captured {
+.crew-card.caught-now {
   opacity: 1;
   filter: none;
 }
-.crew-pill {
-  position: absolute;
-  top: 6px;
-  left: 6px;
-  z-index: 2;
+.crew-card.caught-landed {
+  opacity: 1;
+  filter: none;
+}
+.crew-card .name-strip {
+  min-height: 34px;
+  padding: 4px 5px 5px;
+  display: flex;
+  align-items: flex-end;
   font-size: 9px;
-  font-weight: 900;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  border-radius: 999px;
-  padding: 3px 6px;
-  color: #fff;
-  background: rgba(0,0,0,0.66);
+  font-weight: 800;
+  line-height: 1.2;
+  text-align: center;
+  color: rgba(0,0,0,0.84);
+}
+.crew-card[data-primary="hack"] .name-strip { background: var(--sk-hack); }
+.crew-card[data-primary="safe"] .name-strip { background: var(--sk-safe); }
+.crew-card[data-primary="musc"] .name-strip { background: var(--sk-musc); }
+.crew-card[data-primary="soc"] .name-strip { background: var(--sk-soc); }
+.crew-card[data-primary="drive"] .name-strip { background: var(--sk-drive); }
+.crew-card.captured .name-strip {
+  filter: saturate(0.8) brightness(0.9);
 }
 
 /* Reflection rail */
@@ -648,6 +760,12 @@ body {
 }
 .watch-link:hover { border-color: rgba(232,160,48,0.4); background: rgba(232,160,48,0.16); }
 
+.card-foot {
+  padding: 0 14px 14px;
+  display: grid;
+  gap: 10px;
+}
+
 /* Mind of AI — thought stream */
 .state-error {
   padding: 22px 18px;
@@ -664,6 +782,16 @@ body {
   body { overflow: auto; }
   .layout { grid-template-columns: 1fr; overflow: visible; }
   .panel + .panel { border-left: 0; border-top: 1px solid var(--border); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .round-card,
+  .ai-card,
+  .rank-change,
+  .take-badge {
+    transition-duration: 1ms !important;
+    animation-duration: 1ms !important;
+  }
 }
 </style>
 </head>
@@ -683,6 +811,7 @@ body {
         <span class="pacing-pos" id="pacing-pos">Round — / —</span>
         <button class="pacing-btn" id="btn-next">Next →</button>
       </div>
+      <button class="pacing-btn" id="btn-replay">Replay</button>
       <button class="pacing-btn pacing-auto" id="btn-auto">Auto</button>
     </div>
 
@@ -702,7 +831,13 @@ body {
           <div class="panel-title">Leaderboard</div>
           <div class="panel-sub">Sorted by banked loot.</div>
         </div>
-        <div class="scroll">
+        <div class="scroll standings-scroll" id="standings-scroll">
+          <div class="round-card" id="round-card" aria-hidden="true">
+            <div class="round-card-inner">
+              <div class="round-card-title" id="round-card-title">ROUND 1 · RESULTS</div>
+              <div class="round-card-sub" id="round-card-sub">of 0</div>
+            </div>
+          </div>
           <div class="standings-list" id="standings"></div>
         </div>
       </section>
@@ -752,11 +887,313 @@ body {
   // enables live-follow, which jumps to the current round.
   let autoMode = false;
   let pollTimer = null;
+  const replayBtn = document.getElementById('btn-replay');
+  const roundCardEl = document.getElementById('round-card');
+  const roundCardTitleEl = document.getElementById('round-card-title');
+  const roundCardSubEl = document.getElementById('round-card-sub');
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const motion = reduceMotion ? 0.01 : 1;
+  const AI_DOT_KEYS = ['accent', 'blue', 'purple', 'green', 'red'];
 
-  function selectedRoundResult(state, aiIdx, roundIdx) {
-    const row = (state.standings || []).find(s => s.ai_idx === aiIdx);
-    if (!row) return null;
-    return (row.round_results || []).find(r => r.round_idx === roundIdx && r.game_id) || null;
+  let activeReveal = null;
+  let currentBoard = null;
+
+  function esc(s) {
+    return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function money(n) {
+    return '$' + Number(n || 0).toLocaleString();
+  }
+
+  function moneyM(n) {
+    return `$${(Number(n || 0) / 1000000).toFixed(2)}M`;
+  }
+
+  function skillValue(level) {
+    if (!level) return 0;
+    if (typeof level === 'number') return level;
+    if (SKILL_VALUE[level] != null) return SKILL_VALUE[level];
+    return 0;
+  }
+
+  function primarySkill(member) {
+    const skills = member.skills || {};
+    let best = SKILL_ORDER[0];
+    let bestRank = -1;
+    SKILL_ORDER.forEach((apiKey, idx) => {
+      const score = skillValue(skills[apiKey]);
+      if (score > bestRank || (score === bestRank && idx < SKILL_ORDER.indexOf(best))) {
+        best = apiKey;
+        bestRank = score;
+      }
+    });
+    return ({
+      hacker: 'hack',
+      safecracker: 'safe',
+      muscle: 'musc',
+      inside_man: 'soc',
+      driver: 'drive',
+    })[best] || 'hack';
+  }
+
+  function initials(name) {
+    return String(name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(s => s[0]).join('').toUpperCase();
+  }
+
+  function portraitHtml(member) {
+    const fallback = `<div class="fallback">${esc(initials(member.name))}</div>`;
+    return `
+      <div class="portrait">
+        ${fallback}
+        <img src="/portraits/${encodeURIComponent(member.char_id || member.id)}" alt="${esc(member.name)}" loading="lazy"
+             onerror="this.style.display='none'; this.previousElementSibling.style.display='flex';">
+      </div>
+    `;
+  }
+
+  function coverageForCrew(crew, includeCaptured = false) {
+    const out = { hack: 0, safe: 0, musc: 0, soc: 0, drive: 0 };
+    crew.filter(m => includeCaptured || !m.captured).forEach(member => {
+      const skills = member.skills || {};
+      out.hack = Math.max(out.hack, skillValue(skills.hacker));
+      out.safe = Math.max(out.safe, skillValue(skills.safecracker));
+      out.musc = Math.max(out.musc, skillValue(skills.muscle));
+      out.soc = Math.max(out.soc, skillValue(skills.inside_man));
+      out.drive = Math.max(out.drive, skillValue(skills.driver));
+    });
+    return out;
+  }
+
+  function latestWireForAi(state, aiIdx) {
+    const aiName = state.standings.find(s => s.ai_idx === aiIdx)?.ai_name;
+    const matches = state.wire.filter(w => w.ai_name === aiName);
+    return matches.length ? matches[matches.length - 1] : null;
+  }
+
+  function roundResultAt(row, roundIdx) {
+    return (row.round_results || []).find(r => r.round_idx === roundIdx) || null;
+  }
+
+  function lastRoundResultAtOrBefore(row, roundIdx) {
+    const results = (row.round_results || []).filter(r => r.round_idx <= roundIdx);
+    if (!results.length) return null;
+    return results[results.length - 1] || null;
+  }
+
+  function sumTakeThroughRound(row, roundIdx) {
+    if (roundIdx < 0) return 0;
+    return (row.round_results || [])
+      .filter(r => r.round_idx <= roundIdx)
+      .reduce((sum, r) => sum + Number(r.take || 0), 0);
+  }
+
+  function latestRoundIndex(row) {
+    const results = row.round_results || [];
+    return results.length ? Math.max(...results.map(r => Number(r.round_idx || 0))) : -1;
+  }
+
+  function heatClass(value) {
+    if (value >= 7) return 'n-high';
+    if (value >= 4) return 'n-med';
+    return 'n-low';
+  }
+
+  function resolveHeat(row, result, roundIdx) {
+    if (!result) return 0;
+    const latestIdx = latestRoundIndex(row);
+    if (roundIdx === latestIdx && Number(row.notoriety || 0) > 0) {
+      return Number(row.notoriety || 0);
+    }
+    const after = Number(result.notoriety_after || 0);
+    if (after !== 0) return after;
+    const before = Number(result.notoriety_before || 0);
+    if (before !== 0) return before;
+    return Number(row.notoriety || 0);
+  }
+
+  function formatRankDelta(delta) {
+    if (delta > 0) return `↑${delta}`;
+    if (delta < 0) return `↓${Math.abs(delta)}`;
+    return '—';
+  }
+
+  function aiColorKey(aiIdx, index) {
+    return AI_DOT_KEYS[(Number(aiIdx ?? index) || 0) % AI_DOT_KEYS.length];
+  }
+
+  function buildRoundView(state, roundNumber) {
+    const standings = Array.isArray(state.standings) ? state.standings : [];
+    const roundIdx = Math.max(0, roundNumber - 1);
+    const cards = standings.map((row, index) => {
+      const results = row.round_results || [];
+      const currentResult = roundNumber > 0 ? roundResultAt(row, roundIdx) : null;
+      const previousResult = roundNumber > 1 ? roundResultAt(row, roundIdx - 1) : null;
+      const beforeTotal = roundNumber > 0 ? sumTakeThroughRound(row, roundIdx - 1) : 0;
+      const afterTotal = roundNumber > 0 ? sumTakeThroughRound(row, currentResult ? roundIdx : roundIdx - 1) : 0;
+      const beforeRank = roundNumber > 1
+        ? (previousResult?.rank_after ?? row.rank ?? index + 1)
+        : (index + 1);
+      const afterRank = roundNumber > 0
+        ? (currentResult?.rank_after ?? previousResult?.rank_after ?? row.rank ?? index + 1)
+        : (row.rank ?? index + 1);
+      const rankDelta = currentResult?.rank_delta ?? 0;
+      const take = currentResult?.take ?? 0;
+      const heatBefore = roundNumber > 1
+        ? resolveHeat(row, previousResult, roundIdx - 1)
+        : 0;
+      const heatAfter = roundNumber > 0
+        ? resolveHeat(row, currentResult || previousResult, currentResult ? roundIdx : roundIdx - 1)
+        : 0;
+      const caughtIds = new Set((currentResult?.caught_member_ids || []).map(v => String(v)));
+      const aiColor = aiColorKey(row.ai_idx, index);
+      const sortBefore = roundNumber === 0
+        ? (row.rank ?? index + 1)
+        : (roundNumber === 1 ? (index + 1) : beforeRank);
+      const sortAfter = roundNumber === 0
+        ? (row.rank ?? index + 1)
+        : afterRank;
+      return {
+        row,
+        aiIdx: row.ai_idx,
+        aiName: row.ai_name,
+        aiColor,
+        crew: row.crew || [],
+        reflectionsByRound: row.reflections_by_round || [],
+        roundResult: currentResult,
+        previousResult,
+        beforeTotal,
+        afterTotal,
+        beforeRank,
+        afterRank,
+        rankDelta,
+        take,
+        heatBefore,
+        heatAfter,
+        caughtIds,
+        sortBefore,
+        sortAfter,
+        totalRounds: state.total_rounds || 0,
+        roundNumber,
+      };
+    });
+    const beforeOrder = cards.slice().sort((a, b) => a.sortBefore - b.sortBefore || a.aiIdx - b.aiIdx);
+    const afterOrder = cards.slice().sort((a, b) => a.sortAfter - b.sortAfter || a.aiIdx - b.aiIdx);
+    return {
+      cards,
+      beforeOrder,
+      afterOrder,
+      byAiIdx: new Map(cards.map(card => [card.aiIdx, card])),
+      totalRounds: state.total_rounds || 0,
+      roundNumber,
+    };
+  }
+
+  function updateHeat(ref, value) {
+    ref.heatValue.textContent = `${value} / 9`;
+    ref.heatValue.className = `heat-value ${heatClass(value)}${value >= 7 ? ' pulse' : ''}`;
+  }
+
+  function memberCardHtml(member, caughtNow, phase, baseline) {
+    const charId = String(member.char_id || member.id);
+    const caughtThisRound = !baseline && phase === 'before' && caughtNow;
+    const capturedVisible = !baseline && (member.captured || (phase !== 'before' && caughtNow));
+    const classes = ['crew-card'];
+    if (capturedVisible && !caughtThisRound) classes.push('captured');
+    if (caughtThisRound) classes.push('caught-pending');
+    if (capturedVisible && phase !== 'before' && caughtNow) classes.push('caught-landed');
+    const primary = member.primary || primarySkill(member);
+    return `
+      <div class="${classes.join(' ')}" data-primary="${primary}" data-captured="${capturedVisible ? 'true' : 'false'}" data-char-id="${esc(charId)}">
+        <div class="captured-stamp">CAUGHT</div>
+        ${portraitHtml(member)}
+        <div class="name-strip">${esc(member.name)}</div>
+      </div>
+    `;
+  }
+
+  function renderCrewGrid(crew, caughtIds, phase, baseline = false) {
+    return crew.map(member => memberCardHtml(member, caughtIds.has(String(member.char_id || member.id)), phase, baseline)).join('');
+  }
+
+  function coverageHtml(crew, baseline = false) {
+    const coverage = coverageForCrew(crew, baseline);
+    const labels = { hack: 'HCK', safe: 'SFE', musc: 'MSC', soc: 'SOC', drive: 'DRV' };
+    return `
+      <div class="coverage">
+        ${SKILL_KEYS.map(key => {
+          const value = coverage[key];
+          return `
+            <div class="coverage-row">
+              <div class="coverage-label ${value === 0 ? 'zero' : ''}">${labels[key]}</div>
+              <div class="coverage-stack">
+                ${[1, 2, 3].map(level =>
+                  `<div class="coverage-seg ${level <= value ? 'on ' + key : ''}"></div>`
+                ).join('')}
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+  }
+
+  function renderRoundHistory(row, totalRounds) {
+    const roundZero = viewedRound === 0;
+    if (roundZero) return '';
+    const playedByRound = new Map((row.round_results || []).map(r => [r.round_idx, r]));
+    const rows = Array.from({ length: totalRounds || 0 }, (_, i) => {
+      const r = playedByRound.get(i);
+      if (!r) {
+        return `<div class="round-row rh-sat">
+      <span class="rh-num">R${i + 1}</span>
+      <span class="rh-job rh-sat-label">sat out</span>
+      <span class="rh-take">—</span>
+      <span class="rh-icon">·</span>
+    </div>`;
+      }
+      const isAbort = r.aborted;
+      const cls = isAbort ? 'rh-abort' : r.escape === 'clean' ? 'rh-clean' : r.escape === 'caught' ? 'rh-caught' : 'rh-fail';
+      const icon = isAbort ? '↩' : r.escape === 'clean' ? '✓' : r.escape === 'caught' ? '✗' : '~';
+      const hireLink = r.hiring_game_id
+        ? `<a class="rh-hire-link" href="/hiring?campaign=${encodeURIComponent(gameId)}&ai=${encodeURIComponent(row.ai_idx)}&round=${encodeURIComponent(r.round_idx)}" title="Watch hiring" onclick="event.stopPropagation()">H</a>`
+        : '';
+      const watchLink = r.game_id
+        ? `<a class="rh-hire-link" href="/heist?campaign=${encodeURIComponent(gameId)}&ai=${encodeURIComponent(row.ai_idx)}&round=${encodeURIComponent(r.round_idx)}" title="Watch heist" onclick="event.stopPropagation()">→</a>`
+        : '';
+      return `<div class="round-row ${cls} rh-nav" data-round-idx="${r.round_idx}" data-ai-idx="${row.ai_idx}">
+      <span class="rh-num">R${r.round_idx + 1}</span>
+      <span class="rh-job">${esc(r.job_name || '—')}${isAbort ? ' <span class="rh-abort-tag">ABORT</span>' : ''}</span>
+      <span class="rh-take">${money(r.take || 0)}</span>
+      <span class="rh-icon">${icon}</span>
+      <span class="rh-links">${hireLink}${watchLink}</span>
+    </div>`;
+    });
+    return rows.length ? `<div class="round-history">${rows.join('')}</div>` : '';
+  }
+
+  function wireHtml(state, vRound) {
+    const entries = (state.wire || []).filter(w => w.round === vRound);
+    if (!entries.length) {
+      return `<div class="rail-empty">The wire is quiet this round.</div>`;
+    }
+    return entries.map(item => `
+      <div class="wire-item">
+        <div class="wire-portrait">
+          <div class="wire-fallback">${esc(initials(item.speaker_name))}</div>
+          <img src="/portraits/${encodeURIComponent(item.speaker_char_id || '')}"
+               alt="${esc(item.speaker_name)}" loading="lazy"
+               onerror="this.style.display='none';this.previousElementSibling.style.display='flex';">
+        </div>
+        <div class="wire-body">
+          <div class="wire-head">
+            <div class="wire-name">${esc(item.speaker_name || 'Unknown')}</div>
+            <div class="wire-target">vs ${esc(item.target_ai_name || 'unknown')}</div>
+          </div>
+          <div class="wire-text">${esc(item.text || '')}</div>
+        </div>
+      </div>
+    `).join('');
   }
 
   function renderRail(state) {
@@ -798,104 +1235,29 @@ body {
     renderRail(state);
   }
 
-  // Round-row click: jump to that round from the clicked AI's perspective
-  standingsEl.addEventListener('click', e => {
-    const row = e.target.closest('.rh-nav');
-    if (!row) return;
-    const roundIdx = Number(row.dataset.roundIdx);
-    const aiIdx    = Number(row.dataset.aiIdx);
-    autoMode = false;
-    viewedRound = roundIdx + 1;
-    selectedAiIdx = aiIdx;
-    const state = previousState;
-    if (!state) return;
-    updatePacingBar(state);
-    refreshThinkingPanels(state);
-    wireEl.innerHTML = wireHtml(state, viewedRound);
-    document.getElementById('btn-auto').classList.remove('is-active');
-    // Update tab highlight
-    tabsEl.querySelectorAll('[data-ai-idx]').forEach(btn => {
-      btn.classList.toggle('active', Number(btn.dataset.aiIdx) === aiIdx);
-    });
-  });
-
-  function esc(s) {
-    return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  }
-
-  function money(n) {
-    return '$' + Number(n || 0).toLocaleString();
-  }
-
-  function skillValue(level) {
-    if (!level) return 0;
-    if (typeof level === 'number') return level;
-    if (SKILL_VALUE[level] != null) return SKILL_VALUE[level];
-    return 0;
-  }
-
-  function primarySkill(member) {
-    const skills = member.skills || {};
-    let best = SKILL_ORDER[0];
-    let bestRank = -1;
-    SKILL_ORDER.forEach((apiKey, idx) => {
-      const score = skillValue(skills[apiKey]);
-      if (score > bestRank || (score === bestRank && idx < SKILL_ORDER.indexOf(best))) {
-        best = apiKey;
-        bestRank = score;
-      }
-    });
-    return ({
-      hacker: 'hack',
-      safecracker: 'safe',
-      muscle: 'musc',
-      inside_man: 'soc',
-      driver: 'drive',
-    })[best] || 'hack';
-  }
-
-  function primaryColor(skill) {
-    return ({
-      hack: 'var(--sk-hack)',
-      safe: 'var(--sk-safe)',
-      musc: 'var(--sk-musc)',
-      soc: 'var(--sk-soc)',
-      drive: 'var(--sk-drive)',
-    })[skill] || 'var(--border)';
-  }
-
-  function initials(name) {
-    return String(name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(s => s[0]).join('').toUpperCase();
-  }
-
-  function portraitHtml(member) {
-    const fallback = `<div class="fallback">${esc(initials(member.name))}</div>`;
-    return `
-      <div class="portrait">
-        ${fallback}
-        <img src="/portraits/${encodeURIComponent(member.char_id || member.id)}" alt="${esc(member.name)}" loading="lazy"
-             onerror="this.style.display='none'; this.previousElementSibling.style.display='flex';">
-      </div>
+  function renderTabs(state) {
+    const allActive = selectedAiIdx == null;
+    tabsEl.innerHTML = `
+      <button class="tab-btn${allActive ? ' active' : ''}" data-select="all">All</button>
+      ${state.standings.map(row => `
+        <button class="tab-btn${row.ai_idx === selectedAiIdx ? ' active' : ''}" data-ai-idx="${row.ai_idx}">${esc(row.ai_name)}</button>
+      `).join('')}
     `;
-  }
-
-  function coverageForCrew(crew) {
-    const out = { hack: 0, safe: 0, musc: 0, soc: 0, drive: 0 };
-    crew.filter(m => !m.captured).forEach(member => {
-      const skills = member.skills || {};
-      out.hack = Math.max(out.hack, skillValue(skills.hacker));
-      out.safe = Math.max(out.safe, skillValue(skills.safecracker));
-      out.musc = Math.max(out.musc, skillValue(skills.muscle));
-      out.soc = Math.max(out.soc, skillValue(skills.inside_man));
-      out.drive = Math.max(out.drive, skillValue(skills.driver));
+    tabsEl.querySelectorAll('[data-ai-idx]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        selectedAiIdx = Number(btn.dataset.aiIdx);
+        refreshThinkingPanels(previousState || state);
+        renderTabs(previousState || state);
+      });
     });
-    return out;
-  }
-
-  function latestWireForAi(state, aiIdx) {
-    const aiName = state.standings.find(s => s.ai_idx === aiIdx)?.ai_name;
-    const matches = state.wire.filter(w => w.ai_name === aiName);
-    return matches.length ? matches[matches.length - 1] : null;
+    const allBtn = tabsEl.querySelector('[data-select="all"]');
+    if (allBtn) {
+      allBtn.addEventListener('click', () => {
+        selectedAiIdx = null;
+        refreshThinkingPanels(previousState || state);
+        renderTabs(previousState || state);
+      });
+    }
   }
 
   function updatePacingBar(state) {
@@ -934,328 +1296,401 @@ body {
     document.getElementById('btn-prev').disabled = viewedRound <= 0;
     document.getElementById('btn-next').disabled = viewedRound >= maxRound;
     document.getElementById('btn-auto').classList.toggle('is-active', autoMode);
+    replayBtn.disabled = viewedRound <= 0;
   }
 
   function statusClass(status) {
     return status === 'done' ? 'is-done' : status === 'running' ? 'is-running' : 'is-waiting';
   }
 
-  function roundEscape(result) {
-    if (!result) return 'waiting';
-    if (result.escape) return result.escape;
-    return 'waiting';
-  }
-
-  function cardTake(result) {
-    if (!result) return 'No round yet';
-    return `${result.escape === 'clean' ? 'Clean' : result.escape === 'caught' ? 'Caught' : 'Failed'} · ${money(result.take)}`;
-  }
-
-  function wireHtml(state, vRound) {
-    const entries = (state.wire || []).filter(w => w.round === vRound);
-    if (!entries.length) {
-      return `<div class="rail-empty">The wire is quiet this round.</div>`;
+  function updateRoundCard(state, roundNumber) {
+    if (roundNumber <= 0) {
+      roundCardTitleEl.textContent = 'ROUND 0 · BASELINE';
+      roundCardSubEl.textContent = 'drafted roster';
+      return;
     }
-    return entries.map(item => `
-      <div class="wire-item">
-        <div class="wire-portrait">
-          <div class="wire-fallback">${esc(initials(item.speaker_name))}</div>
-          <img src="/portraits/${encodeURIComponent(item.speaker_char_id || '')}"
-               alt="${esc(item.speaker_name)}" loading="lazy"
-               onerror="this.style.display='none';this.previousElementSibling.style.display='flex';">
-        </div>
-        <div class="wire-body">
-          <div class="wire-head">
-            <div class="wire-name">${esc(item.speaker_name || 'Unknown')}</div>
-            <div class="wire-target">vs ${esc(item.target_ai_name || 'unknown')}</div>
-          </div>
-          <div class="wire-text">${esc(item.text || '')}</div>
-        </div>
-      </div>
-    `).join('');
+    roundCardTitleEl.textContent = `ROUND ${roundNumber} · RESULTS`;
+    roundCardSubEl.textContent = `of ${state.total_rounds || 0}`;
   }
 
-  function coverageHtml(crew) {
-    const coverage = coverageForCrew(crew);
-    const labels = { hack: 'HCK', safe: 'SFE', musc: 'MSC', soc: 'SOC', drive: 'DRV' };
+  function collectCardRefs() {
+    return Array.from(standingsEl.querySelectorAll('.ai-card')).map(card => ({
+      aiIdx: Number(card.dataset.aiIdx),
+      card,
+      rank: card.querySelector('[data-role="rank"]'),
+      rankChange: card.querySelector('[data-role="rank-change"]'),
+      total: card.querySelector('[data-role="total"]'),
+      take: card.querySelector('[data-role="take"]'),
+      heatValue: card.querySelector('[data-role="heat-value"]'),
+      members: Array.from(card.querySelectorAll('.crew-card')).map(memberEl => ({
+        el: memberEl,
+        charId: String(memberEl.dataset.charId || ''),
+      })),
+    }));
+  }
+
+  function renderCardHtml(model, phase) {
+    const isBefore = phase === 'before';
+    const showResult = model.roundNumber > 0;
+    const rankValue = isBefore ? model.beforeRank : model.afterRank;
+    const totalValue = isBefore ? model.beforeTotal : model.afterTotal;
+    const takeValue = isBefore ? 0 : model.take;
+    const heatValue = isBefore ? model.heatBefore : model.heatAfter;
+    const rankChangeText = !isBefore && showResult ? formatRankDelta(model.rankDelta) : '';
+    const rankChangeClass = `rank-change${!isBefore && showResult ? ' show ' + (model.rankDelta > 0 ? 'up' : model.rankDelta < 0 ? 'dn' : 'same') : ''}`;
+    const takeClass = `take-badge${!isBefore && showResult ? ' show' : ''}`;
+    const rowLabel = model.roundNumber === 0 ? 'Drafted roster' : `Round ${model.roundNumber}`;
+    const bodyLabel = model.roundNumber === 0
+      ? `<div class="panel-kicker">Drafted roster</div>`
+      : `<div class="panel-kicker">${esc(rowLabel)}</div>`;
+    const watchLink = (model.row.status === 'done' || model.row.status === 'running') && model.row.ai_idx != null
+      ? `<a class="watch-link" href="/hiring?campaign=${encodeURIComponent(gameId)}&ai=${encodeURIComponent(model.row.ai_idx)}&round=0">Watch →</a>`
+      : '';
+    const historyHtml = renderRoundHistory(model.row, model.totalRounds);
+    const caughtIds = model.caughtIds;
+    const baseline = model.roundNumber === 0;
+    const crewHtml = renderCrewGrid(model.crew, caughtIds, phase, baseline);
     return `
-      <div class="coverage">
-        ${SKILL_KEYS.map(key => {
-          const value = coverage[key];
-          return `
-            <div class="coverage-row">
-              <div class="coverage-label ${value === 0 ? 'zero' : ''}">${labels[key]}</div>
-              <div class="coverage-stack">
-                ${[1, 2, 3].map(level =>
-                  `<div class="coverage-seg ${level <= value ? 'on ' + key : ''}"></div>`
-                ).join('')}
+      <article class="ai-card${!isBefore && rankValue === 1 ? ' winner' : ''}${isBefore ? ' is-reveal' : ''}" data-ai-idx="${model.aiIdx}" data-ai-color="${model.aiColor}">
+        <div class="card-top">
+          <div class="rank-block">
+            <div class="rank-row">
+              <div class="rank-num${!isBefore && rankValue === 1 ? ' winner' : ''}" data-role="rank">#${rankValue}</div>
+            </div>
+            <div class="${rankChangeClass}" data-role="rank-change">${esc(rankChangeText)}</div>
+          </div>
+          <div class="ai-dot ${model.aiColor}"></div>
+          <div class="name-col">
+            <div class="ai-name">${esc(model.aiName)}</div>
+          </div>
+          <div class="total-col">
+            <div class="total-val" data-role="total">${moneyM(totalValue)}</div>
+            <div class="total-meta">
+              <div class="${takeClass}" data-role="take">${isBefore ? '+$0.00M' : '+' + moneyM(takeValue)}</div>
+              <div class="heat-chip">
+                <span class="heat-label">HEAT</span>
+                <span class="heat-value ${heatClass(heatValue)}${!isBefore && heatValue >= 7 ? ' pulse' : ''}" data-role="heat-value">${heatValue} / 9</span>
               </div>
             </div>
-          `;
-        }).join('')}
-      </div>
+          </div>
+        </div>
+        <div class="card-body">
+          ${bodyLabel}
+          <div class="panel-kicker" style="margin-bottom:10px;">Crew</div>
+          <div class="crew-grid">
+            ${crewHtml}
+          </div>
+          ${coverageHtml(model.crew, baseline)}
+          ${historyHtml}
+          ${watchLink}
+        </div>
+      </article>
     `;
   }
 
-  function memberCardHtml(member, newlyCaptured) {
-    return `
-      <div class="crew-card${member.captured ? ' captured' : ''}${newlyCaptured ? ' newly-captured' : ''}" data-primary="${member.primary || primarySkill(member)}" data-captured="${member.captured ? 'true' : 'false'}" data-char-id="${member.char_id || member.id}">
-        ${member.captured ? '<div class="crew-pill">Captured</div>' : ''}
-        ${portraitHtml(member)}
-        <div class="name-strip">${esc(member.name)}</div>
-      </div>
-    `;
+  function renderStandingsHtml(board, phase) {
+    const ordered = (phase === 'before' ? board.beforeOrder : board.afterOrder);
+    return ordered.map(model => renderCardHtml(model, phase)).join('');
   }
 
-  function lootPct(bank, maxBank) {
-    if (!maxBank) return 0;
-    return Math.max(0, Math.min(100, (bank / maxBank) * 100));
-  }
-
-  function standingsHtml(state, animate) {
-    const prevByAi = new Map((previousState?.standings || []).map((row, idx) => [row.ai_idx, { row, idx }]));
-    const maxBank = Math.max(...state.standings.map(s => s.banked || 0), 0);
-    const roundZero = viewedRound === 0;
-    return state.standings.map((row, idx) => {
-      const prev = prevByAi.get(row.ai_idx)?.row || null;
-      const prevRank = prev ? prev.rank : null;
-      const rankDelta = prevRank == null ? 0 : prevRank - row.rank;
-      const lastRound = row.last_round;
-      const reflection = row.reflection || {};
-      const crew = row.crew || [];
-      const prevCrewById = new Map((prev?.crew || []).map(m => [m.char_id || m.id, m]));
-      const previousWidth = prev ? lootPct(prev.banked || 0, Math.max(...(previousState?.standings || []).map(s => s.banked || 0), 0)) : lootPct(row.banked || 0, maxBank);
-      const currentWidth = lootPct(row.banked || 0, maxBank);
-      const crewCards = crew.map(member => memberCardHtml(member, animate && prevCrewById.get(member.char_id || member.id)?.captured === false && member.captured)).join('');
-      const watchLink = (row.status === 'done' || row.status === 'running') && row.ai_idx != null
-        ? `<a class="watch-link" href="/hiring?campaign=${encodeURIComponent(gameId)}&ai=${encodeURIComponent(row.ai_idx)}&round=0">Watch →</a>`
-        : '';
-      const viewedRoundResult = roundZero ? null : selectedRoundResult(state, row.ai_idx, viewedRound - 1);
-      const lootBadge = viewedRoundResult ? `Round take ${money(viewedRoundResult.take)}` : 'No round yet';
-      // Build a full-length round history padded to total_rounds.
-      // AIs that were wiped early show "sat out" entries for rounds they missed.
-      const playedByRound = new Map((row.round_results || []).map(r => [r.round_idx, r]));
-      const totalRounds = state.total_rounds || 0;
-      const allRoundRows = roundZero ? [] : Array.from({ length: totalRounds }, (_, i) => {
-        const r = playedByRound.get(i);
-        if (!r) {
-          return `<div class="round-row rh-sat">
-        <span class="rh-num">R${i + 1}</span>
-        <span class="rh-job rh-sat-label">sat out</span>
-        <span class="rh-take">—</span>
-        <span class="rh-icon">·</span>
-      </div>`;
-        }
-        const isAbort = r.aborted;
-        const cls = isAbort ? 'rh-abort' : r.escape === 'clean' ? 'rh-clean' : r.escape === 'caught' ? 'rh-caught' : 'rh-fail';
-        const icon = isAbort ? '↩' : r.escape === 'clean' ? '✓' : r.escape === 'caught' ? '✗' : '~';
-        const hgid = r.hiring_game_id;
-        const hireLink = hgid
-          ? `<a class="rh-hire-link" href="/hiring?campaign=${encodeURIComponent(gameId)}&ai=${encodeURIComponent(row.ai_idx)}&round=${encodeURIComponent(r.round_idx)}" title="Watch hiring" onclick="event.stopPropagation()">H</a>`
-          : '';
-        const watchLink = r.game_id
-          ? `<a class="rh-hire-link" href="/heist?campaign=${encodeURIComponent(gameId)}&ai=${encodeURIComponent(row.ai_idx)}&round=${encodeURIComponent(r.round_idx)}" title="Watch heist" onclick="event.stopPropagation()">→</a>`
-          : '';
-        return `<div class="round-row ${cls} rh-nav" data-round-idx="${r.round_idx}" data-ai-idx="${row.ai_idx}">
-        <span class="rh-num">R${(r.round_idx + 1)}</span>
-        <span class="rh-job">${esc(r.job_name || '—')}${isAbort ? ' <span class="rh-abort-tag">ABORT</span>' : ''}</span>
-        <span class="rh-take">${money(r.take || 0)}</span>
-        <span class="rh-icon">${icon}</span>
-        <span class="rh-links">${hireLink}${watchLink}</span>
-      </div>`;
-      });
-      const roundHistoryHtml = allRoundRows.length
-        ? `<div class="round-history">${allRoundRows.join('')}</div>`
-        : '';
-      if (roundZero) {
-        return `
-        <article class="ai-card${animate ? ' is-flip' : ''}" data-ai-idx="${row.ai_idx}" data-rank="${row.rank}">
-          <div class="card-top">
-            <div class="rank-block">
-              <div class="rank-row">
-                <div class="rank-num">Rank ${row.rank}</div>
-                <div class="ai-name">${esc(row.ai_name)}</div>
-                <div class="status-chip is-waiting">not yet played</div>
-              </div>
-              <div class="panel-sub" style="margin-top:8px;">Banked $0 · Notoriety 0</div>
-            </div>
-            <div style="text-align:right;">
-              <div class="status-chip is-waiting">baseline</div>
-            </div>
-          </div>
-          <div class="card-body">
-            <div class="panel-sub" style="margin-top:-2px;">Drafted roster</div>
-            ${coverageHtml(crew)}
-            <div>
-              <div class="panel-kicker" style="margin-bottom:10px;">Crew</div>
-              <div class="crew-grid">
-                ${crewCards}
-              </div>
-            </div>
-          </div>
-        </article>
-      `;
-      }
-      return `
-        <article class="ai-card${animate ? ' is-flip' : ''}" data-ai-idx="${row.ai_idx}" data-rank="${row.rank}">
-          <div class="card-top">
-            <div class="rank-block">
-              <div class="rank-row">
-                <div class="rank-num">Rank ${row.rank}</div>
-                <div class="ai-name">${esc(row.ai_name)}</div>
-                <div class="status-chip ${statusClass(row.status)}">${esc(row.status)}</div>
-                ${rankDelta !== 0 ? `<div class="status-chip ${rankDelta > 0 ? 'is-done' : 'is-waiting'} rank-pill${animate ? ' animate' : ''}">${rankDelta > 0 ? '↑' : '↓'}${Math.abs(rankDelta)}</div>` : ''}
-              </div>
-              <div class="panel-sub" style="margin-top:8px;">Banked ${money(row.banked)} · Notoriety ${row.notoriety}</div>
-            </div>
-            <div style="text-align:right;">
-              <div class="status-chip ${statusClass(row.status)}">${row.status}</div>
-              ${watchLink}
-            </div>
-          </div>
-          <div class="loot-meta">
-            <div class="loot-row">
-              <div class="loot-bar"><div class="loot-fill" style="width:${animate ? previousWidth : currentWidth}%"></div></div>
-              <div class="take-badge${animate ? ' animate' : ''}">${esc(lootBadge)}</div>
-            </div>
-          </div>
-          <div class="card-body">
-            <div class="stats-row">
-              <div class="stat">
-                <div class="stat-key">Last round</div>
-                <div class="stat-val accent">${esc(viewedRoundResult ? `R${viewedRound} · ${viewedRoundResult.job_name}` : lastRound ? `R${row.round_results?.length || state.current_round_idx || state.round || '—'} · ${lastRound.job}` : 'Waiting')}</div>
-              </div>
-              <div class="stat">
-                <div class="stat-key">Escape</div>
-                <div class="stat-val">${esc(viewedRoundResult ? roundEscape(viewedRoundResult) : lastRound ? roundEscape(lastRound) : row.status)}</div>
-              </div>
-              <div class="stat">
-                <div class="stat-key">Reflection</div>
-                <div class="stat-val">${esc(viewedRoundResult ? ((row.reflections_by_round || []).find(r => r.round === viewedRound - 1)?.learned ? 'Ready' : '—') : reflection.learned ? 'Ready' : '—')}</div>
-              </div>
-            </div>
-
-            ${coverageHtml(crew)}
-
-            <div>
-              <div class="panel-kicker" style="margin-bottom:10px;">Crew</div>
-              <div class="crew-grid">
-                ${crewCards}
-              </div>
-            </div>
-
-            ${roundHistoryHtml}
-          </div>
-        </article>
-      `;
-    }).join('');
-  }
-
-  function renderTabs(state) {
-    const allActive = selectedAiIdx == null;
-    tabsEl.innerHTML = `
-      <button class="tab-btn${allActive ? ' active' : ''}" data-select="all">All</button>
-      ${state.standings.map(row => `
-        <button class="tab-btn${row.ai_idx === selectedAiIdx ? ' active' : ''}" data-ai-idx="${row.ai_idx}">${esc(row.ai_name)}</button>
-      `).join('')}
-    `;
-    tabsEl.querySelectorAll('[data-ai-idx]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        selectedAiIdx = Number(btn.dataset.aiIdx);
-        refreshThinkingPanels(previousState || state);
-        renderTabs(previousState || state);
-      });
-    });
-    const allBtn = tabsEl.querySelector('[data-select="all"]');
-    if (allBtn) {
-      allBtn.addEventListener('click', () => {
-        selectedAiIdx = null;
-        refreshThinkingPanels(previousState || state);
-        renderTabs(previousState || state);
-      });
-    }
-  }
-
-  function renderState(state, animate) {
+  function renderState(state, phase = 'final') {
     updatePacingBar(state);
     metaEl.innerHTML = `Round <strong>${state.round}</strong> / ${state.total_rounds} · <strong>${state.standings.length}</strong> AIs`;
     const hasRunning = state.standings.some(s => s.status === 'running');
     statusPill.textContent = hasRunning ? 'LIVE' : 'SYNCED';
     statusPill.className = hasRunning ? 'status-pill is-live' : 'status-pill';
     centerSub.textContent = viewedRound === 0 ? 'Opening wire' : `Round ${viewedRound} wire`;
+    roundCardEl.classList.remove('show');
 
-    const prevRects = new Map();
-    if (animate) {
-      standingsEl.querySelectorAll('.ai-card').forEach(card => {
-        prevRects.set(card.dataset.aiIdx, card.getBoundingClientRect());
-      });
-    }
-
-    standingsEl.innerHTML = standingsHtml(state, animate);
+    currentBoard = buildRoundView(state, viewedRound);
+    updateRoundCard(state, viewedRound);
+    standingsEl.innerHTML = renderStandingsHtml(currentBoard, phase);
+    currentBoard.refs = collectCardRefs();
+    currentBoard.refsByAiIdx = new Map(currentBoard.refs.map(ref => [ref.aiIdx, ref]));
     renderTabs(state);
     refreshThinkingPanels(state);
     wireEl.innerHTML = wireHtml(state, viewedRound);
+    return currentBoard;
+  }
 
-    if (animate) {
-      const maxPrevBank = Math.max(...(previousState?.standings || []).map(s => s.banked || 0), 0);
-      standingsEl.querySelectorAll('.ai-card').forEach((card, idx) => {
-        const oldRect = prevRects.get(card.dataset.aiIdx);
-        const newRect = card.getBoundingClientRect();
-        const delay = idx * 35;
-        if (oldRect) {
-          const dy = oldRect.top - newRect.top;
-          card.style.transform = `translateY(${dy}px)`;
-          card.style.transition = 'transform 500ms ease, opacity 500ms ease';
-          card.style.transitionDelay = `${delay}ms`;
-          requestAnimationFrame(() => {
-            card.style.transform = 'translateY(0)';
-            card.style.opacity = '1';
-          });
-        } else {
-          card.style.opacity = '0';
-          card.style.transform = 'translateY(14px)';
-          card.style.transition = 'transform 500ms ease, opacity 500ms ease';
-          card.style.transitionDelay = `${delay}ms`;
-          requestAnimationFrame(() => {
-            card.style.opacity = '1';
-            card.style.transform = 'translateY(0)';
-          });
+  function cancelReveal() {
+    if (!activeReveal) return;
+    activeReveal.cancelled = true;
+    for (const id of activeReveal.timeouts) {
+      clearTimeout(id);
+    }
+    for (const id of activeReveal.rafs) {
+      cancelAnimationFrame(id);
+    }
+    activeReveal.timeouts.clear();
+    activeReveal.rafs.clear();
+    activeReveal = null;
+  }
+
+  function makeToken() {
+    cancelReveal();
+    activeReveal = {
+      cancelled: false,
+      timeouts: new Set(),
+      rafs: new Set(),
+    };
+    return activeReveal;
+  }
+
+  function sleep(ms, token) {
+    return new Promise(resolve => {
+      if (token.cancelled) {
+        resolve();
+        return;
+      }
+      const id = window.setTimeout(() => {
+        token.timeouts.delete(id);
+        resolve();
+      }, ms);
+      token.timeouts.add(id);
+    });
+  }
+
+  function animate(duration, frame, token) {
+    return new Promise(resolve => {
+      if (token.cancelled) {
+        resolve();
+        return;
+      }
+      if (duration <= 0) {
+        frame(1);
+        resolve();
+        return;
+      }
+      const start = performance.now();
+      let rafId = 0;
+      const step = now => {
+        token.rafs.delete(rafId);
+        if (token.cancelled) {
+          resolve();
+          return;
         }
-
-      const prev = (previousState?.standings || []).find(s => s.ai_idx === Number(card.dataset.aiIdx));
-      const lootFill = card.querySelector('.loot-fill');
-        if (lootFill) {
-          const prevWidth = prev ? lootPct(prev.banked || 0, maxPrevBank) : lootPct(0, maxPrevBank);
-          const nextWidth = lootPct((state.standings.find(s => s.ai_idx === Number(card.dataset.aiIdx)) || {}).banked || 0, Math.max(...state.standings.map(s => s.banked || 0), 0));
-          lootFill.style.width = animate ? `${prevWidth}%` : `${nextWidth}%`;
-          requestAnimationFrame(() => { lootFill.style.width = `${nextWidth}%`; });
+        const t = Math.min(1, (now - start) / duration);
+        frame(t);
+        if (t >= 1) {
+          resolve();
+          return;
         }
+        rafId = window.requestAnimationFrame(step);
+        token.rafs.add(rafId);
+      };
+      rafId = window.requestAnimationFrame(step);
+      token.rafs.add(rafId);
+    });
+  }
 
-        (state.standings.find(s => s.ai_idx === Number(card.dataset.aiIdx))?.crew || []).forEach(member => {
-          const prevMember = prev?.crew?.find(m => String(m.char_id || m.id) === String(member.char_id || member.id));
-          if (!member.captured || !prevMember || prevMember.captured) return;
-          const crewCard = card.querySelector(`.crew-card[data-char-id="${CSS.escape(String(member.char_id || member.id))}"]`);
-          if (crewCard) {
-            crewCard.classList.add('newly-captured');
-            setTimeout(() => crewCard.classList.remove('newly-captured'), 20);
-          }
-        });
-      });
-    } else {
-      statusPill.className = hasRunning ? 'status-pill is-live' : 'status-pill';
-      standingsEl.querySelectorAll('.loot-fill').forEach((fill, idx) => {
-        const row = state.standings[idx];
-        fill.style.width = `${lootPct(row.banked || 0, Math.max(...state.standings.map(s => s.banked || 0), 0))}%`;
-      });
+  async function staggeredStarts(items, gapMs, token, start) {
+    const running = [];
+    for (let index = 0; index < items.length; index += 1) {
+      if (index > 0) {
+        await sleep(gapMs * motion, token);
+        if (token.cancelled) break;
+      }
+      running.push(start(items[index], index));
+    }
+    await Promise.all(running);
+  }
+
+  async function staggeredReveal(items, gapMs, token, reveal) {
+    for (let index = 0; index < items.length; index += 1) {
+      if (index > 0) {
+        await sleep(gapMs * motion, token);
+        if (token.cancelled) return;
+      }
+      reveal(items[index], index);
     }
   }
 
-  function needsAnimation(next) {
-    if (!previousState) return false;
+  async function roundCardSequence(token, state) {
+    roundCardEl.classList.add('show');
+    await sleep(1100 * motion, token);
+    if (token.cancelled) return;
+    roundCardEl.classList.remove('show');
+  }
+
+  async function rollUpResults(board, token) {
+    const duration = 750 * motion;
+    await staggeredStarts(board.refs, 350, token, ref => animate(duration, t => {
+      const model = board.byAiIdx.get(ref.aiIdx);
+      const total = model.beforeTotal + (model.afterTotal - model.beforeTotal) * t;
+      const take = model.take * t;
+      ref.total.textContent = moneyM(total);
+      ref.take.textContent = `+${moneyM(take)}`;
+      ref.take.style.opacity = `${Math.min(1, t * 1.4)}`;
+      ref.take.style.transform = `translateY(${(1 - Math.min(1, t * 1.4)) * -2}px)`;
+    }, token));
+    if (token.cancelled) return;
+    board.refs.forEach(ref => {
+      const model = board.byAiIdx.get(ref.aiIdx);
+      ref.total.textContent = moneyM(model.afterTotal);
+      ref.take.textContent = `+${moneyM(model.take)}`;
+      ref.take.style.opacity = '1';
+      ref.take.style.transform = 'translateY(0)';
+    });
+  }
+
+  async function flipRanks(board, token) {
+    const duration = 800 * motion;
+    const rowStagger = 95 * motion;
+    const badgeStagger = 150;
+    const beforeTop = new Map();
+    board.refs.forEach(ref => {
+      beforeTop.set(ref.card, ref.card.getBoundingClientRect().top);
+    });
+
+    const orderedRefs = board.afterOrder.map(model => board.refsByAiIdx.get(model.aiIdx)).filter(Boolean);
+    standingsEl.append(...orderedRefs.map(ref => ref.card));
+
+    orderedRefs.forEach((ref, index) => {
+      const model = board.byAiIdx.get(ref.aiIdx);
+      ref.rank.textContent = `#${model.afterRank}`;
+      ref.rank.className = `rank-num${model.afterRank === 1 ? ' winner' : ''}`;
+      ref.rankChange.textContent = formatRankDelta(model.rankDelta);
+      ref.rankChange.className = `rank-change ${model.rankDelta > 0 ? 'up' : model.rankDelta < 0 ? 'dn' : 'same'}`;
+      ref.card.classList.toggle('winner', model.afterRank === 1);
+      const newTop = ref.card.getBoundingClientRect().top;
+      const delta = beforeTop.get(ref.card) - newTop;
+      ref.card.style.transition = 'none';
+      ref.card.style.transform = `translateY(${delta}px)`;
+    });
+
+    void standingsEl.offsetHeight;
+
+    orderedRefs.forEach((ref, index) => {
+      ref.card.style.transition = `transform ${duration}ms cubic-bezier(0.2,0.8,0.2,1) ${index * rowStagger}ms`;
+      ref.card.style.transform = 'translateY(0)';
+    });
+
+    await sleep(duration + rowStagger * Math.max(0, orderedRefs.length - 1) + 80, token);
+    if (token.cancelled) return;
+
+    await staggeredReveal(orderedRefs, badgeStagger, token, ref => {
+      ref.rankChange.classList.add('show');
+    });
+    if (token.cancelled) return;
+
+    orderedRefs.forEach(ref => {
+      ref.card.style.transition = '';
+      ref.card.style.transform = '';
+    });
+    board.refs = orderedRefs;
+    board.refsByAiIdx = new Map(orderedRefs.map(ref => [ref.aiIdx, ref]));
+  }
+
+  function updateNotorietyForRef(ref, value) {
+    updateHeat(ref, value);
+  }
+
+  async function tickNotoriety(board, token) {
+    const duration = 750 * motion;
+    const cards = board.refs.slice();
+    await staggeredStarts(cards, 250, token, ref => animate(duration, t => {
+      const model = board.byAiIdx.get(ref.aiIdx);
+      const notoriety = model.heatBefore + (model.heatAfter - model.heatBefore) * t;
+      const value = Math.round(notoriety);
+      updateNotorietyForRef(ref, value);
+    }, token));
+    if (token.cancelled) return;
+    cards.forEach(ref => {
+      const model = board.byAiIdx.get(ref.aiIdx);
+      updateNotorietyForRef(ref, model.heatAfter);
+    });
+  }
+
+  async function casualtyBeat(board, token) {
+    const cards = board.refs.slice();
+    await staggeredReveal(cards, 120, token, ref => {
+      const model = board.byAiIdx.get(ref.aiIdx);
+      model.caughtIds.forEach(memberId => {
+        const memberEl = ref.members.find(m => String(m.charId) === String(memberId));
+        if (!memberEl) return;
+        memberEl.el.classList.remove('caught-pending');
+        memberEl.el.classList.add('caught-landed', 'captured');
+      });
+    });
+  }
+
+  async function runRoundReveal(board, token, state) {
+    await roundCardSequence(token, state);
+    if (token.cancelled) return;
+    await sleep(600 * motion, token);
+    if (token.cancelled) return;
+    await rollUpResults(board, token);
+    if (token.cancelled) return;
+    await sleep(600 * motion, token);
+    if (token.cancelled) return;
+    await flipRanks(board, token);
+    if (token.cancelled) return;
+    await sleep(450 * motion, token);
+    if (token.cancelled) return;
+    await tickNotoriety(board, token);
+    if (token.cancelled) return;
+    await sleep(450 * motion, token);
+    if (token.cancelled) return;
+    await casualtyBeat(board, token);
+    if (token.cancelled) return;
+    await sleep(650 * motion, token);
+  }
+
+  function startReveal(state, roundNumber) {
+    if (!state) return;
+    autoMode = false;
+    document.getElementById('btn-auto').classList.remove('is-active');
+    viewedRound = roundNumber;
+    cancelReveal();
+    const board = renderState(state, 'before');
+    const token = makeToken();
+    runRoundReveal(board, token, state).catch(() => {});
+  }
+
+  function renderFinal(state) {
+    cancelReveal();
+    renderState(state, 'final');
+  }
+
+  function navigateRound(targetRound, opts = {}) {
+    const state = previousState;
+    if (!state) return;
+    const maxRound = state.current_round_idx ?? 0;
+    const clamped = Math.max(0, Math.min(targetRound, maxRound));
+    const prevRound = viewedRound;
+    autoMode = false;
+    document.getElementById('btn-auto').classList.remove('is-active');
+    if (typeof opts.selectAiIdx === 'number') {
+      selectedAiIdx = opts.selectAiIdx;
+    }
+    viewedRound = clamped;
+    if (opts.animate && clamped > 0 && (opts.replay || clamped > prevRound)) {
+      startReveal(state, clamped);
+    } else {
+      renderFinal(state);
+    }
+    tabsEl.querySelectorAll('[data-ai-idx]').forEach(btn => {
+      btn.classList.toggle('active', Number(btn.dataset.aiIdx) === selectedAiIdx);
+    });
+  }
+
+  standingsEl.addEventListener('click', e => {
+    const row = e.target.closest('.rh-nav');
+    if (!row) return;
+    const roundIdx = Number(row.dataset.roundIdx);
+    const aiIdx = Number(row.dataset.aiIdx);
+    const animate = roundIdx + 1 > viewedRound;
+    navigateRound(roundIdx + 1, { animate, selectAiIdx: aiIdx });
+  });
+
+  function stateLooksNew(next) {
+    if (!previousState) return true;
     if (next.round !== previousState.round) return true;
-    const prevStatuses = previousState.standings.map(s => `${s.ai_idx}:${s.status}`);
-    const nextStatuses = next.standings.map(s => `${s.ai_idx}:${s.status}`);
-    return prevStatuses.join('|') !== nextStatuses.join('|');
+    if ((next.current_round_idx ?? 0) !== (previousState.current_round_idx ?? 0)) return true;
+    const prevBanked = previousState.standings.map(s => `${s.ai_idx}:${s.banked}:${s.rank}:${s.status}`).join('|');
+    const nextBanked = next.standings.map(s => `${s.ai_idx}:${s.banked}:${s.rank}:${s.status}`).join('|');
+    return prevBanked !== nextBanked;
   }
 
   async function loadState() {
@@ -1275,7 +1710,13 @@ body {
       if (selectedAiIdx != null && !next.standings.some(s => s.ai_idx === selectedAiIdx)) {
         selectedAiIdx = null;
       }
-      renderState(next, needsAnimation(next));
+      if (autoMode) {
+        viewedRound = next.current_round_idx ?? 0;
+      }
+      if (activeReveal) {
+        cancelReveal();
+      }
+      renderFinal(next);
       previousState = next;
     } catch (err) {
       statusPill.className = 'status-pill is-error';
@@ -1290,28 +1731,33 @@ body {
 
   loadState();
   document.getElementById('btn-prev').addEventListener('click', () => {
-    autoMode = false;
-    document.getElementById('btn-auto').classList.remove('is-active');
-    viewedRound = Math.max(0, viewedRound - 1);
-    if (previousState) renderState(previousState, false);
+    navigateRound(viewedRound - 1, { animate: false });
   });
 
   document.getElementById('btn-next').addEventListener('click', () => {
-    const maxRound = previousState ? (previousState.current_round_idx ?? 0) : 0;
-    viewedRound = Math.min(viewedRound + 1, maxRound);
-    if (previousState) renderState(previousState, false);
+    const nextRound = Math.min(viewedRound + 1, previousState ? (previousState.current_round_idx ?? 0) : 0);
+    navigateRound(nextRound, { animate: true });
+  });
+
+  replayBtn.addEventListener('click', () => {
+    if (!previousState || viewedRound <= 0) return;
+    navigateRound(viewedRound, { animate: true, replay: true });
   });
 
   document.getElementById('btn-auto').addEventListener('click', () => {
     autoMode = !autoMode;
     if (autoMode && previousState) {
       viewedRound = previousState.current_round_idx ?? 0;
-      renderState(previousState, false);
+      renderFinal(previousState);
     }
     document.getElementById('btn-auto').classList.toggle('is-active', autoMode);
   });
+
   pollTimer = setInterval(loadState, 5000);
-  window.addEventListener('beforeunload', () => pollTimer && clearInterval(pollTimer));
+  window.addEventListener('beforeunload', () => {
+    cancelReveal();
+    pollTimer && clearInterval(pollTimer);
+  });
 })();
 </script>
 </body>
