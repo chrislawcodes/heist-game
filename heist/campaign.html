@@ -1278,7 +1278,7 @@ body {
     };
 
     const stage = state.current_stage || 'done';
-    const maxRound = state.current_round_idx ?? 0;
+    const maxRound = playedRounds(state);
     const total = state.total_rounds || 0;
 
     if (autoMode) {
@@ -1653,10 +1653,18 @@ body {
     renderState(state, 'final');
   }
 
+  // The highest round the viewer can step to = number of COMPLETED rounds
+  // (each finished round appends a round_result). Note current_round_idx is the
+  // 0-based index of the last round, so it's one short for a done campaign —
+  // use the result count instead so the final round is reachable.
+  function playedRounds(state) {
+    return Math.max(0, ...((state && state.standings) || []).map(s => (s.round_results || []).length));
+  }
+
   function navigateRound(targetRound, opts = {}) {
     const state = previousState;
     if (!state) return;
-    const maxRound = state.current_round_idx ?? 0;
+    const maxRound = playedRounds(state);
     const clamped = Math.max(0, Math.min(targetRound, maxRound));
     const prevRound = viewedRound;
     autoMode = false;
@@ -1711,7 +1719,7 @@ body {
         selectedAiIdx = null;
       }
       if (autoMode) {
-        viewedRound = next.current_round_idx ?? 0;
+        viewedRound = playedRounds(next);
       }
       if (activeReveal) {
         cancelReveal();
@@ -1735,7 +1743,7 @@ body {
   });
 
   document.getElementById('btn-next').addEventListener('click', () => {
-    const nextRound = Math.min(viewedRound + 1, previousState ? (previousState.current_round_idx ?? 0) : 0);
+    const nextRound = Math.min(viewedRound + 1, previousState ? playedRounds(previousState) : 0);
     navigateRound(nextRound, { animate: true });
   });
 
@@ -1747,7 +1755,7 @@ body {
   document.getElementById('btn-auto').addEventListener('click', () => {
     autoMode = !autoMode;
     if (autoMode && previousState) {
-      viewedRound = previousState.current_round_idx ?? 0;
+      viewedRound = playedRounds(previousState);
       renderFinal(previousState);
     }
     document.getElementById('btn-auto').classList.toggle('is-active', autoMode);
