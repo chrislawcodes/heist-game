@@ -486,6 +486,7 @@ def campaign_state_to_dict(
     *,
     current_stage: str = "done",
     current_round_idx: int = 0,
+    progress: dict | None = None,
 ) -> dict:
     roster_lookup = {c.id: c for c in roster}
     if isinstance(game_states, dict):
@@ -786,4 +787,5 @@ def campaign_state_to_dict(
         "wire": wire,
         "current_stage": current_stage,
         "current_round_idx": current_round_idx,
+        "progress": progress,
     }

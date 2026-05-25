@@ -24,7 +24,7 @@ from heist.persist import (
 )
 
 
-def _build_ai(agent: str, *, ai_idx: int = 0, auction_mode: bool = False):
+def _build_ai(agent: str, *, ai_idx: int = 0, auction_mode: bool = False, progress_cb=None):
     from heist.backends import CodexHeistAI, GeminiHeistAI
     from heist.stub_responses import build_stub_ai
 
@@ -33,11 +33,11 @@ def _build_ai(agent: str, *, ai_idx: int = 0, auction_mode: bool = False):
             return build_stub_ai()
         return _AuctionAwareStubAI(ai_idx)
     if agent == "codex":
-        return CodexHeistAI(model="gpt-5.4")
+        return CodexHeistAI(model="gpt-5.4", progress_cb=progress_cb)
     if agent == "codex-mini":
-        return CodexHeistAI(model="gpt-5.4-mini")
+        return CodexHeistAI(model="gpt-5.4-mini", progress_cb=progress_cb)
     if agent == "gemini":
-        return GeminiHeistAI()
+        return GeminiHeistAI(progress_cb=progress_cb)
     raise RuntimeError(f"Unknown agent: {agent}")
 
 
@@ -514,8 +514,35 @@ def run_campaign_conductor(campaign_id: int, num_rounds: int) -> None:
     num_ais = len(ais_cfg)
     strategies = [cfg.get("prompt", "") for cfg in ais_cfg]
 
+    def _beat(*, ai_name=None, attempt=None, max_attempts=None):
+        with gamestate.lock:
+            g = gamestate.games.get(campaign_id)
+            if not g:
+                return
+            g["progress"] = {
+                "round": int(g.get("current_round_idx", 0) or 0),
+                "total_rounds": int(num_rounds),
+                "stage": g.get("current_stage"),
+                "ai_name": ai_name,
+                "attempt": attempt,
+                "max_attempts": max_attempts,
+                "updated_at": time.time(),
+            }
+
     try:
-        ais = [_build_ai(cfg.get("agent", "stub"), ai_idx=i) for i, cfg in enumerate(ais_cfg)]
+        ais = []
+        for i, cfg in enumerate(ais_cfg):
+            ai_name = cfg.get("name", f"AI {i + 1}")
+            ais.append(
+                _build_ai(
+                    cfg.get("agent", "stub"),
+                    ai_idx=i,
+                    progress_cb=(
+                        lambda attempt, mx, _name=ai_name:
+                        _beat(ai_name=_name, attempt=attempt, max_attempts=mx)
+                    ),
+                )
+            )
     except Exception as exc:
         log.error(
             "campaign_conductor_build_failed",
@@ -547,6 +574,7 @@ def run_campaign_conductor(campaign_id: int, num_rounds: int) -> None:
 
     def set_stage(stage: str, round_idx: int) -> None:
         gamestate.update_game(campaign_id, current_stage=stage, current_round_idx=round_idx)
+        _beat()
         gamestate.broadcast({
             "type": "campaign_stage",
             "campaign_id": campaign_id,

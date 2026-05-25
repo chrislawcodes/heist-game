@@ -362,6 +362,9 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                 "num_rounds": int(game.get("num_rounds", 5)),
                 "created_at": float(game.get("created_at", 0.0)),
                 "current_round": current_round,
+                "current_round_idx": int(game.get("current_round_idx", 0)),
+                "current_stage": game.get("current_stage"),
+                "progress": game.get("progress"),
                 "ais": ais,
             })
         payload.sort(key=lambda row: row["created_at"], reverse=True)
@@ -400,6 +403,11 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             self._json_error(404, "not found")
             return
         if {"round", "total_rounds", "standings", "wire"} <= set(campaign_payload.keys()):
+            if campaign_payload.get("progress") is None:
+                campaign_payload = {
+                    **campaign_payload,
+                    "progress": game.get("progress"),
+                }
             self._json_ok(campaign_payload)
             return
         if game_states is None:
@@ -413,6 +421,7 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             campaign, game_states, ROSTER,
             current_stage=game_current_stage,
             current_round_idx=game_current_round_idx,
+            progress=game.get("progress"),
         )
         self._json_ok(payload)
 

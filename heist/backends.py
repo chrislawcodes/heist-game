@@ -9,6 +9,7 @@ conversation context" requirement.
 
 from __future__ import annotations
 
+import contextlib
 import time
 from collections.abc import Callable
 
@@ -37,7 +38,10 @@ AI_MAX_ATTEMPTS = 3
 AI_RETRY_DELAY_SECONDS = 2.0
 
 
-def _ask_with_retries(call: Callable[[], Turn]) -> tuple[Turn, int, int]:
+def _ask_with_retries(
+    call: Callable[[], Turn],
+    on_attempt: Callable[[int, int], None] | None = None,
+) -> tuple[Turn, int, int]:
     """Run one backend call up to AI_MAX_ATTEMPTS times.
 
     Retries on ANY exception (subprocess timeout, CLI error, malformed output).
@@ -53,6 +57,9 @@ def _ask_with_retries(call: Callable[[], Turn]) -> tuple[Turn, int, int]:
     """
     last_exc: Exception | None = None
     for attempt in range(1, AI_MAX_ATTEMPTS + 1):
+        if on_attempt is not None:
+            with contextlib.suppress(Exception):
+                on_attempt(attempt, AI_MAX_ATTEMPTS)
         t0 = time.monotonic()
         try:
             result = call()
@@ -76,9 +83,10 @@ def _ask_with_retries(call: Callable[[], Turn]) -> tuple[Turn, int, int]:
 
 
 class CodexHeistAI:
-    def __init__(self, model: str | None = None) -> None:
+    def __init__(self, model: str | None = None, progress_cb=None) -> None:
         self.session_id: str | None = None
         self.model = model
+        self._progress_cb = progress_cb
         # Stats from the most recent successful ask(), surfaced by the caller's
         # ai_call log: attempts taken and the clean latency of the call that
         # actually succeeded.
@@ -92,7 +100,8 @@ class CodexHeistAI:
                 session_id=self.session_id,
                 model=self.model,
                 timeout=AI_TURN_TIMEOUT_SECONDS,
-            )
+            ),
+            on_attempt=self._progress_cb if self._progress_cb is not None else None,
         )
         self.last_attempts = attempts
         self.last_attempt_ms = attempt_ms
@@ -101,8 +110,9 @@ class CodexHeistAI:
 
 
 class GeminiHeistAI:
-    def __init__(self) -> None:
+    def __init__(self, progress_cb=None) -> None:
         self.session_id: str | None = None
+        self._progress_cb = progress_cb
         self.last_attempts: int = 0
         self.last_attempt_ms: int = 0
 
@@ -112,7 +122,8 @@ class GeminiHeistAI:
                 prompt,
                 session_id=self.session_id,
                 timeout=AI_TURN_TIMEOUT_SECONDS,
-            )
+            ),
+            on_attempt=self._progress_cb if self._progress_cb is not None else None,
         )
         self.last_attempts = attempts
         self.last_attempt_ms = attempt_ms
