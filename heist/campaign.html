@@ -519,12 +519,19 @@ body {
   display: grid;
   gap: 14px;
 }
+.crew-and-coverage {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+}
+.crew-and-coverage .crew-grid { flex: 0 1 auto; }
 .coverage {
   display: flex;
   flex-direction: column;
   gap: 5px;
-  margin-top: 6px;
-  margin-bottom: 10px;
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 340px;
 }
 .coverage-row {
   display: grid;
@@ -1350,8 +1357,9 @@ body {
     const totalValue = isBefore ? model.beforeTotal : model.afterTotal;
     const takeValue = isBefore ? 0 : model.take;
     const heatValue = isBefore ? model.heatBefore : model.heatAfter;
-    const rankChangeText = !isBefore && showResult ? formatRankDelta(model.rankDelta) : '';
-    const rankChangeClass = `rank-change${!isBefore && showResult ? ' show ' + (model.rankDelta > 0 ? 'up' : model.rankDelta < 0 ? 'dn' : 'same') : ''}`;
+    const showDelta = !isBefore && showResult && model.rankDelta !== 0;
+    const rankChangeText = showDelta ? formatRankDelta(model.rankDelta) : '';
+    const rankChangeClass = `rank-change${showDelta ? ' show ' + (model.rankDelta > 0 ? 'up' : 'dn') : ''}`;
     const takeClass = `take-badge${!isBefore && showResult ? ' show' : ''}`;
     const watchLink = (model.row.status === 'done' || model.row.status === 'running') && model.row.ai_idx != null
       ? `<a class="watch-link" href="/hiring?campaign=${encodeURIComponent(gameId)}&ai=${encodeURIComponent(model.row.ai_idx)}&round=0">Watch →</a>`
@@ -1385,10 +1393,12 @@ body {
           </div>
         </div>
         <div class="card-body">
-          <div class="crew-grid">
-            ${crewHtml}
+          <div class="crew-and-coverage">
+            <div class="crew-grid">
+              ${crewHtml}
+            </div>
+            ${coverageHtml(model.crew, baseline)}
           </div>
-          ${coverageHtml(model.crew, baseline)}
           ${historyHtml}
           ${watchLink}
         </div>
@@ -1564,9 +1574,13 @@ body {
       let motionCards = [ref.card];
 
       try {
-        ref.rankChange.textContent = model.rankDelta === 0 ? `held #${model.afterRank}` : formatRankDelta(model.rankDelta);
-        ref.rankChange.className = `rank-change ${model.rankDelta > 0 ? 'up' : model.rankDelta < 0 ? 'dn' : 'same'}`;
-        ref.rankChange.classList.add('show');
+        if (model.rankDelta === 0) {
+          ref.rankChange.textContent = '';
+          ref.rankChange.className = 'rank-change';
+        } else {
+          ref.rankChange.textContent = formatRankDelta(model.rankDelta);
+          ref.rankChange.className = `rank-change show ${model.rankDelta > 0 ? 'up' : 'dn'}`;
+        }
         ref.take.textContent = `+${moneyM(model.take)}`;
         ref.take.style.opacity = '1';
         ref.take.style.transform = 'translateY(0)';
