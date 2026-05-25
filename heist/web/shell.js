@@ -735,14 +735,27 @@ function _updatePhasenav(gameId, events) {
     document.head.appendChild(s);
   }
 
-  const hasJob      = events.some(e => e.type === 'job_known');
-  const hasHeist    = events.some(e => e.type === 'scene_start');
-  const hasEpilogue = events.some(e => e.type === 'game_done');
+  // Reachability differs by mode. A single-game replay has every phase in one
+  // event stream, so detect them from the loaded events. In CAMPAIGN (journey)
+  // mode each round is split into a hire sub-game + a heist sub-game, so the
+  // current page's events can't see the other phases — derive reachability from
+  // the round's sub-game ids instead (job/heist/epilogue all live in that
+  // round's heist sub-game).
+  let hasHiring = true, hasJob, hasHeist, hasEpilogue;
+  if (_isJourneyMode()) {
+    const round = _journeyRoundFor(_selectedJourneyTeam(Shell.currentAI), Shell.selectedRoundIdx);
+    hasHiring = round?.hire_sub_game_id != null;
+    hasJob = hasHeist = hasEpilogue = round?.heist_sub_game_id != null;
+  } else {
+    hasJob      = events.some(e => e.type === 'job_known');
+    hasHeist    = events.some(e => e.type === 'scene_start');
+    hasEpilogue = events.some(e => e.type === 'game_done');
+  }
 
   const current = window.location.pathname.replace(/^\//, '').split('?')[0] || 'hiring';
 
   const phases = [
-    { label: 'Hiring',   path: 'hiring',   reachable: true        },
+    { label: 'Hiring',   path: 'hiring',   reachable: hasHiring   },
     { label: 'Job',      path: 'job',       reachable: hasJob      },
     { label: 'Heist',    path: 'heist',     reachable: hasHeist    },
     { label: 'Epilogue', path: 'epilogue',  reachable: hasEpilogue },
