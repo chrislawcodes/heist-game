@@ -1348,10 +1348,6 @@ body {
     const rankChangeText = !isBefore && showResult ? formatRankDelta(model.rankDelta) : '';
     const rankChangeClass = `rank-change${!isBefore && showResult ? ' show ' + (model.rankDelta > 0 ? 'up' : model.rankDelta < 0 ? 'dn' : 'same') : ''}`;
     const takeClass = `take-badge${!isBefore && showResult ? ' show' : ''}`;
-    const rowLabel = model.roundNumber === 0 ? 'Drafted roster' : `Round ${model.roundNumber}`;
-    const bodyLabel = model.roundNumber === 0
-      ? `<div class="panel-kicker">Drafted roster</div>`
-      : `<div class="panel-kicker">${esc(rowLabel)}</div>`;
     const watchLink = (model.row.status === 'done' || model.row.status === 'running') && model.row.ai_idx != null
       ? `<a class="watch-link" href="/hiring?campaign=${encodeURIComponent(gameId)}&ai=${encodeURIComponent(model.row.ai_idx)}&round=0">Watch →</a>`
       : '';
@@ -1384,8 +1380,6 @@ body {
           </div>
         </div>
         <div class="card-body">
-          ${bodyLabel}
-          <div class="panel-kicker" style="margin-bottom:10px;">Crew</div>
           <div class="crew-grid">
             ${crewHtml}
           </div>
