@@ -201,6 +201,7 @@ body {
   padding: 14px;
 }
 .standings-scroll {
+  padding: 56px 14px 56px;
   position: relative;
 }
 
@@ -338,6 +339,14 @@ body {
 .ai-card.is-flip,
 .ai-card.is-reveal {
   will-change: transform, opacity;
+}
+.ai-card.spotlight {
+  z-index: 8;
+  box-shadow:
+    0 22px 44px rgba(0,0,0,0.42),
+    0 0 0 1px rgba(232,160,48,0.18),
+    0 0 30px rgba(232,160,48,0.12);
+  will-change: transform;
 }
 .ai-card.winner {
   box-shadow: 0 0 0 1px rgba(232,160,48,0.16), 0 0 24px rgba(232,160,48,0.14);
@@ -1534,52 +1543,108 @@ body {
     });
   }
 
-  async function flipRanks(board, token) {
-    const duration = 800 * motion;
-    const rowStagger = 95 * motion;
-    const badgeStagger = 150;
-    const beforeTop = new Map();
-    board.refs.forEach(ref => {
-      beforeTop.set(ref.card, ref.card.getBoundingClientRect().top);
-    });
+  async function spotlightRanks(board, token) {
+    const popDuration = prefersReducedMotion ? 90 : 250;
+    const holdDuration = prefersReducedMotion ? 60 : 350;
+    const travelDuration = prefersReducedMotion ? 140 : 250;
+    const shrinkDuration = prefersReducedMotion ? 140 : 250;
+    const popScale = prefersReducedMotion ? 1.02 : 1.5;
+    const settleEase = 'cubic-bezier(0.2,0.8,0.2,1)';
+    const finalRefs = board.afterOrder.map(model => board.refsByAiIdx.get(model.aiIdx)).filter(Boolean);
 
-    const orderedRefs = board.afterOrder.map(model => board.refsByAiIdx.get(model.aiIdx)).filter(Boolean);
-    standingsEl.append(...orderedRefs.map(ref => ref.card));
+    for (const model of board.afterOrder) {
+      if (token.cancelled) return;
 
-    orderedRefs.forEach((ref, index) => {
-      const model = board.byAiIdx.get(ref.aiIdx);
-      ref.rank.textContent = `#${model.afterRank}`;
-      ref.rank.className = `rank-num${model.afterRank === 1 ? ' winner' : ''}`;
-      ref.rankChange.textContent = formatRankDelta(model.rankDelta);
-      ref.rankChange.className = `rank-change ${model.rankDelta > 0 ? 'up' : model.rankDelta < 0 ? 'dn' : 'same'}`;
-      ref.card.classList.toggle('winner', model.afterRank === 1);
-      const newTop = ref.card.getBoundingClientRect().top;
-      const delta = beforeTop.get(ref.card) - newTop;
-      ref.card.style.transition = 'none';
-      ref.card.style.transform = `translateY(${delta}px)`;
-    });
+      const ref = board.refsByAiIdx.get(model.aiIdx);
+      if (!ref) continue;
 
-    void standingsEl.offsetHeight;
+      const currentCards = Array.from(standingsEl.querySelectorAll('.ai-card'));
+      const currentIndex = currentCards.indexOf(ref.card);
+      const targetIndex = Math.max(0, model.afterRank - 1);
+      const needsMove = currentIndex !== targetIndex;
+      let motionCards = [ref.card];
 
-    orderedRefs.forEach((ref, index) => {
-      ref.card.style.transition = `transform ${duration}ms cubic-bezier(0.2,0.8,0.2,1) ${index * rowStagger}ms`;
-      ref.card.style.transform = 'translateY(0)';
-    });
+      try {
+        ref.rankChange.textContent = model.rankDelta === 0 ? `held #${model.afterRank}` : formatRankDelta(model.rankDelta);
+        ref.rankChange.className = `rank-change ${model.rankDelta > 0 ? 'up' : model.rankDelta < 0 ? 'dn' : 'same'}`;
+        ref.rankChange.classList.add('show');
+        ref.take.textContent = `+${moneyM(model.take)}`;
+        ref.take.style.opacity = '1';
+        ref.take.style.transform = 'translateY(0)';
+        ref.card.classList.add('spotlight');
+        ref.card.style.transformOrigin = 'center center';
+        ref.card.style.zIndex = '10';
 
-    await sleep(duration + rowStagger * Math.max(0, orderedRefs.length - 1) + 80, token);
-    if (token.cancelled) return;
+        await animate(popDuration, t => {
+          const scale = 1 + (popScale - 1) * t;
+          ref.card.style.transform = `scale(${scale})`;
+        }, token);
+        if (token.cancelled) return;
 
-    await staggeredReveal(orderedRefs, badgeStagger, token, ref => {
-      ref.rankChange.classList.add('show');
-    });
-    if (token.cancelled) return;
+        await sleep(holdDuration, token);
+        if (token.cancelled) return;
 
-    orderedRefs.forEach(ref => {
-      ref.card.style.transition = '';
-      ref.card.style.transform = '';
-    });
-    board.refs = orderedRefs;
-    board.refsByAiIdx = new Map(orderedRefs.map(ref => [ref.aiIdx, ref]));
+        ref.rank.textContent = `#${model.afterRank}`;
+        ref.rank.className = `rank-num${model.afterRank === 1 ? ' winner' : ''}`;
+        ref.card.classList.toggle('winner', model.afterRank === 1);
+
+        if (needsMove) {
+          const beforeRects = new Map();
+          currentCards.forEach(card => {
+            beforeRects.set(card, card.getBoundingClientRect());
+          });
+
+          const siblings = currentCards.filter(card => card !== ref.card);
+          const anchor = siblings[targetIndex] || null;
+          standingsEl.insertBefore(ref.card, anchor);
+
+          const afterCards = Array.from(standingsEl.querySelectorAll('.ai-card'));
+          const afterRects = new Map();
+          afterCards.forEach(card => {
+            afterRects.set(card, card.getBoundingClientRect());
+          });
+
+          afterCards.forEach(card => {
+            const beforeRect = beforeRects.get(card);
+            const afterRect = afterRects.get(card);
+            const deltaY = beforeRect ? beforeRect.top - afterRect.top : 0;
+            card.style.transition = 'none';
+            card.style.transform = card === ref.card
+              ? `translateY(${deltaY}px) scale(${popScale})`
+              : `translateY(${deltaY}px)`;
+          });
+
+          void standingsEl.offsetHeight;
+
+          afterCards.forEach(card => {
+            card.style.transition = `transform ${travelDuration}ms ${settleEase}`;
+            card.style.transform = card === ref.card
+              ? `translateY(0) scale(${popScale})`
+              : 'translateY(0)';
+          });
+
+          motionCards = afterCards;
+          await sleep(travelDuration + 40, token);
+          if (token.cancelled) return;
+        }
+
+        ref.card.style.transition = `transform ${shrinkDuration}ms ${settleEase}`;
+        ref.card.style.transform = 'translateY(0) scale(1)';
+        await sleep(shrinkDuration + 40, token);
+        if (token.cancelled) return;
+      } finally {
+        for (const card of motionCards) {
+          card.style.transition = '';
+          card.style.transform = '';
+        }
+        ref.card.style.transformOrigin = '';
+        ref.card.style.zIndex = '';
+        ref.card.classList.remove('spotlight');
+      }
+    }
+
+    board.refs = finalRefs;
+    board.refsByAiIdx = new Map(finalRefs.map(ref => [ref.aiIdx, ref]));
   }
 
   function updateNotorietyForRef(ref, value) {
@@ -1624,7 +1689,7 @@ body {
     if (token.cancelled) return;
     await sleep(600 * motion, token);
     if (token.cancelled) return;
-    await flipRanks(board, token);
+    await spotlightRanks(board, token);
     if (token.cancelled) return;
     await sleep(450 * motion, token);
     if (token.cancelled) return;
