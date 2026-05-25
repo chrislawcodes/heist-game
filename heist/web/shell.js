@@ -397,7 +397,7 @@ const Shell = {
       if (captured) classes.push('captured');
       if (hideName) classes.push('portrait-card--noname');
       if (extraClasses) classes.push(String(extraClasses).trim());
-      const styleAttr = Number.isFinite(Number(widthPx)) ? ` style="width: ${Number(widthPx)}px;"` : '';
+      const styleAttr = (widthPx != null && Number(widthPx) > 0) ? ` style="width: ${Number(widthPx)}px;"` : '';
       const charIdAttr = charId != null ? ` data-char-id="${esc(charId)}"` : '';
       const primary = Shell.helpers.primarySkill(c);
       return `<div class="${classes.filter(Boolean).join(' ')}" data-primary="${primary}"${charIdAttr}${styleAttr}>
