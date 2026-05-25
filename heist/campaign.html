@@ -1123,7 +1123,14 @@ body {
     if (capturedVisible && !caughtThisRound) classes.push('captured');
     if (caughtThisRound) classes.push('caught-pending');
     if (capturedVisible && phase !== 'before' && caughtNow) classes.push('caught-landed');
-    const primary = member.primary || primarySkill(member);
+    // member.primary arrives as the long roster key (e.g. "hacker"); the
+    // skill-color CSS keys on the short code ("hack"). Normalize so the colored
+    // border / name-strip / tint actually match (matches the hiring page).
+    const PRIMARY_SHORT = {
+      hacker: 'hack', safecracker: 'safe', muscle: 'musc', inside_man: 'soc', driver: 'drive',
+      hack: 'hack', safe: 'safe', musc: 'musc', soc: 'soc', drive: 'drive',
+    };
+    const primary = PRIMARY_SHORT[member.primary] || primarySkill(member);
     return `
       <div class="${classes.join(' ')}" data-primary="${primary}" data-captured="${capturedVisible ? 'true' : 'false'}" data-char-id="${esc(charId)}">
         <div class="captured-stamp">CAUGHT</div>
