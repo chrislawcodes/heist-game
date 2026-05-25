@@ -610,94 +610,7 @@ body {
   flex-wrap: wrap;
   gap: 6px;
 }
-.crew-card {
-  position: relative;
-  width: 120px;
-  border-radius: 6px;
-  overflow: hidden;
-  border: 1px solid var(--border);
-  background: var(--panel2);
-}
-.crew-card[data-primary="hack"]  { background: linear-gradient(180deg, rgba(88,152,224,0.32) 0%, rgba(88,152,224,0.08) 100%); border-color: rgba(88,152,224,0.65); }
-.crew-card[data-primary="safe"]  { background: linear-gradient(180deg, rgba(232,160,48,0.32) 0%, rgba(232,160,48,0.08) 100%); border-color: rgba(232,160,48,0.65); }
-.crew-card[data-primary="musc"]  { background: linear-gradient(180deg, rgba(224,80,80,0.32) 0%, rgba(224,80,80,0.08) 100%);  border-color: rgba(224,80,80,0.65); }
-.crew-card[data-primary="soc"]   { background: linear-gradient(180deg, rgba(144,112,224,0.32) 0%, rgba(144,112,224,0.08) 100%); border-color: rgba(144,112,224,0.65); }
-.crew-card[data-primary="drive"] { background: linear-gradient(180deg, rgba(82,196,122,0.32) 0%, rgba(82,196,122,0.08) 100%); border-color: rgba(82,196,122,0.65); }
-.crew-card .portrait {
-  aspect-ratio: 1;
-  width: 100%;
-  background: rgba(0,0,0,0.35);
-  position: relative;
-  overflow: hidden;
-}
-.crew-card .portrait img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.crew-card .portrait .fallback {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 34px;
-  font-weight: 800;
-  color: rgba(255,255,255,0.22);
-  font-family: monospace;
-}
-.captured-stamp {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(224,80,80,0.18);
-  color: rgba(255,210,210,0.94);
-  font-size: 14px;
-  font-weight: 800;
-  letter-spacing: 1.8px;
-  text-transform: uppercase;
-  transform: rotate(-12deg) scale(0.85);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 180ms ease, transform 180ms ease;
-}
-.crew-card.captured .captured-stamp,
-.crew-card.caught-now .captured-stamp,
-.crew-card.caught-landed .captured-stamp {
-  opacity: 1;
-  transform: rotate(-12deg) scale(1);
-}
-.crew-card.captured {
-  opacity: 0.25;
-  filter: grayscale(0.7);
-  border-style: dashed;
-  border-color: rgba(224,80,80,0.48) !important;
-}
-.crew-card.caught-now {
-  opacity: 1;
-  filter: none;
-}
-.crew-card.caught-landed {
-  opacity: 1;
-  filter: none;
-}
-.crew-card .name-strip {
-  min-height: 34px;
-  padding: 4px 5px 5px;
-  display: flex;
-  align-items: flex-end;
-  font-size: 9px;
-  font-weight: 800;
-  line-height: 1.2;
-  text-align: center;
-  color: rgba(0,0,0,0.84);
-}
-.crew-card[data-primary="hack"] .name-strip { background: var(--sk-hack); }
-.crew-card[data-primary="safe"] .name-strip { background: var(--sk-safe); }
-.crew-card[data-primary="musc"] .name-strip { background: var(--sk-musc); }
-.crew-card[data-primary="soc"] .name-strip { background: var(--sk-soc); }
-.crew-card[data-primary="drive"] .name-strip { background: var(--sk-drive); }
-.crew-card.captured .name-strip {
-  filter: saturate(0.8) brightness(0.9);
-}
+.crew-grid .portrait-card { width: 120px; }
 
 /* Reflection rail */
 .tabs {
@@ -881,7 +794,6 @@ body {
     soc: 'inside_man',
     drive: 'driver',
   };
-  const SKILL_ORDER = ['hacker', 'safecracker', 'muscle', 'inside_man', 'driver'];
   const SKILL_VALUE = { HIGH: 3, MEDIUM: 2, LOW: 1, NONE: 0 };
 
   const params = new URLSearchParams(location.search);
@@ -931,41 +843,6 @@ body {
     if (typeof level === 'number') return level;
     if (SKILL_VALUE[level] != null) return SKILL_VALUE[level];
     return 0;
-  }
-
-  function primarySkill(member) {
-    const skills = member.skills || {};
-    let best = SKILL_ORDER[0];
-    let bestRank = -1;
-    SKILL_ORDER.forEach((apiKey, idx) => {
-      const score = skillValue(skills[apiKey]);
-      if (score > bestRank || (score === bestRank && idx < SKILL_ORDER.indexOf(best))) {
-        best = apiKey;
-        bestRank = score;
-      }
-    });
-    return ({
-      hacker: 'hack',
-      safecracker: 'safe',
-      muscle: 'musc',
-      inside_man: 'soc',
-      driver: 'drive',
-    })[best] || 'hack';
-  }
-
-  function initials(name) {
-    return String(name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(s => s[0]).join('').toUpperCase();
-  }
-
-  function portraitHtml(member) {
-    const fallback = `<div class="fallback">${esc(initials(member.name))}</div>`;
-    return `
-      <div class="portrait">
-        ${fallback}
-        <img src="/portraits/${encodeURIComponent(member.char_id || member.id)}" alt="${esc(member.name)}" loading="lazy"
-             onerror="this.style.display='none'; this.previousElementSibling.style.display='flex';">
-      </div>
-    `;
   }
 
   function coverageForCrew(crew, includeCaptured = false) {
@@ -1114,25 +991,15 @@ body {
     const charId = String(member.char_id || member.id);
     const caughtThisRound = !baseline && phase === 'before' && caughtNow;
     const capturedVisible = !baseline && (member.captured || (phase !== 'before' && caughtNow));
-    const classes = ['crew-card'];
-    if (capturedVisible && !caughtThisRound) classes.push('captured');
-    if (caughtThisRound) classes.push('caught-pending');
-    if (capturedVisible && phase !== 'before' && caughtNow) classes.push('caught-landed');
-    // member.primary arrives as the long roster key (e.g. "hacker"); the
-    // skill-color CSS keys on the short code ("hack"). Normalize so the colored
-    // border / name-strip / tint actually match (matches the hiring page).
-    const PRIMARY_SHORT = {
-      hacker: 'hack', safecracker: 'safe', muscle: 'musc', inside_man: 'soc', driver: 'drive',
-      hack: 'hack', safe: 'safe', musc: 'musc', soc: 'soc', drive: 'drive',
-    };
-    const primary = PRIMARY_SHORT[member.primary] || primarySkill(member);
-    return `
-      <div class="${classes.join(' ')}" data-primary="${primary}" data-captured="${capturedVisible ? 'true' : 'false'}" data-char-id="${esc(charId)}">
-        <div class="captured-stamp">CAUGHT</div>
-        ${portraitHtml(member)}
-        <div class="name-strip">${esc(member.name)}</div>
-      </div>
-    `;
+    const extraClasses = [
+      caughtThisRound ? 'caught-pending' : '',
+      capturedVisible && phase !== 'before' && caughtNow ? 'caught-landed' : '',
+    ].filter(Boolean).join(' ');
+    return Shell.helpers.portraitCardHtml(member, {
+      charId,
+      captured: capturedVisible && !caughtThisRound,
+      extraClasses,
+    });
   }
 
   function renderCrewGrid(crew, caughtIds, phase, baseline = false) {
@@ -1345,7 +1212,7 @@ body {
       total: card.querySelector('[data-role="total"]'),
       take: card.querySelector('[data-role="take"]'),
       heatValue: card.querySelector('[data-role="heat-value"]'),
-      members: Array.from(card.querySelectorAll('.crew-card')).map(memberEl => ({
+      members: Array.from(card.querySelectorAll('.portrait-card')).map(memberEl => ({
         el: memberEl,
         charId: String(memberEl.dataset.charId || ''),
       })),

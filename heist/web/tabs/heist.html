@@ -190,55 +190,8 @@
 .heist-root .h2-narration-lead {
   float: left;
   width: 150px;
-  aspect-ratio: 1;
   margin: 4px 20px 8px 0;
-  border-radius: 6px;
-  overflow: hidden;
-  border: 1px solid var(--border);
-  position: relative;
-  background: rgba(0,0,0,0.35);
 }
-.heist-root .h2-narration-lead[data-primary="hack"]  { background: linear-gradient(180deg, rgba(88,152,224,0.32) 0%, rgba(88,152,224,0.08) 100%); border-color: rgba(88,152,224,0.65); }
-.heist-root .h2-narration-lead[data-primary="safe"]  { background: linear-gradient(180deg, rgba(232,160,48,0.32) 0%, rgba(232,160,48,0.08) 100%); border-color: rgba(232,160,48,0.65); }
-.heist-root .h2-narration-lead[data-primary="musc"]  { background: linear-gradient(180deg, rgba(224,80,80,0.32) 0%, rgba(224,80,80,0.08) 100%); border-color: rgba(224,80,80,0.65); }
-.heist-root .h2-narration-lead[data-primary="soc"]   { background: linear-gradient(180deg, rgba(144,112,224,0.32) 0%, rgba(144,112,224,0.08) 100%); border-color: rgba(144,112,224,0.65); }
-.heist-root .h2-narration-lead[data-primary="drive"] { background: linear-gradient(180deg, rgba(82,196,122,0.32) 0%, rgba(82,196,122,0.08) 100%); border-color: rgba(82,196,122,0.65); }
-.heist-root .h2-narration-lead-fallback {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: monospace;
-  font-weight: 700;
-  font-size: 62px;
-  color: rgba(255,255,255,0.32);
-}
-.heist-root .h2-narration-lead img {
-  position: relative;
-  z-index: 1;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-.heist-root .h2-narration-lead-cap {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  padding: 4px 8px;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.3px;
-  text-align: center;
-  z-index: 2;
-}
-.heist-root .h2-narration-lead[data-primary="hack"]  .h2-narration-lead-cap { background: var(--sk-hack);  color: #0a1428; }
-.heist-root .h2-narration-lead[data-primary="safe"]  .h2-narration-lead-cap { background: var(--sk-safe);  color: #2a1c08; }
-.heist-root .h2-narration-lead[data-primary="musc"]  .h2-narration-lead-cap { background: var(--sk-musc);  color: #2a0808; }
-.heist-root .h2-narration-lead[data-primary="soc"]   .h2-narration-lead-cap { background: var(--sk-soc);   color: #1c1030; }
-.heist-root .h2-narration-lead[data-primary="drive"] .h2-narration-lead-cap { background: var(--sk-drive); color: #0a2018; }
 
 .heist-root .h2-visual-panel {
   display: flex;
@@ -694,13 +647,7 @@
       if (skillHolders.length === 1) lead = skillHolders[0];
     }
     if (!lead) return '';
-    const initial = (lead.name || '?').slice(0, 1).toUpperCase();
-    const primary = Shell.helpers.primarySkill(lead);
-    return `<div class="h2-narration-lead" data-primary="${primary}">
-      <div class="h2-narration-lead-fallback">${esc(initial)}</div>
-      <img src="${Shell.helpers.portraitUrl(lead)}" alt="${esc(lead.name)}" loading="lazy" onerror="this.style.display='none'">
-      <div class="h2-narration-lead-cap">${esc(lead.name)}</div>
-    </div>`;
+    return `<div class="h2-narration-lead">${Shell.helpers.portraitCardHtml(lead, { widthPx: 150 })}</div>`;
   }
 
   function renderChallengeCard(scene, job) {
