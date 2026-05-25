@@ -110,6 +110,20 @@ body {
   background: linear-gradient(180deg, rgba(19,19,22,0.96), rgba(17,17,20,0.96));
 }
 .game-row:hover { border-color: #34343d; background: var(--panel2); }
+.game-row.is-stalled {
+  background: linear-gradient(180deg, rgba(28,18,18,0.98), rgba(19,15,16,0.98));
+  border-color: rgba(224,80,80,0.22);
+}
+.game-row.is-stalled:hover {
+  border-color: rgba(224,80,80,0.30);
+}
+.game-row.is-retrying {
+  background: linear-gradient(180deg, rgba(28,22,13,0.98), rgba(20,17,12,0.98));
+  border-color: rgba(232,160,48,0.22);
+}
+.game-row.is-retrying:hover {
+  border-color: rgba(232,160,48,0.32);
+}
 .game-status { flex: 0 0 auto; width: 92px; }
 .status-pill {
   display: inline-flex;
@@ -135,14 +149,50 @@ body {
   border-color: rgba(88,152,224,0.28);
 }
 .status-running .status-dot { animation: blink 1.2s ease-in-out infinite; }
+.status-running.status-retrying {
+  color: var(--accent);
+  background: rgba(232,160,48,0.1);
+  border-color: rgba(232,160,48,0.28);
+}
+.status-running.status-retrying .status-dot {
+  animation: pulse-retry 1.85s ease-in-out infinite;
+}
+.status-stalled {
+  color: var(--red);
+  background: rgba(224,80,80,0.1);
+  border-color: rgba(224,80,80,0.28);
+}
+.status-stalled .status-dot { animation: none; }
 .status-done {
   color: var(--green);
   background: rgba(82,196,122,0.1);
   border-color: rgba(82,196,122,0.22);
 }
+.status-done .status-dot {
+  width: 7px;
+  height: 7px;
+  background: transparent;
+  position: relative;
+}
+.status-done .status-dot::before {
+  content: "\2713";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 8px;
+  font-weight: 900;
+  line-height: 1;
+  color: currentColor;
+  transform: translateY(-0.5px);
+}
 @keyframes blink {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.25; }
+}
+@keyframes pulse-retry {
+  0%, 100% { transform: scale(1); opacity: 0.95; }
+  50% { transform: scale(0.82); opacity: 0.62; }
 }
 .game-info {
   min-width: 0;
@@ -160,6 +210,67 @@ body {
 .game-sub {
   font-size: 12px;
   color: var(--muted);
+}
+.campaign-chip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #c8c4d7;
+  flex-wrap: wrap;
+}
+.chip-live {
+  color: #d7e7df;
+}
+.chip-retry {
+  color: #d7c08d;
+}
+.chip-cold {
+  color: #bdb4bc;
+}
+.chip-live .live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 0 4px rgba(82,196,122,0.08);
+  animation: pulse-dot 1.35s ease-in-out infinite;
+}
+.chip-retry .retry-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 4px rgba(232,160,48,0.08);
+  animation: pulse-retry 1.85s ease-in-out infinite;
+}
+.chip-episode,
+.chip-round,
+.chip-stage,
+.chip-activity,
+.chip-age,
+.chip-retry-badge {
+  white-space: nowrap;
+}
+.chip-episode {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1;
+}
+.chip-round,
+.chip-stage,
+.chip-activity {
+  color: var(--text);
+}
+.chip-retry-badge {
+  color: var(--accent);
+  font-weight: 800;
+}
+.chip-age {
+  color: var(--green);
+  font-weight: 800;
 }
 .game-banked {
   flex: 0 0 auto;
@@ -254,6 +365,14 @@ body {
     order: 5;
   }
 }
+@media (prefers-reduced-motion: reduce) {
+  .status-running .status-dot,
+  .status-running.status-retrying .status-dot,
+  .chip-live .live-dot,
+  .chip-retry .retry-dot {
+    animation: none !important;
+  }
+}
 </style>
 </head>
 <body>
@@ -293,6 +412,146 @@ function timeAgo(ts) {
   return Math.floor(secs / 86400) + 'd ago';
 }
 
+const STALL_MS = 240000;
+const STAGE_LABELS = {
+  opening_wire: 'Wire',
+  hiring: 'Hiring',
+  heist: 'Heist',
+  reflection: 'Reflection',
+};
+const STAGE_VERBS = {
+  opening_wire: 'trash talk',
+  hiring: 'bidding',
+  heist: 'on the job',
+  reflection: 'reflecting',
+};
+
+function humanizeAge(ms) {
+  if (!Number.isFinite(ms) || ms < 0) return '';
+  if (ms < 60000) return `${Math.floor(ms / 1000)}s`;
+  return `${Math.floor(ms / 60000)}m`;
+}
+
+function resolveProgress(progress, fallback = {}) {
+  const updatedAt = progress && progress.updated_at != null ? Number(progress.updated_at) : null;
+  const ageMs = updatedAt == null || !Number.isFinite(updatedAt) ? null : Date.now() - (updatedAt * 1000);
+  const round = Number(
+    progress?.round ??
+    fallback.current_round ??
+    fallback.round ??
+    (((fallback.current_round_idx ?? -1) + 1) || 0)
+  );
+  const totalRounds = Number(progress?.total_rounds ?? fallback.num_rounds ?? fallback.total_rounds ?? 0);
+  const stage = progress?.stage || fallback.current_stage || 'starting';
+  const aiName = progress?.ai_name || '';
+  const attempt = Number(progress?.attempt ?? 0);
+  const maxAttempts = Number(progress?.max_attempts ?? 0);
+  const mode = !progress
+    ? 'none'
+    : attempt > 1
+      ? 'retrying'
+      : ageMs != null && ageMs > STALL_MS
+        ? 'stalled'
+        : 'live';
+  return {
+    round,
+    totalRounds,
+    stage,
+    stageLabel: STAGE_LABELS[stage] || stage,
+    stageVerb: STAGE_VERBS[stage] || stage,
+    aiName,
+    attempt,
+    maxAttempts,
+    updatedAt,
+    ageMs,
+    ageText: updatedAt == null ? '0s' : humanizeAge(ageMs),
+    mode,
+  };
+}
+
+function renderStatusPill(progressInfo, status) {
+  if (status === 'done') {
+    return {
+      label: 'Done',
+      className: 'status-pill status-done',
+      dotClass: 'status-dot',
+      ariaLabel: 'Done',
+    };
+  }
+  if (!progressInfo || progressInfo.mode === 'none') {
+    return {
+      label: 'Running',
+      className: 'status-pill status-running',
+      dotClass: 'status-dot',
+      ariaLabel: 'Running',
+    };
+  }
+  if (progressInfo.mode === 'retrying') {
+    return {
+      label: 'Running',
+      className: 'status-pill status-running status-retrying',
+      dotClass: 'status-dot',
+      ariaLabel: 'Running, retrying',
+    };
+  }
+  if (progressInfo.mode === 'stalled') {
+    return {
+      label: 'Stalled',
+      className: 'status-pill status-stalled',
+      dotClass: 'status-dot',
+      ariaLabel: 'Stalled',
+    };
+  }
+  return {
+    label: 'Running',
+    className: 'status-pill status-running',
+    dotClass: 'status-dot',
+    ariaLabel: 'Running',
+  };
+}
+
+function renderCampaignChip(progressInfo, status) {
+  if (status !== 'running' || !progressInfo || progressInfo.mode === 'none') return '';
+  const roundText = `Round ${progressInfo.round}/${progressInfo.totalRounds}`;
+  const stageText = progressInfo.stageLabel || progressInfo.stage;
+  const activityText = `${progressInfo.stageVerb}${progressInfo.aiName ? ` (${esc(progressInfo.aiName)})` : ''}`;
+  if (progressInfo.mode === 'retrying') {
+    return `
+      <div class="campaign-chip chip-retry" data-role="progress-chip">
+        <span class="chip-live" aria-hidden="true"><span class="retry-dot"></span></span>
+        <span class="chip-round">${esc(roundText)}</span>
+        <span>&middot;</span>
+        <span class="chip-stage">${esc(stageText)}</span>
+        <span>&middot;</span>
+        <span class="chip-activity">${esc(activityText)}</span>
+        <span>&middot;</span>
+        <span class="chip-retry-badge">&#x21bb; retry ${progressInfo.attempt}/${progressInfo.maxAttempts || '?'}</span>
+        <span>&middot; updated <span class="chip-age">${esc(progressInfo.ageText)}</span> ago</span>
+      </div>`;
+  }
+  if (progressInfo.mode === 'stalled') {
+    return `
+      <div class="campaign-chip chip-cold" data-role="progress-chip">
+        <span class="chip-round">${esc(roundText)}</span>
+        <span>&middot;</span>
+        <span class="chip-stage">${esc(stageText)}</span>
+        <span>&middot;</span>
+        <span class="chip-activity">no update for <span class="chip-age">${esc(progressInfo.ageText)}</span></span>
+      </div>`;
+  }
+  return `
+    <div class="campaign-chip chip-live" data-role="progress-chip">
+      <span class="chip-live" aria-hidden="true"><span class="live-dot"></span></span>
+      <span class="chip-episode">&#x25F4;</span>
+      <span class="chip-round">${esc(roundText)}</span>
+      <span>&middot;</span>
+      <span class="chip-stage">${esc(stageText)}</span>
+      <span>&middot;</span>
+      <span class="chip-activity">${esc(activityText)}</span>
+      <span>&middot; updated <span class="chip-age">${esc(progressInfo.ageText)}</span> ago</span>
+    </div>`;
+}
+
 function renderCampaigns(campaigns) {
   const el = document.getElementById('campaign-list');
   if (!campaigns.length) {
@@ -308,6 +567,9 @@ function renderCampaigns(campaigns) {
     const aiCount = (campaign.ais || []).length;
     const currentRound = Number(campaign.current_round || 0);
     const totalRounds = Number(campaign.num_rounds || 5);
+    const progress = resolveProgress(campaign.progress, campaign);
+    const displayRound = Number(progress.round || currentRound || 0);
+    const displayTotal = Number(progress.totalRounds || totalRounds || 0);
     const titleAi = [...(campaign.ais || [])].sort((a, b) => {
       if ((b.banked || 0) !== (a.banked || 0)) return (b.banked || 0) - (a.banked || 0);
       return (a.ai_idx || 0) - (b.ai_idx || 0);
@@ -317,27 +579,38 @@ function renderCampaigns(campaigns) {
       : campaign.status === 'done' && titleAi
         ? esc(titleAi.ai_name)
         : `Campaign #${campaign.id}`;
-    const leader = titleAi && currentRound > 0
+    const leader = titleAi && displayRound > 0
       ? `
         <div class="leader-name">${esc(titleAi.ai_name)}</div>
         <div class="banked-label">$${Number(titleAi.banked || 0).toLocaleString()} banked</div>`
       : `<div class="game-banked empty">—</div>`;
-    const pillClass = campaign.status === 'done' ? 'status-done' : 'status-running';
-    const pillLabel = campaign.status === 'done' ? 'Done' : 'Running';
+    const pill = renderStatusPill(progress, campaign.status);
     const deleteBtn = campaign.status === 'running'
       ? `<button class="action-delete action-delete-running" onclick="deleteCampaign(${campaign.id}, '${esc(title).replace(/'/g, "\\'")}', true)" title="Force-delete this running campaign">✕</button>`
       : `<button class="action-delete" onclick="deleteCampaign(${campaign.id}, '${esc(title).replace(/'/g, "\\'")}')" title="Delete this campaign">✕</button>`;
+    const chipHtml = renderCampaignChip(progress, campaign.status);
 
     return `
-      <div class="game-row">
+      <div class="game-row${progress.mode === 'stalled' ? ' is-stalled' : progress.mode === 'retrying' ? ' is-retrying' : ''}"
+           data-campaign-id="${campaign.id}"
+           data-campaign-status="${esc(campaign.status)}"
+           data-progress-mode="${esc(progress.mode)}"
+           data-progress-round="${esc(progress.round)}"
+           data-progress-total="${esc(progress.totalRounds)}"
+           data-progress-stage="${esc(progress.stage)}"
+           data-progress-ai="${esc(progress.aiName)}"
+           data-progress-attempt="${esc(progress.attempt)}"
+           data-progress-max="${esc(progress.maxAttempts)}"
+           data-progress-updated-at="${esc(progress.updatedAt == null ? '' : progress.updatedAt)}">
         <div class="game-status">
-          <span class="status-pill ${pillClass}">
-            <span class="status-dot"></span>${pillLabel}
+          <span class="${pill.className}" aria-label="${pill.ariaLabel}">
+            <span class="${pill.dotClass}"></span>${pill.label}
           </span>
         </div>
         <div class="game-info">
           <div class="game-title">${title}</div>
-          <div class="game-sub">Round ${currentRound} / ${totalRounds} · ${aiCount} AI${aiCount === 1 ? '' : 's'} · ${timeAgo(campaign.created_at)}</div>
+          <div class="game-sub">Round ${displayRound} / ${displayTotal} · ${aiCount} AI${aiCount === 1 ? '' : 's'} · ${timeAgo(campaign.created_at)}</div>
+          ${chipHtml}
         </div>
         ${leader}
         <div class="game-actions">
@@ -346,6 +619,45 @@ function renderCampaigns(campaigns) {
         </div>
       </div>`;
   }).join('');
+}
+
+function updateCampaignProgressTicks() {
+  document.querySelectorAll('.game-row[data-campaign-status="running"]').forEach(row => {
+    const progressMode = row.dataset.progressMode || 'none';
+    const updatedAt = row.dataset.progressUpdatedAt ? Number(row.dataset.progressUpdatedAt) : null;
+    const progress = {
+      round: Number(row.dataset.progressRound || 0),
+      total_rounds: Number(row.dataset.progressTotal || 0),
+      stage: row.dataset.progressStage || 'starting',
+      ai_name: row.dataset.progressAi || '',
+      attempt: Number(row.dataset.progressAttempt || 0),
+      max_attempts: Number(row.dataset.progressMax || 0),
+      updated_at: updatedAt,
+    };
+    const resolved = resolveProgress(progress, {
+      current_round: progress.round,
+      num_rounds: progress.total_rounds,
+      current_stage: progress.stage,
+    });
+    if (resolved.mode !== progressMode) {
+      row.dataset.progressMode = resolved.mode;
+    }
+    row.classList.toggle('is-stalled', resolved.mode === 'stalled');
+    row.classList.toggle('is-retrying', resolved.mode === 'retrying');
+
+    const pill = row.querySelector('.status-pill');
+    if (pill) {
+      const pillState = renderStatusPill(resolved, 'running');
+      pill.className = pillState.className;
+      pill.setAttribute('aria-label', pillState.ariaLabel);
+      pill.innerHTML = `<span class="${pillState.dotClass}"></span>${pillState.label}`;
+    }
+
+    const chip = row.querySelector('[data-role="progress-chip"]');
+    if (chip) {
+      chip.outerHTML = renderCampaignChip(resolved, 'running');
+    }
+  });
 }
 
 async function newCampaign() {
@@ -397,11 +709,23 @@ async function refresh() {
   try {
     const campaigns = await fetch('/api/campaigns').then(r => r.json());
     renderCampaigns(campaigns);
+    updateCampaignProgressTicks();
   } catch {}
 }
 
+const reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+let refreshTimer = null;
+let heartbeatTimer = null;
+
 refresh();
-setInterval(refresh, 3000);
+refreshTimer = setInterval(refresh, 3000);
+if (!reducedMotion) {
+  heartbeatTimer = setInterval(updateCampaignProgressTicks, 1000);
+}
+window.addEventListener('beforeunload', () => {
+  if (refreshTimer) clearInterval(refreshTimer);
+  if (heartbeatTimer) clearInterval(heartbeatTimer);
+});
 </script>
 </body>
 </html>
