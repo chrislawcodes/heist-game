@@ -610,7 +610,12 @@ body {
   overflow: hidden;
   border: 1px solid var(--border);
   background: var(--panel2);
+  /* small inset so the skill-tinted gradient shows as a colored frame,
+     the way the hiring char-card highlights each crew member */
+  padding: 3px;
 }
+.crew-card .portrait { border-radius: 3px 3px 0 0; }
+.crew-card .name-strip { border-radius: 0 0 3px 3px; }
 .crew-card[data-primary="hack"]  { background: linear-gradient(180deg, rgba(88,152,224,0.32) 0%, rgba(88,152,224,0.08) 100%); border-color: rgba(88,152,224,0.65); }
 .crew-card[data-primary="safe"]  { background: linear-gradient(180deg, rgba(232,160,48,0.32) 0%, rgba(232,160,48,0.08) 100%); border-color: rgba(232,160,48,0.65); }
 .crew-card[data-primary="musc"]  { background: linear-gradient(180deg, rgba(224,80,80,0.32) 0%, rgba(224,80,80,0.08) 100%);  border-color: rgba(224,80,80,0.65); }
