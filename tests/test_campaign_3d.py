@@ -131,7 +131,17 @@ def test_between_round_log_roundtrip_preserves_data():
             "text": "Run it back.",
         },
     })
-    camp.round_results.append(RoundResult(0, "Museum Gala", 1200000, False, True, 1))
+    camp.round_results.append(
+        RoundResult(
+            0,
+            "Museum Gala",
+            1_200_000,
+            False,
+            True,
+            1,
+            banked_after=1_200_000,
+        )
+    )
 
     restored = campaign_from_dict(campaign_to_dict(camp))
     assert restored.between_round_log == camp.between_round_log
@@ -141,20 +151,22 @@ def test_between_round_log_roundtrip_preserves_data():
 
 def test_round_result_serialization_handles_new_fields_and_old_payloads():
     rr = RoundResult(
-        2,
-        "Museum Gala",
-        500_000,
-        False,
-        True,
-        1,
-        4,
-        5,
-        [7, 8],
+        round_idx=2,
+        job_name="Museum Gala",
+        take=500_000,
+        aborted=False,
+        escape_success=True,
+        heat=1,
+        notoriety_before=4,
+        notoriety_after=5,
+        banked_after=6,
+        caught_member_ids=[7, 8],
     )
 
     payload = _round_result_to_dict(rr)
     assert payload["notoriety_before"] == 4
     assert payload["notoriety_after"] == 5
+    assert payload["banked_after"] == 6
     assert payload["caught_member_ids"] == [7, 8]
     assert _round_result_from_any(payload) == rr
 
@@ -169,6 +181,7 @@ def test_round_result_serialization_handles_new_fields_and_old_payloads():
     restored_old = _round_result_from_any(old_payload)
     assert restored_old.notoriety_before == 0
     assert restored_old.notoriety_after == 0
+    assert restored_old.banked_after == 0
     assert restored_old.caught_member_ids == []
 
     legacy_obj = SimpleNamespace(
@@ -182,6 +195,7 @@ def test_round_result_serialization_handles_new_fields_and_old_payloads():
     restored_obj = _round_result_from_any(legacy_obj)
     assert restored_obj.notoriety_before == 0
     assert restored_obj.notoriety_after == 0
+    assert restored_obj.banked_after == 0
     assert restored_obj.caught_member_ids == []
 
 
@@ -287,6 +301,7 @@ def test_campaign_state_to_dict_includes_round_results():
                     "aborted": False,
                     "escape_success": True,
                     "heat": 1,
+                    "banked_after": 500_000,
                 }
             ],
             round_game_ids=[42],
@@ -301,6 +316,7 @@ def test_campaign_state_to_dict_includes_round_results():
     assert rr[0]["escape"] == "clean"
     assert rr[0]["round_idx"] == 0
     assert rr[0]["game_id"] == 42
+    assert rr[0]["banked_after"] == 500_000
 
 
 def test_campaign_state_to_dict_round_game_ids_zip():
@@ -353,8 +369,33 @@ def test_campaign_state_to_dict_includes_per_round_rank_changes():
         _entry(
             0,
             "Aegis",
-            250,
+            300,
             [1, 4, 7, 13],
+            status="done",
+            round_results=[
+                {
+                    "round_idx": 0,
+                    "job_name": "Museum Gala",
+                    "take": 9_000_000,
+                    "aborted": False,
+                    "escape_success": True,
+                    "banked_after": 100,
+                },
+                {
+                    "round_idx": 1,
+                    "job_name": "Armored Car",
+                    "take": 0,
+                    "aborted": False,
+                    "escape_success": True,
+                    "banked_after": 300,
+                },
+            ],
+        ),
+        _entry(
+            1,
+            "Ghost",
+            250,
+            [2, 5, 8, 14],
             status="done",
             round_results=[
                 {
@@ -363,36 +404,15 @@ def test_campaign_state_to_dict_includes_per_round_rank_changes():
                     "take": 100,
                     "aborted": False,
                     "escape_success": True,
+                    "banked_after": 200,
                 },
                 {
                     "round_idx": 1,
                     "job_name": "Armored Car",
-                    "take": 150,
+                    "take": 10,
                     "aborted": False,
                     "escape_success": True,
-                },
-            ],
-        ),
-        _entry(
-            1,
-            "Ghost",
-            200,
-            [2, 5, 8, 14],
-            status="done",
-            round_results=[
-                {
-                    "round_idx": 0,
-                    "job_name": "Museum Gala",
-                    "take": 200,
-                    "aborted": False,
-                    "escape_success": True,
-                },
-                {
-                    "round_idx": 1,
-                    "job_name": "Armored Car",
-                    "take": 0,
-                    "aborted": False,
-                    "escape_success": True,
+                    "banked_after": 250,
                 },
             ],
         ),
@@ -409,6 +429,7 @@ def test_campaign_state_to_dict_includes_per_round_rank_changes():
                     "take": 50,
                     "aborted": False,
                     "escape_success": True,
+                    "banked_after": 50,
                 },
             ],
         ),

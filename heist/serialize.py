@@ -324,6 +324,7 @@ def _round_result_to_dict(r: RoundResult) -> dict:
         "heat": r.heat,
         "notoriety_before": r.notoriety_before,
         "notoriety_after": r.notoriety_after,
+        "banked_after": r.banked_after,
         "caught_member_ids": list(r.caught_member_ids),
     }
 
@@ -344,6 +345,7 @@ def _round_result_from_any(item: Any) -> RoundResult:
             heat=_coerce_int(item.get("heat", 0)),
             notoriety_before=_coerce_int(item.get("notoriety_before", 0)),
             notoriety_after=_coerce_int(item.get("notoriety_after", 0)),
+            banked_after=_coerce_int(item.get("banked_after", 0)),
             caught_member_ids=_coerce_int_list(item.get("caught_member_ids", [])),
         )
     raw_escape = getattr(item, "escape_success", getattr(item, "escape", None))
@@ -358,6 +360,7 @@ def _round_result_from_any(item: Any) -> RoundResult:
         heat=_coerce_int(getattr(item, "heat", 0)),
         notoriety_before=_coerce_int(getattr(item, "notoriety_before", 0)),
         notoriety_after=_coerce_int(getattr(item, "notoriety_after", 0)),
+        banked_after=_coerce_int(getattr(item, "banked_after", 0)),
         caught_member_ids=_coerce_int_list(getattr(item, "caught_member_ids", [])),
     )
 
@@ -548,6 +551,7 @@ def campaign_state_to_dict(
                 heat = _coerce_int(r.get("heat", 0), 0)
                 notoriety_before = _coerce_int(r.get("notoriety_before", 0), 0)
                 notoriety_after = _coerce_int(r.get("notoriety_after", 0), 0)
+                banked_after = _coerce_int(r.get("banked_after", 0), 0)
                 caught_member_ids = _coerce_int_list(r.get("caught_member_ids", []))
             else:
                 round_idx = _coerce_int(getattr(r, "round_idx", rr_idx), rr_idx)
@@ -562,6 +566,7 @@ def campaign_state_to_dict(
                 heat = _coerce_int(getattr(r, "heat", 0), 0)
                 notoriety_before = _coerce_int(getattr(r, "notoriety_before", 0), 0)
                 notoriety_after = _coerce_int(getattr(r, "notoriety_after", 0), 0)
+                banked_after = _coerce_int(getattr(r, "banked_after", 0), 0)
                 caught_member_ids = _coerce_int_list(getattr(r, "caught_member_ids", []))
             aborted = bool(
                 r.get("aborted", False) if isinstance(r, dict) else getattr(r, "aborted", False)
@@ -575,6 +580,7 @@ def campaign_state_to_dict(
                 "heat": heat,
                 "notoriety_before": notoriety_before,
                 "notoriety_after": notoriety_after,
+                "banked_after": banked_after,
                 "caught_member_ids": caught_member_ids,
                 "game_id": round_game_ids[rr_idx] if rr_idx < len(round_game_ids) else None,
             })
@@ -710,6 +716,11 @@ def campaign_state_to_dict(
             round_idx = int(rr["round_idx"])
             round_results_by_ai[ai_idx][round_idx] = rr
 
+    have_banked_after = any(
+        _coerce_int(rr.get("banked_after", 0), 0) > 0
+        for row in standings_raw
+        for rr in row["round_results"]
+    )
     previous_rank_after_by_ai: dict[int, int] = {}
     for round_idx in round_indices:
         active_rows: list[tuple[int, int, dict[str, Any]]] = []
@@ -719,12 +730,11 @@ def campaign_state_to_dict(
             round_result_entry = ai_round_results.get(round_idx)
             if round_result_entry is None:
                 continue
-            cumulative_banked = sum(
-                _coerce_int(candidate.get("take", 0), 0)
-                for candidate in row["round_results"]
-                if _coerce_int(candidate.get("round_idx", -1), -1) <= round_idx
-            )
-            active_rows.append((ai_idx, cumulative_banked, round_result_entry))
+            if have_banked_after:
+                metric = _coerce_int(round_result_entry.get("banked_after", 0), 0)
+            else:
+                metric = _coerce_int(row.get("banked", 0), 0)
+            active_rows.append((ai_idx, metric, round_result_entry))
         active_rows.sort(key=lambda item: (-item[1], item[0]))
         for rank_after, (ai_idx, _, round_result_entry) in enumerate(active_rows, start=1):
             prev_rank_after = previous_rank_after_by_ai.get(ai_idx)

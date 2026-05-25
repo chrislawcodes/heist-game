@@ -133,6 +133,7 @@ def settle_round(
         heat=state.heat,
         notoriety_before=notoriety_before,
         notoriety_after=campaign.notoriety,
+        banked_after=campaign.banked_loot,
         caught_member_ids=list(state.caught_member_ids),
     ))
     campaign.attempted_job_names.add(state.job.name)
