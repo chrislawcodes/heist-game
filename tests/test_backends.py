@@ -121,6 +121,40 @@ def test_ask_with_retries_no_retry_on_first_success(_no_retry_delay):
     assert isinstance(attempt_ms, int) and attempt_ms >= 0
 
 
+def test_ask_with_retries_calls_on_attempt_for_each_try(_no_retry_delay):
+    calls = {"n": 0}
+    attempts_seen: list[tuple[int, int]] = []
+
+    def call() -> Turn:
+        calls["n"] += 1
+        if calls["n"] < AI_MAX_ATTEMPTS:
+            raise TimeoutError("transient hang")
+        return Turn(text="ok", session_id="s")
+
+    def on_attempt(attempt: int, max_attempts: int) -> None:
+        attempts_seen.append((attempt, max_attempts))
+
+    result, attempts, attempt_ms = _ask_with_retries(call, on_attempt=on_attempt)
+    assert result.text == "ok"
+    assert calls["n"] == AI_MAX_ATTEMPTS
+    assert attempts == AI_MAX_ATTEMPTS
+    assert attempts_seen == [(1, AI_MAX_ATTEMPTS), (2, AI_MAX_ATTEMPTS), (3, AI_MAX_ATTEMPTS)]
+    assert isinstance(attempt_ms, int) and attempt_ms >= 0
+
+
+def test_ask_with_retries_ignores_bad_on_attempt_callback(_no_retry_delay):
+    def call() -> Turn:
+        return Turn(text="ok", session_id="s")
+
+    def on_attempt(attempt: int, max_attempts: int) -> None:
+        raise RuntimeError(f"bad callback on attempt {attempt}/{max_attempts}")
+
+    result, attempts, attempt_ms = _ask_with_retries(call, on_attempt=on_attempt)
+    assert result.text == "ok"
+    assert attempts == 1
+    assert isinstance(attempt_ms, int) and attempt_ms >= 0
+
+
 def test_codex_ask_records_clean_attempt_stats(_no_retry_delay):
     """Through the real CodexHeistAI.ask path: a backend that times out twice
     then returns is retried, succeeds, and records the winning attempt number
