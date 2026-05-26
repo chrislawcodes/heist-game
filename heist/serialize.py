@@ -785,6 +785,9 @@ def campaign_state_to_dict(
             speaker_id = None
         if speaker_id is not None and speaker_id in roster_lookup:
             speaker_name = roster_lookup[speaker_id].name
+        speaker_member = None
+        if speaker_id is not None and speaker_id in roster_lookup:
+            speaker_member = _crew_member_from_any(roster_lookup[speaker_id], roster_lookup)
         wire.append({
             "round": int(entry.get("round", 0)),
             "ai_name": entry.get("ai_name"),
@@ -792,6 +795,7 @@ def campaign_state_to_dict(
             "speaker_name": speaker_name,
             "target_ai_name": trash.get("target_ai_name"),
             "text": trash.get("text", ""),
+            "speaker": speaker_member,
         })
 
     return {

@@ -78,98 +78,43 @@ body {
   background: var(--green);
   box-shadow: 0 0 0 4px rgba(82,196,122,0.12);
 }
-.status-pill {
+.round-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   margin-left: auto;
+}
+.round-nav-pos {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--text);
+  min-width: 96px;
+  text-align: center;
+  white-space: nowrap;
+}
+.round-nav-btn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  color: var(--muted);
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  font-size: 24px;
+  line-height: 1;
   border: 1px solid var(--border);
   background: var(--panel2);
-  border-radius: 999px;
-  padding: 6px 10px;
-}
-.status-pill.is-live { color: var(--green); border-color: rgba(82,196,122,0.25); }
-.status-pill.is-retrying { color: var(--accent); border-color: rgba(232,160,48,0.28); }
-.status-pill.is-stalled { color: var(--red); border-color: rgba(224,80,80,0.28); }
-.status-pill.is-done { color: var(--green); border-color: rgba(82,196,122,0.25); }
-.status-pill.is-error { color: var(--red); border-color: rgba(224,80,80,0.25); }
-.status-pill .live-dot,
-.status-pill .heartbeat-dot,
-.status-pill .retry-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-  flex: none;
-}
-.status-pill.is-live .live-dot {
-  color: var(--green);
-  background: var(--green);
-  box-shadow: 0 0 0 4px rgba(82,196,122,0.10);
-  animation: pulse-dot 1.35s ease-in-out infinite;
-}
-.status-pill.is-retrying .retry-dot {
-  color: var(--accent);
-  background: var(--accent);
-  box-shadow: 0 0 0 4px rgba(232,160,48,0.08);
-  animation: pulse-retry 1.85s ease-in-out infinite;
-}
-.status-pill.is-stalled .heartbeat-dot {
-  color: var(--red);
-  background: var(--red);
-}
-
-.pacing-bar {
-  min-height: 64px;
-  padding: 10px 18px;
-  border-bottom: 1px solid var(--border);
-  background: var(--panel);
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-  flex-shrink: 0;
-}
-.pacing-btn {
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  padding: 4px 10px;
-  border-radius: 6px;
-  background: var(--panel3);
-  border: 1px solid var(--border);
-  color: var(--muted);
+  color: var(--text);
+  border-radius: 8px;
   cursor: pointer;
-  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  padding: 0;
 }
-.pacing-btn:disabled {
-  opacity: 0.3;
+.round-nav-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.round-nav-btn:disabled {
+  opacity: 0.35;
   cursor: default;
-}
-.pacing-btn:not(:disabled):hover {
-  color: var(--text);
-  border-color: rgba(255,255,255,0.18);
-}
-.pacing-nav {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 0 0 auto;
-}
-.pacing-pos {
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 1.4px;
-  text-transform: uppercase;
-  color: var(--text);
-  min-width: 90px;
-  text-align: center;
 }
 .strip-ticker {
   display: inline-flex;
@@ -182,7 +127,6 @@ body {
   color: #c8c4d7;
   text-align: right;
   flex: 0 1 320px;
-  margin-left: auto;
 }
 .strip-ticker .strip-now {
   color: var(--text);
@@ -250,11 +194,6 @@ body {
   background: var(--accent);
   box-shadow: 0 0 0 4px rgba(232,160,48,0.08);
   animation: pulse-retry 1.85s ease-in-out infinite;
-}
-.pacing-auto.is-active {
-  color: var(--green);
-  border-color: rgba(82,196,122,0.35);
-  background: rgba(82,196,122,0.08);
 }
 
 @keyframes pulse-dot {
@@ -333,59 +272,25 @@ body {
   background: var(--border);
 }
 .wire-item {
-  display: grid;
-  grid-template-columns: 40px minmax(0, 1fr);
-  gap: 10px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
   padding: 10px 0;
   border-bottom: 1px solid rgba(255,255,255,0.05);
 }
-.wire-portrait {
-  width: 40px;
-  height: 40px;
-  border-radius: 8px;
-  overflow: hidden;
-  border: 1px solid var(--border);
-  background: var(--panel3);
-  position: relative;
-  flex-shrink: 0;
-}
-.wire-portrait img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.wire-fallback {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  font-weight: 800;
-  color: rgba(255,255,255,0.24);
-  font-family: monospace;
-}
 .wire-body {
   min-width: 0;
-}
-.wire-head {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  margin-bottom: 4px;
-  flex-wrap: wrap;
+  flex: 1;
 }
 .wire-name {
   font-size: 12px;
   font-weight: 750;
   color: var(--text);
-}
-.wire-target {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  color: var(--accent);
+  margin-bottom: 4px;
 }
 .wire-text {
   font-size: 13px;
-  line-height: 1.55;
+  line-height: 1.45;
   color: #c8c4d7;
   white-space: pre-wrap;
 }
@@ -823,13 +728,9 @@ body {
 }
 
 @media (max-width: 820px) {
-  .pacing-bar {
-    align-items: flex-start;
-  }
-  .pacing-nav,
   .strip-ticker {
     width: 100%;
-    margin-left: 0;
+    flex: 1 1 100%;
   }
   .strip-ticker {
     justify-content: flex-start;
@@ -842,9 +743,6 @@ body {
   .ai-card,
   .rank-change,
   .take-badge,
-  .status-pill .live-dot,
-  .status-pill .retry-dot,
-  .status-pill .heartbeat-dot,
   .ticker-live .ticker-dot,
   .ticker-retry .ticker-retry-dot {
     transition-duration: 1ms !important;
@@ -860,19 +758,13 @@ body {
       <div class="brand"><a href="/" class="brand-home">Heist</a><span class="brand-sep"> / </span><span class="brand-sub">Campaign War Room</span></div>
       <div class="live-dot"></div>
       <div class="meta" id="meta">Waiting for campaign state…</div>
-      <div class="status-pill" id="status-pill">LOADING</div>
-    </header>
-
-    <div class="pacing-bar">
-      <div class="pacing-nav">
-        <button class="pacing-btn" id="btn-prev" aria-label="Previous round">‹</button>
-        <span class="pacing-pos" id="pacing-pos">ROUND — / —</span>
-        <button class="pacing-btn" id="btn-next" aria-label="Next round">›</button>
-      </div>
       <div class="strip-ticker" id="activity-ticker" aria-label="Current activity"></div>
-      <button class="pacing-btn" id="btn-replay">Replay</button>
-      <button class="pacing-btn pacing-auto" id="btn-auto">Auto</button>
-    </div>
+      <nav class="round-nav" aria-label="Round navigation">
+        <button class="round-nav-btn" id="btn-prev" aria-label="Previous round">&#8249;</button>
+        <span class="round-nav-pos" id="pacing-pos">ROUND — / —</span>
+        <button class="round-nav-btn" id="btn-next" aria-label="Next round">&#8250;</button>
+      </nav>
+    </header>
 
     <main class="layout">
       <section class="panel">
@@ -942,17 +834,12 @@ body {
   const tabsEl = document.getElementById('tabs');
   const railEl = document.getElementById('rail');
   const metaEl = document.getElementById('meta');
-  const statusPill = document.getElementById('status-pill');
   const activityTickerEl = document.getElementById('activity-ticker');
 
   let previousState = null;
   let selectedAiIdx = null;
   let viewedRound = 0;
-  // Start on the pre-round baseline. The first live state load can jump to
-  // the current round, and "Auto" keeps the view pinned to the latest round.
-  let autoMode = false;
   let pollTimer = null;
-  const replayBtn = document.getElementById('btn-replay');
   const roundCardEl = document.getElementById('round-card');
   const roundCardTitleEl = document.getElementById('round-card-title');
   const roundCardSubEl = document.getElementById('round-card-sub');
@@ -1059,42 +946,6 @@ body {
       <span class="ticker-live" aria-hidden="true"><span class="ticker-dot"></span></span>
       <span><span class="strip-now">now:</span> ${esc(activityText)}&hellip;</span>
       <span class="strip-age">${esc(progressInfo.ageText)}</span>`;
-  }
-
-  function renderHeartbeatPill(state, progressInfo) {
-    if (state.status === 'done' || state.current_stage === 'done') {
-      return {
-        className: 'status-pill is-done',
-        text: 'DONE',
-        html: 'DONE',
-      };
-    }
-    if (progressInfo && progressInfo.mode !== 'none') {
-      if (progressInfo.mode === 'retrying') {
-        return {
-          className: 'status-pill is-retrying',
-          text: `↻ RETRYING · ${progressInfo.attempt}/${progressInfo.maxAttempts || '?'}`,
-          html: `<span class="retry-dot" aria-hidden="true"></span>↻ RETRYING · ${progressInfo.attempt}/${progressInfo.maxAttempts || '?'}`,
-        };
-      }
-      if (progressInfo.mode === 'stalled') {
-        return {
-          className: 'status-pill is-stalled',
-          text: `STALLED · ${progressInfo.ageText}`,
-          html: `<span class="heartbeat-dot" aria-hidden="true"></span>STALLED · ${progressInfo.ageText}`,
-        };
-      }
-      return {
-        className: 'status-pill is-live',
-        text: `◴ LIVE · ${progressInfo.ageText}`,
-        html: `<span class="live-dot" aria-hidden="true"></span>◴ LIVE · ${progressInfo.ageText}`,
-      };
-    }
-    return {
-      className: 'status-pill',
-      text: 'SYNCED',
-      html: 'SYNCED',
-    };
   }
 
   function skillValue(level) {
@@ -1332,17 +1183,9 @@ body {
     }
     return entries.map(item => `
       <div class="wire-item">
-        <div class="wire-portrait">
-          <div class="wire-fallback">${esc(initials(item.speaker_name))}</div>
-          <img src="/portraits/${encodeURIComponent(item.speaker_char_id || '')}"
-               alt="${esc(item.speaker_name)}" loading="lazy"
-               onerror="this.style.display='none';this.previousElementSibling.style.display='flex';">
-        </div>
+        ${Shell.helpers.portraitCardHtml(item.speaker || { name: item.speaker_name, skills: {} }, { charId: item.speaker_char_id, widthPx: 84 })}
         <div class="wire-body">
-          <div class="wire-head">
-            <div class="wire-name">${esc(item.speaker_name || 'Unknown')}</div>
-            <div class="wire-target">vs ${esc(item.target_ai_name || 'unknown')}</div>
-          </div>
+          <div class="wire-name">${esc(item.speaker_name || 'Unknown')}</div>
           <div class="wire-text">${esc(item.text || '')}</div>
         </div>
       </div>
@@ -1418,10 +1261,6 @@ body {
     const maxRound = playedRounds(state);
     const total = progressInfo.totalRounds || state.total_rounds || 0;
 
-    if (autoMode) {
-      viewedRound = maxRound;
-    }
-
     viewedRound = Math.max(0, Math.min(viewedRound, maxRound));
 
     document.getElementById('pacing-pos').textContent = `ROUND ${viewedRound} / ${total}`;
@@ -1431,17 +1270,11 @@ body {
     activityTickerEl.innerHTML = tickerHtml;
     activityTickerEl.hidden = !tickerHtml;
 
-    const heartbeat = renderHeartbeatPill(state, progressInfo);
-    statusPill.className = heartbeat.className;
-    statusPill.innerHTML = heartbeat.html;
-
     const title = state.name || state.campaign_name;
     metaEl.innerHTML = title ? esc(title) : `<strong>${(state.standings || []).length}</strong> AIs`;
 
     document.getElementById('btn-prev').disabled = viewedRound <= 0;
     document.getElementById('btn-next').disabled = viewedRound >= maxRound;
-    document.getElementById('btn-auto').classList.toggle('is-active', autoMode);
-    replayBtn.disabled = viewedRound <= 0;
   }
 
   function statusClass(status) {
@@ -1849,8 +1682,6 @@ body {
 
   function startReveal(state, roundNumber) {
     if (!state) return;
-    autoMode = false;
-    document.getElementById('btn-auto').classList.remove('is-active');
     viewedRound = roundNumber;
     cancelReveal();
     const board = renderState(state, 'before');
@@ -1880,8 +1711,6 @@ body {
     const maxRound = playedRounds(state);
     const clamped = Math.max(0, Math.min(targetRound, maxRound));
     const prevRound = viewedRound;
-    autoMode = false;
-    document.getElementById('btn-auto').classList.remove('is-active');
     if (typeof opts.selectAiIdx === 'number') {
       selectedAiIdx = opts.selectAiIdx;
     }
@@ -1917,9 +1746,7 @@ body {
   async function loadState() {
     if (!gameId) {
       loadHasError = true;
-      statusPill.className = 'status-pill is-error';
-      statusPill.textContent = 'NO GAME';
-      metaEl.textContent = 'Missing game id.';
+      metaEl.textContent = 'No campaign found';
       activityTickerEl.hidden = true;
       activityTickerEl.innerHTML = '';
       return;
@@ -1940,9 +1767,6 @@ body {
         const maxRound = playedRounds(next);
         viewedRound = Number.isFinite(liveRound) ? Math.max(0, Math.min(liveRound, maxRound)) : 0;
       }
-      if (autoMode) {
-        viewedRound = playedRounds(next);
-      }
       if (revealInProgress) {
         // A round reveal is mid-play — don't let the 5s poll interrupt it.
         // Stash the latest state; the next poll after it finishes renders fresh.
@@ -1955,8 +1779,6 @@ body {
       previousState = next;
     } catch (err) {
       loadHasError = true;
-      statusPill.className = 'status-pill is-error';
-      statusPill.textContent = 'ERROR';
       metaEl.textContent = `Failed to load campaign state: ${err.message || err}`;
       wireEl.innerHTML = `<div class="state-error">${esc(err.message || err)}</div>`;
       standingsEl.innerHTML = '';
@@ -1975,20 +1797,6 @@ body {
   document.getElementById('btn-next').addEventListener('click', () => {
     const nextRound = Math.min(viewedRound + 1, previousState ? playedRounds(previousState) : 0);
     navigateRound(nextRound, { animate: true });
-  });
-
-  replayBtn.addEventListener('click', () => {
-    if (!previousState || viewedRound <= 0) return;
-    navigateRound(viewedRound, { animate: true, replay: true });
-  });
-
-  document.getElementById('btn-auto').addEventListener('click', () => {
-    autoMode = !autoMode;
-    if (autoMode && previousState) {
-      viewedRound = playedRounds(previousState);
-      renderFinal(previousState);
-    }
-    document.getElementById('btn-auto').classList.toggle('is-active', autoMode);
   });
 
   pollTimer = setInterval(loadState, 5000);
