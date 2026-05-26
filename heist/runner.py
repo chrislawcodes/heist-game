@@ -423,7 +423,7 @@ def run_one_job(
 
     hidden = _roll_hidden_depth(job, rng, emit)
     state = HeistState(crew=crew, job=job, hidden_depth=hidden)
-    scenes = generate_scenes(job, hidden)
+    scenes = generate_scenes(job, hidden, rng=rng, challenge_scores=state.challenge_scores)
 
     _snapshot(
         snapshot_fn, stage=STAGE_JOB_PICKED, strategy=strategy, ai=ai,
@@ -511,7 +511,7 @@ def run_heist(
     from heist.scenes import generate_scenes
     hidden = _roll_hidden_depth(job, rng, emit)
     state = HeistState(crew=crew, job=job, hidden_depth=hidden)
-    scenes = generate_scenes(job, hidden)
+    scenes = generate_scenes(job, hidden, rng=rng, challenge_scores=state.challenge_scores)
     _snapshot(
         snapshot_fn, stage=STAGE_JOB_PICKED, strategy=strategy, ai=ai,
         rng=rng, state=state, extras=extras, scene_idx=0,
@@ -619,7 +619,7 @@ def resume_heist(
         job = _pick_job(state.crew, ai, logs, extras, emit)
         hidden = _roll_hidden_depth(job, rng, emit)
         state = HeistState(crew=state.crew, job=job, hidden_depth=hidden)
-        scenes = generate_scenes(job, hidden)
+        scenes = generate_scenes(job, hidden, rng=rng, challenge_scores=state.challenge_scores)
         _snapshot(
             snapshot_fn, stage=STAGE_JOB_PICKED, strategy=strategy, ai=ai,
             rng=rng, state=state, extras=extras, scene_idx=0,
@@ -636,7 +636,7 @@ def resume_heist(
         job = _pick_job(state.crew, ai, logs, extras, emit)
         hidden = _roll_hidden_depth(job, rng, emit)
         state = HeistState(crew=state.crew, job=job, hidden_depth=hidden)
-        scenes = generate_scenes(job, hidden)
+        scenes = generate_scenes(job, hidden, rng=rng, challenge_scores=state.challenge_scores)
         _snapshot(
             snapshot_fn, stage=STAGE_JOB_PICKED, strategy=strategy, ai=ai,
             rng=rng, state=state, extras=extras, scene_idx=0,
@@ -659,7 +659,9 @@ def resume_heist(
                 "reward_label": state.hidden_depth.reward_label,
                 "reward_amount": state.hidden_depth.reward_amount,
             })
-        scenes = generate_scenes(state.job, state.hidden_depth)
+        scenes = generate_scenes(
+            state.job, state.hidden_depth, rng=rng, challenge_scores=state.challenge_scores,
+        )
         _run_scene_loop(scenes, state, ai, logs, extras, emit, on_scene,
                         snapshot_fn, strategy, rng, start_idx=0)
 
@@ -668,7 +670,9 @@ def resume_heist(
             from heist.serialize import crew_to_dict, job_to_dict
             emit({"type": "crew_known", "crew": crew_to_dict(state.crew)})
             emit({"type": "job_known", "job": job_to_dict(state.job)})
-        scenes = generate_scenes(state.job, state.hidden_depth)
+        scenes = generate_scenes(
+            state.job, state.hidden_depth, rng=rng, challenge_scores=state.challenge_scores,
+        )
         # state.scene_results was loaded from the snapshot. _run_scene_loop
         # will append from there; truncate to scene_idx in case the snapshot
         # captured trailing partials.

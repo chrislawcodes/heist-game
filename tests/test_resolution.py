@@ -6,7 +6,7 @@ import pytest
 
 from heist.ai import StubHeistAI
 from heist.content import ROSTER_BY_ID
-from heist.mechanics import Outcome, outcome_is_pass, resolve_outcome
+from heist.mechanics import Outcome, outcome_is_pass, resolve_by_margin
 from heist.resolution import (
     _catch_member_from_assigned,
     _finalize_reward,
@@ -74,17 +74,19 @@ def _state(
 
 
 @pytest.mark.parametrize(
-    "skill,challenge,outcome",
+    "eff_score,challenge_score,outcome",
     [
-        (SkillLevel.NONE, ChallengeLevel.NONE, Outcome.CLEAN),
-        (SkillLevel.HIGH, ChallengeLevel.MEDIUM, Outcome.CLEAN),
-        (SkillLevel.MEDIUM, ChallengeLevel.MEDIUM, Outcome.SQUEAK),
-        (SkillLevel.LOW, ChallengeLevel.MEDIUM, Outcome.FAIL),
-        (SkillLevel.NONE, ChallengeLevel.MEDIUM, Outcome.CAUGHT),
+        (5, 0, Outcome.CLEAN),    # no challenge
+        (10, 8, Outcome.CLEAN),   # margin +2
+        (8, 8, Outcome.SQUEAK),   # margin 0
+        (9, 8, Outcome.SQUEAK),   # margin +1
+        (7, 8, Outcome.FAIL),     # margin -1
+        (5, 8, Outcome.FAIL),     # margin -3
+        (4, 8, Outcome.CAUGHT),   # margin -4
     ],
 )
-def test_resolve_outcome_table(skill, challenge, outcome):
-    assert resolve_outcome(skill, challenge) is outcome
+def test_resolve_by_margin_table(eff_score, challenge_score, outcome):
+    assert resolve_by_margin(eff_score, challenge_score) is outcome
     assert outcome_is_pass(outcome) is (outcome in (Outcome.CLEAN, Outcome.SQUEAK))
 
 

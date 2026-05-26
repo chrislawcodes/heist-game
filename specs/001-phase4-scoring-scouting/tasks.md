@@ -12,8 +12,8 @@
 
 ## Phase 1: Setup
 
-- [ ] T001 Create worktree + branch: `git worktree add .claude/worktrees/phase4-scoring-scouting -b feat/phase4-scoring-scouting` (work happens in the worktree; main repo stays on `main` per CLAUDE.md).
-- [ ] T002 Capture green baseline before changes: `python3 -m ruff check . && mypy heist/ agents.py demo.py && pytest -q`. Record any pre-existing failures so they aren't blamed on this work.
+- [x] T001 Create worktree + branch: `git worktree add .claude/worktrees/phase4-scoring-scouting -b feat/phase4-scoring-scouting` (work happens in the worktree; main repo stays on `main` per CLAUDE.md).
+- [x] T002 Capture green baseline before changes: `python3 -m ruff check . && mypy heist/ agents.py demo.py && pytest -q`. Record any pre-existing failures so they aren't blamed on this work.
 
 ---
 
@@ -21,9 +21,9 @@
 
 ⚠️ **CRITICAL**: No user-story work begins until this phase is complete. These are the shared 1-10 primitives every story consumes.
 
-- [ ] T003 [P: heist/state.py] Add `RevealLevel(IntEnum){HIDDEN,BUCKET,EXACT}`; add `ScoutState` dataclass (`reveals: dict[str,dict[str,RevealLevel]]`, `reward_reveal: dict[str,int]`, `free_probes:int`, `probes_spent_free:int`, `probes_paid:int`, with pure helpers `reveal/level/budget_remaining`); add `Scene.challenge_score: int | None = None`; add `HeistState.challenge_scores: dict[str,int]` + `scout_state: ScoutState` (see data-model.md).
-- [ ] T004 [P: heist/mechanics.py] Add `score_to_bucket(score)->SkillLevel` (0→NONE,1-3→LOW,4-7→MED,8-10→HIGH); `effective_skill_score(members,skill)->int` (max score, **+1 if ≥2 members have the skill**, cap 10); `effective_skill_bucket(...)` = `score_to_bucket(effective_skill_score(...))`; `PREMIUM`/`SEAT` + `score_floor_cost(char)` (`100_000 + Σ premium(score)`) replacing `base_cost`/`expected_floor_cost`; `resolve_by_margin(eff_score,challenge_score)->Outcome` per the margin table (CLEAN ≥2 / SQUEAK 0..1 / FAIL −1..−3 / CAUGHT ≤−4 — research.md Q1); `roll_challenge_scores(profile,tier,rng)->dict[str,int]` per tier fog bands; `driver_scout_bonus(crew)` (+1/+2/+3 by best driver bucket, +0 none) + `free_probe_budget(crew)`. Keep `escape_resolves` body; it will be fed the derived driver bucket.
-- [ ] T005 [tests/test_mechanics.py] Unit-test the foundation pure functions: `score_floor_cost` matches the spec table to the dollar; `effective_skill_score` gives `min(best+1,10)` for ≥2 members; `score_to_bucket` boundaries; `resolve_by_margin` table; `roll_challenge_scores` stays within tier bands. (Depends on T004.)
+- [x] T003 [P: heist/state.py] Add `RevealLevel(IntEnum){HIDDEN,BUCKET,EXACT}`; add `ScoutState` dataclass (`reveals: dict[str,dict[str,RevealLevel]]`, `reward_reveal: dict[str,int]`, `free_probes:int`, `probes_spent_free:int`, `probes_paid:int`, with pure helpers `reveal/level/budget_remaining`); add `Scene.challenge_score: int | None = None`; add `HeistState.challenge_scores: dict[str,int]` + `scout_state: ScoutState` (see data-model.md).
+- [x] T004 [P: heist/mechanics.py] Add `score_to_bucket(score)->SkillLevel` (0→NONE,1-3→LOW,4-7→MED,8-10→HIGH); `effective_skill_score(members,skill)->int` (max score, **+1 if ≥2 members have the skill**, cap 10); `effective_skill_bucket(...)` = `score_to_bucket(effective_skill_score(...))`; `PREMIUM`/`SEAT` + `score_floor_cost(char)` (`100_000 + Σ premium(score)`) replacing `base_cost`/`expected_floor_cost`; `resolve_by_margin(eff_score,challenge_score)->Outcome` per the margin table (CLEAN ≥2 / SQUEAK 0..1 / FAIL −1..−3 / CAUGHT ≤−4 — research.md Q1); `roll_challenge_scores(profile,tier,rng)->dict[str,int]` per tier fog bands; `driver_scout_bonus(crew)` (+1/+2/+3 by best driver bucket, +0 none) + `free_probe_budget(crew)`. Keep `escape_resolves` body; it will be fed the derived driver bucket.
+- [x] T005 [tests/test_mechanics.py] Unit-test the foundation pure functions: `score_floor_cost` matches the spec table to the dollar; `effective_skill_score` gives `min(best+1,10)` for ≥2 members; `score_to_bucket` boundaries; `resolve_by_margin` table; `roll_challenge_scores` stays within tier bands. (Depends on T004.)
 
 **Checkpoint:** state + mechanics compile, `mypy` clean, `pytest -q tests/test_mechanics.py` green. User stories can begin.
 
@@ -35,17 +35,17 @@
 
 **Independent Test:** `python -m heist run --agent stub` and `run-campaign --agent stub` complete with no traceback; floor costs match the curve; resolution is `effective_score ≥ challenge_score`; graded outcomes + heat still emit.
 
-- [ ] T006 [P: heist/characters/__init__.py] [US1] Populate `skill_scores` for all 16 characters (locked table in spec.md). Derive each character's public `skills` bucket from its scores via `score_to_bucket` (single source of truth — research.md Q5); keep names/personalities untouched.
-- [ ] T007 [P: heist/resolution.py] [US1] In `_resolve_challenge_scene`, replace `effective_skill`+`resolve_outcome` with `effective_skill_score(assigned, scene.challenge_skill)` vs `scene.challenge_score`, graded by `resolve_by_margin`.
-- [ ] T008 [P: heist/scenes.py] [US1] In `generate_scenes`, stamp `Scene.challenge_score` from the round's rolled `challenge_scores` (passed in). Scene **structure** (which scenes exist, `is_core`) still derives from the public bucket profile.
-- [ ] T009 [heist/runner.py] [US1] After `_pick_job`, call `roll_challenge_scores(job.profile, job.tier, rng)` into `HeistState.challenge_scores` and pass to `generate_scenes`. Feed the escape `effective_skill_bucket(free_members,"driver")` so `escape_resolves` is unchanged. Switch `_draft_crew` / bid validation to `score_floor_cost`. (Conflict-prone — serial.)
-- [ ] T010 [P: heist/prompts.py] [US1] In `_roster_summary` expose **public** character scores (e.g. "Safecracker 9") and floor costs from `score_floor_cost`. (Job-slate defense fog is deferred to US2; here the slate still shows buckets as today.)
-- [ ] T011 [P: heist/serialize.py] [US1] `character_to_dict`: emit populated `skill_scores`. (Job/scene fog deferred to US2.)
-- [ ] T012 [P: heist/persist.py] [US1] Add a `schema_version` tag to game records; tolerant legacy load (done games replay from stored events, no re-resolution; pre-Phase-4 in-flight games marked errored on resume — research.md Q3); include `challenge_scores` in the round snapshot.
-- [ ] T013 [heist/auction.py + any residual callers] [US1] Sweep for remaining `expected_floor_cost`/`base_cost` references (auction bid validation, server, runner) and replace with `score_floor_cost`. (Serial — multi-file; run after T009/T010.)
-- [ ] T014 [P: tests/test_resolution.py] [US1] Replace the bucket-vs-bucket table with a score-vs-score table covering each margin band.
-- [ ] T015 [P: tests/test_scenes.py] [US1] Assert `Scene.challenge_score` is stamped for challenge scenes and `None` otherwise.
-- [ ] T016 [tests/test_runner_stub.py] [US1] End-to-end: stub single heist + stub 3-round campaign run green on the new engine and emit the existing event types. (Serial — integration.)
+- [x] T006 [P: heist/characters/__init__.py] [US1] Populate `skill_scores` for all 16 characters (locked table in spec.md). Derive each character's public `skills` bucket from its scores via `score_to_bucket` (single source of truth — research.md Q5); keep names/personalities untouched.
+- [x] T007 [P: heist/resolution.py] [US1] In `_resolve_challenge_scene`, replace `effective_skill`+`resolve_outcome` with `effective_skill_score(assigned, scene.challenge_skill)` vs `scene.challenge_score`, graded by `resolve_by_margin`.
+- [x] T008 [P: heist/scenes.py] [US1] In `generate_scenes`, stamp `Scene.challenge_score` from the round's rolled `challenge_scores` (passed in). Scene **structure** (which scenes exist, `is_core`) still derives from the public bucket profile.
+- [x] T009 [heist/runner.py] [US1] After `_pick_job`, call `roll_challenge_scores(job.profile, job.tier, rng)` into `HeistState.challenge_scores` and pass to `generate_scenes`. Feed the escape `effective_skill_bucket(free_members,"driver")` so `escape_resolves` is unchanged. Switch `_draft_crew` / bid validation to `score_floor_cost`. (Conflict-prone — serial.)
+- [x] T010 [P: heist/prompts.py] [US1] In `_roster_summary` expose **public** character scores (e.g. "Safecracker 9") and floor costs from `score_floor_cost`. (Job-slate defense fog is deferred to US2; here the slate still shows buckets as today.)
+- [x] T011 [P: heist/serialize.py] [US1] `character_to_dict`: emit populated `skill_scores`. (Job/scene fog deferred to US2.)
+- [x] T012 [P: heist/persist.py] [US1] Add a `schema_version` tag to game records; tolerant legacy load (done games replay from stored events, no re-resolution; pre-Phase-4 in-flight games marked errored on resume — research.md Q3); include `challenge_scores` in the round snapshot.
+- [x] T013 [heist/auction.py + any residual callers] [US1] Sweep for remaining `expected_floor_cost`/`base_cost` references (auction bid validation, server, runner) and replace with `score_floor_cost`. (Serial — multi-file; run after T009/T010.)
+- [x] T014 [P: tests/test_resolution.py] [US1] Replace the bucket-vs-bucket table with a score-vs-score table covering each margin band.
+- [x] T015 [P: tests/test_scenes.py] [US1] Assert `Scene.challenge_score` is stamped for challenge scenes and `None` otherwise.
+- [x] T016 [tests/test_runner_stub.py] [US1] End-to-end: stub single heist + stub 3-round campaign run green on the new engine and emit the existing event types. (Serial — integration.)
 - [ ] T017 [P: heist_game_design.md] [US1] Update bucket boundaries (1-3 Low / 4-7 Med / 8-10 High), collaboration = +1 point, score-based resolution supersedes the bucket model, and the scouting-applies-to-locations-only note.
 
 **Checkpoint:** US1 fully functional — `pytest -q` green, both stub modes run, pricing exact. MVP shippable.

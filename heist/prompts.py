@@ -6,11 +6,20 @@ from heist.content import BANKROLL, JOBS, ROSTER
 from heist.state import Campaign, Character, Crew, HeistState, Scene
 
 
+def _skill_str(c: Character) -> str:
+    """Public skill display: exact 1-10 score + bucket (character scores are
+    public; only locations are fogged)."""
+    return ", ".join(
+        f"{s} {c.skill_scores.get(s, int(lvl))} ({lvl.name})" for s, lvl in c.skills.items()
+    )
+
+
 def _roster_summary() -> str:
     lines = []
     for c in ROSTER:
-        skills = ", ".join(f"{s} {lvl.name}" for s, lvl in c.skills.items())
-        lines.append(f"  - id={c.id}, name={c.name!r}, skills=({skills}), floor=${c.floor_cost}")
+        lines.append(
+            f"  - id={c.id}, name={c.name!r}, skills=({_skill_str(c)}), floor=${c.floor_cost}"
+        )
     return "\n".join(lines)
 
 
@@ -120,8 +129,7 @@ def _fill_prompt(crew_so_far: list[Character], remaining: int) -> str:
 def _job_prompt(crew: Crew, available_jobs: list | None = None) -> str:
     crew_lines = []
     for c in crew.members:
-        skills = ", ".join(f"{s} {lvl.name}" for s, lvl in c.skills.items())
-        crew_lines.append(f"  - {c.name}: {skills}")
+        crew_lines.append(f"  - {c.name}: {_skill_str(c)}")
     return (
         f"Crew assembled (spent ${crew.total_cost}/{BANKROLL}):\n"
         + "\n".join(crew_lines)
@@ -162,8 +170,7 @@ def _scene_assign_prompt(scene: Scene, state: HeistState) -> str:
     crew_lines = []
     free_members = [c for c in state.crew.members if c.id not in state.caught_member_ids]
     for c in free_members:
-        skills = ", ".join(f"{s} {lvl.name}" for s, lvl in c.skills.items())
-        crew_lines.append(f"  id={c.id}: {c.name} ({skills})")
+        crew_lines.append(f"  id={c.id}: {c.name} ({_skill_str(c)})")
     challenge_desc = ""
     if scene.challenge_skill is not None and scene.challenge_level is not None:
         challenge_desc = (

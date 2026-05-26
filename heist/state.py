@@ -16,6 +16,15 @@ class ChallengeLevel(IntEnum):
     HARD = 3
 
 
+class RevealLevel(IntEnum):
+    """How much a player has scouted about one location dimension.
+    HIDDEN → only flavor + reward range known; BUCKET → the Low/Med/Hard label;
+    EXACT → the true 1-10 score. Advanced one step per scouting probe."""
+    HIDDEN = 0
+    BUCKET = 1
+    EXACT = 2
+
+
 SKILLS = ("hacker", "safecracker", "muscle", "inside_man", "driver")
 CHALLENGE_TO_SKILL = {
     "electronic": "hacker",
@@ -40,11 +49,9 @@ class Character:
     weakness: str = ""
     look: str = ""
     signature_line: str = ""
-    # PHASE 4 FORWARD-COMPAT — intentionally empty until Phase 4 ships.
-    # Each skill will carry a hidden 1–10 score under its public bucket
-    # (1–3 = Low, 4–6 = Medium, 7–10 = High). Resolution will use the true
-    # score instead of the bucket. DO NOT populate or use this field before
-    # Phase 4; scouting and score-resolution must ship together.
+    # PHASE 4 — public 1-10 score per owned skill (buckets: 1-3 Low, 4-7 Med,
+    # 8-10 High). Drives pricing and resolution. The `skills` bucket map is
+    # derived from these; character scores are public (scouting is locations-only).
     skill_scores: dict[str, int] = field(default_factory=dict)
 
 
@@ -68,11 +75,9 @@ class Job:
     hidden_depth: list[HiddenDepthElement]
     reward_amounts: list[tuple[str, int]]
     tier: str = ""
-    # PHASE 4 FORWARD-COMPAT — intentionally empty until Phase 4 ships.
-    # Each challenge in a job's profile will carry a hidden 1–10 score under
-    # its public bucket. Resolution: crew skill_score >= challenge_score →
-    # success. DO NOT populate or use this field before Phase 4; scouting
-    # and score-resolution must ship together.
+    # PHASE 4 — stays EMPTY on the shared Job constant. The hidden 1-10 challenge
+    # scores are rolled per round (mechanics.roll_challenge_scores) and live on
+    # HeistState.challenge_scores; resolution compares crew score >= challenge score.
     challenge_scores: dict[str, int] = field(default_factory=dict)
     scene_loot: dict[str, int] = field(default_factory=dict)
 
@@ -103,6 +108,9 @@ class Scene:
     is_core: bool
     context: str
     category: str | None = None
+    # PHASE 4 — true 1-10 score for this scene's challenge, stamped at generation
+    # from the round's rolled challenge_scores. None for non-challenge scenes.
+    challenge_score: int | None = None
 
 
 @dataclass
@@ -125,10 +133,45 @@ class TurnLog:
 
 
 @dataclass
+class ScoutState:
+    """Per-round fog state — the single source of truth for what's been scouted.
+    Read by both prompts and serialization so the two lanes never disagree.
+
+    reveals:      job_name -> {challenge_category -> RevealLevel}
+    reward_reveal: job_name -> narrow step (0 public range, 1 narrowed, 2 exact)
+    free_probes:  crew size + best-driver bonus, granted at round start
+    """
+    reveals: dict[str, dict[str, RevealLevel]] = field(default_factory=dict)
+    reward_reveal: dict[str, int] = field(default_factory=dict)
+    free_probes: int = 0
+    probes_spent_free: int = 0
+    probes_paid: int = 0
+
+    def level(self, job: str, category: str) -> RevealLevel:
+        return self.reveals.get(job, {}).get(category, RevealLevel.HIDDEN)
+
+    def reveal(self, job: str, category: str) -> RevealLevel:
+        """Advance one step (HIDDEN→BUCKET→EXACT); no-op at EXACT. Returns new level."""
+        cur = self.level(job, category)
+        if cur >= RevealLevel.EXACT:
+            return cur
+        nxt = RevealLevel(int(cur) + 1)
+        self.reveals.setdefault(job, {})[category] = nxt
+        return nxt
+
+    def budget_remaining(self) -> int:
+        return max(0, self.free_probes - self.probes_spent_free)
+
+
+@dataclass
 class HeistState:
     crew: Crew
     job: Job
     hidden_depth: HiddenDepthRoll
+    # PHASE 4 — the round's rolled hidden challenge scores (category -> 1-10) and
+    # the fog state. challenge_scores is the source for each Scene.challenge_score.
+    challenge_scores: dict[str, int] = field(default_factory=dict)
+    scout_state: "ScoutState" = field(default_factory=lambda: ScoutState())
     scene_results: list[SceneResult] = field(default_factory=list)
     caught_member_ids: list[int] = field(default_factory=list)
     secured_take: int = 0

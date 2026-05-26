@@ -4,8 +4,11 @@ member capture, and reward finalization. Pure functions over mechanics + state."
 from __future__ import annotations
 
 from heist.content import BANKROLL, ROSTER_BY_ID
-from heist.mechanics import Outcome, effective_skill, resolve_outcome
+from heist.mechanics import Outcome, effective_skill_score, resolve_by_margin
 from heist.state import CHALLENGE_TO_SKILL, ChallengeLevel, Character, HeistState, Scene, SkillLevel
+
+# Fallback challenge score when a scene wasn't stamped (legacy/ad-hoc scenes).
+_LEVEL_SCORE = {ChallengeLevel.LOW: 2, ChallengeLevel.MEDIUM: 5, ChallengeLevel.HARD: 9}
 
 _SKILL_TO_CATEGORY = {skill: category for category, skill in CHALLENGE_TO_SKILL.items()}
 
@@ -35,18 +38,18 @@ def _validate_bids(parsed: dict) -> list[tuple[Character, int]]:
 def _resolve_challenge_scene(
     scene: Scene, assigned: list[Character]
 ) -> tuple[Outcome, str]:
-    """Returns (outcome, outcome_summary)."""
+    """Returns (outcome, outcome_summary). Score-based (Phase 4): the crew's
+    effective 1-10 score vs the scene's true challenge score."""
     assert scene.challenge_skill is not None and scene.challenge_level is not None
-    skill = effective_skill(assigned, scene.challenge_skill)
-    outcome = resolve_outcome(skill, scene.challenge_level)
-    gap = int(scene.challenge_level) - int(skill)
-    if scene.challenge_level == ChallengeLevel.NONE:
-        gap_text = "challenge level NONE"
-    else:
-        gap_text = f"gap {gap}"
+    eff = effective_skill_score(assigned, scene.challenge_skill)
+    challenge_score = scene.challenge_score
+    if challenge_score is None:
+        challenge_score = _LEVEL_SCORE.get(scene.challenge_level, 0)
+    outcome = resolve_by_margin(eff, challenge_score)
+    margin = eff - challenge_score
     return outcome, (
-        f"Crew skill in {scene.challenge_skill}: {skill.name}; "
-        f"challenge level: {scene.challenge_level.name}; {gap_text}. "
+        f"Crew {scene.challenge_skill} score {eff} vs challenge {challenge_score} "
+        f"(margin {margin:+d}, published {scene.challenge_level.name}). "
         f"Result: {outcome.name.lower()}."
     )
 
