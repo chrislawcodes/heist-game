@@ -171,71 +171,6 @@ body {
   min-width: 90px;
   text-align: center;
 }
-.stage-stepper {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  min-width: 0;
-  flex: 1 1 360px;
-}
-.stage-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  white-space: nowrap;
-}
-.stage-node {
-  position: relative;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  border: 1px solid rgba(255,255,255,0.16);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: none;
-}
-.stage-label {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--muted);
-}
-.stage-item.is-done .stage-node {
-  background: rgba(82,196,122,0.22);
-  border-color: rgba(82,196,122,0.38);
-  color: var(--green);
-}
-.stage-item.is-done .stage-node::before {
-  content: "\2713";
-  font-size: 10px;
-  font-weight: 900;
-  line-height: 1;
-  color: currentColor;
-}
-.stage-item.is-done .stage-label {
-  color: #c8d5d0;
-}
-.stage-item.is-current .stage-node {
-  background: var(--blue);
-  border-color: rgba(88,152,224,0.95);
-  box-shadow: 0 0 0 0 rgba(88,152,224,0.24);
-  animation: ring-pulse 1.9s ease-in-out infinite;
-}
-.stage-item.is-current .stage-label {
-  color: var(--text);
-}
-.stage-item.is-upcoming .stage-node {
-  background: transparent;
-  border-color: rgba(255,255,255,0.18);
-}
-.stage-connector {
-  width: 18px;
-  height: 2px;
-  background: rgba(255,255,255,0.14);
-  border-radius: 999px;
-  flex: none;
-}
 .strip-ticker {
   display: inline-flex;
   align-items: center;
@@ -332,12 +267,6 @@ body {
   50% { transform: scale(0.82); opacity: 0.62; }
 }
 
-@keyframes ring-pulse {
-  0% { box-shadow: 0 0 0 0 rgba(88,152,224,0.34); }
-  70% { box-shadow: 0 0 0 8px rgba(88,152,224,0.00); }
-  100% { box-shadow: 0 0 0 0 rgba(88,152,224,0.00); }
-}
-
 @keyframes barPulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.55; }
@@ -359,28 +288,15 @@ body {
 .panel + .panel { border-left: 1px solid var(--border); }
 .panel-head {
   flex-shrink: 0;
-  padding: 14px 14px 12px;
+  padding: 10px 14px;
   border-bottom: 1px solid var(--border);
   background: rgba(18,18,20,0.88);
-}
-.panel-kicker {
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  color: var(--muted);
-  margin-bottom: 6px;
 }
 .panel-title {
   font-size: 18px;
   font-weight: 750;
   letter-spacing: -0.02em;
   color: var(--text);
-}
-.panel-sub {
-  font-size: 12px;
-  color: var(--muted);
-  margin-top: 6px;
 }
 .scroll {
   flex: 1;
@@ -389,7 +305,7 @@ body {
   padding: 14px;
 }
 .standings-scroll {
-  padding: 56px 14px 56px;
+  padding: 18px 14px;
   position: relative;
 }
 /* During the round-results spotlight the enlarged card scales past the center
@@ -911,7 +827,6 @@ body {
     align-items: flex-start;
   }
   .pacing-nav,
-  .stage-stepper,
   .strip-ticker {
     width: 100%;
     margin-left: 0;
@@ -930,7 +845,6 @@ body {
   .status-pill .live-dot,
   .status-pill .retry-dot,
   .status-pill .heartbeat-dot,
-  .stage-item.is-current .stage-node,
   .ticker-live .ticker-dot,
   .ticker-retry .ticker-retry-dot {
     transition-duration: 1ms !important;
@@ -955,7 +869,6 @@ body {
         <span class="pacing-pos" id="pacing-pos">ROUND — / —</span>
         <button class="pacing-btn" id="btn-next" aria-label="Next round">›</button>
       </div>
-      <div class="stage-stepper" id="pacing-stepper" aria-label="Campaign stages"></div>
       <div class="strip-ticker" id="activity-ticker" aria-label="Current activity"></div>
       <button class="pacing-btn" id="btn-replay">Replay</button>
       <button class="pacing-btn pacing-auto" id="btn-auto">Auto</button>
@@ -964,18 +877,14 @@ body {
     <main class="layout">
       <section class="panel">
         <div class="panel-head">
-          <div class="panel-kicker">The Wire</div>
           <div class="panel-title">Trash Talk Feed</div>
-          <div class="panel-sub" id="center-sub">Round — wire</div>
         </div>
         <div class="scroll" id="wire"></div>
       </section>
 
       <section class="panel">
         <div class="panel-head">
-          <div class="panel-kicker">Standings</div>
           <div class="panel-title">Leaderboard</div>
-          <div class="panel-sub">Sorted by banked loot.</div>
         </div>
         <div class="scroll standings-scroll" id="standings-scroll">
           <div class="round-card" id="round-card" aria-hidden="true">
@@ -990,9 +899,7 @@ body {
 
       <aside class="panel">
         <div class="panel-head">
-          <div class="panel-kicker">Reflection Rail</div>
           <div class="panel-title">Mind of AI</div>
-          <div class="panel-sub">Round-by-round AI reasoning and narration.</div>
         </div>
         <div class="tabs" id="tabs"></div>
         <div class="scroll" id="rail"></div>
@@ -1013,7 +920,6 @@ body {
   };
   const SKILL_VALUE = { HIGH: 3, MEDIUM: 2, LOW: 1, NONE: 0 };
   const STALL_MS = 240000;
-  const STAGE_ORDER = ['opening_wire', 'hiring', 'heist', 'reflection'];
   const STAGE_LABELS = {
     opening_wire: 'Wire',
     hiring: 'Hiring',
@@ -1037,8 +943,6 @@ body {
   const railEl = document.getElementById('rail');
   const metaEl = document.getElementById('meta');
   const statusPill = document.getElementById('status-pill');
-  const centerSub = document.getElementById('center-sub');
-  const pacingStepperEl = document.getElementById('pacing-stepper');
   const activityTickerEl = document.getElementById('activity-ticker');
 
   let previousState = null;
@@ -1136,38 +1040,6 @@ body {
 
   function isLiveHeartbeat(progressInfo) {
     return !!progressInfo && (progressInfo.mode === 'live' || progressInfo.mode === 'retrying');
-  }
-
-  function renderStageStepper(progressInfo, state) {
-    const viewed = viewedRound;
-    const liveRound = Number(progressInfo?.round ?? state.round ?? 0);
-    const liveHeartbeat = isLiveHeartbeat(progressInfo);
-    const inLiveView = liveHeartbeat && viewed === liveRound;
-    const stageIdx = STAGE_ORDER.indexOf(progressInfo?.stage || '');
-    const doneAll = state.current_stage === 'done' || (state.status === 'done');
-    const beforeFirst = progressInfo?.stage === 'starting';
-    const nodes = STAGE_ORDER.map((stage, index) => {
-      let cls = 'stage-item';
-      if (doneAll || viewed < liveRound) {
-        cls += ' is-done';
-      } else if (liveHeartbeat && inLiveView && index === stageIdx) {
-        cls += ' is-current';
-      } else if (liveHeartbeat && inLiveView && index < stageIdx) {
-        cls += ' is-done';
-      } else if (beforeFirst) {
-        cls += ' is-upcoming';
-      } else if (index < stageIdx) {
-        cls += ' is-done';
-      } else {
-        cls += ' is-upcoming';
-      }
-      return `
-        <div class="${cls}">
-          <span class="stage-node" aria-hidden="true"></span>
-          <span class="stage-label">${stageLabel(stage)}</span>
-        </div>`;
-    }).join('<div class="stage-connector" aria-hidden="true"></div>');
-    return nodes;
   }
 
   function renderActivityTicker(progressInfo, state) {
@@ -1549,7 +1421,6 @@ body {
     viewedRound = Math.max(0, Math.min(viewedRound, maxRound));
 
     document.getElementById('pacing-pos').textContent = `ROUND ${viewedRound} / ${total}`;
-    pacingStepperEl.innerHTML = renderStageStepper(progressInfo, state);
 
     const tickerHtml = renderActivityTicker(progressInfo, state);
     activityTickerEl.className = `strip-ticker${progressInfo.mode === 'retrying' ? ' strip-retry' : progressInfo.mode === 'stalled' ? ' strip-stalled' : ''}`;
@@ -1662,7 +1533,6 @@ body {
 
   function renderState(state, phase = 'final') {
     updatePacingBar(state);
-    centerSub.textContent = viewedRound === 0 ? 'Opening wire' : `Round ${viewedRound} wire`;
     roundCardEl.classList.remove('show');
 
     currentBoard = buildRoundView(state, viewedRound);
