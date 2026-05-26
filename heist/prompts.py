@@ -112,7 +112,7 @@ def _bid_prompt(strategy: str) -> str:
         "decision points, and narrating each scene in character. Stay in this role.\n\n"
         f"{_TRADECRAFT}\n\n"
         f"Player's strategy prompt:\n---\n{strategy}\n---\n\n"
-        f"Bankroll: ${BANKROLL}. Roster (16 characters):\n{_roster_summary()}\n\n"
+        f"Bankroll: ${BANKROLL}. Roster ({len(ROSTER)} characters):\n{_roster_summary()}\n\n"
         "Draft your crew. Reply with ONLY a JSON object (no prose around it) of shape:\n"
         '{\n'
         '  "casting_strategy": "one-sentence strategy in your own words",\n'
