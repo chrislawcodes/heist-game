@@ -87,7 +87,7 @@ def main(argv: list[str] | None = None) -> int:
             print(
                 f"\n=== Round {r.round_idx + 1}/{camp.rounds_total}: {r.job_name} ===\n"
                 f"  Take: ${r.take:,}  |  Escape: {r.escape_success}  |  "
-                f"Heat: {r.heat}  |  Notoriety: {camp.notoriety}  |  "
+                f"Heat: {r.heat}  |  "
                 f"Crew: {len(camp.standing_crew)}"
             )
 
@@ -105,7 +105,6 @@ def main(argv: list[str] | None = None) -> int:
         )
         print(f"  Banked loot:       ${campaign.banked_loot:,}")
         print(f"  Remaining crew:    {len(campaign.standing_crew)}")
-        print(f"  Final notoriety:   {campaign.notoriety}")
         successful = sum(1 for r in campaign.round_results if r.take > 0)
         print(f"  Successful rounds: {successful}/{len(campaign.round_results)}")
 

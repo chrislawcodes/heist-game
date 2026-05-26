@@ -1004,15 +1004,7 @@ body {
 
   function resolveHeat(row, result, roundIdx) {
     if (!result) return 0;
-    const latestIdx = latestRoundIndex(row);
-    if (roundIdx === latestIdx && Number(row.notoriety || 0) > 0) {
-      return Number(row.notoriety || 0);
-    }
-    const after = Number(result.notoriety_after || 0);
-    if (after !== 0) return after;
-    const before = Number(result.notoriety_before || 0);
-    if (before !== 0) return before;
-    return Number(row.notoriety || 0);
+    return Number(result.heat || 0);
   }
 
   function formatRankDelta(delta) {
@@ -1625,26 +1617,6 @@ body {
     board.refsByAiIdx = new Map(finalRefs.map(ref => [ref.aiIdx, ref]));
   }
 
-  function updateNotorietyForRef(ref, value) {
-    updateHeat(ref, value);
-  }
-
-  async function tickNotoriety(board, token) {
-    const duration = 750 * motion;
-    const cards = board.refs.slice();
-    await staggeredStarts(cards, 250, token, ref => animate(duration, t => {
-      const model = board.byAiIdx.get(ref.aiIdx);
-      const notoriety = model.heatBefore + (model.heatAfter - model.heatBefore) * t;
-      const value = Math.round(notoriety);
-      updateNotorietyForRef(ref, value);
-    }, token));
-    if (token.cancelled) return;
-    cards.forEach(ref => {
-      const model = board.byAiIdx.get(ref.aiIdx);
-      updateNotorietyForRef(ref, model.heatAfter);
-    });
-  }
-
   async function casualtyBeat(board, token) {
     const cards = board.refs.slice();
     await staggeredReveal(cards, 120, token, ref => {
@@ -1668,10 +1640,6 @@ body {
     await sleep(600 * motion, token);
     if (token.cancelled) return;
     await spotlightRanks(board, token);
-    if (token.cancelled) return;
-    await sleep(450 * motion, token);
-    if (token.cancelled) return;
-    await tickNotoriety(board, token);
     if (token.cancelled) return;
     await sleep(450 * motion, token);
     if (token.cancelled) return;

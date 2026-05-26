@@ -106,9 +106,7 @@ def test_new_campaign_creates_campaign_record(fake_handler):
         "rounds_total": 7,
         "banked_loot": 0,
         "bankroll": 0,
-        "notoriety": 0,
         "standing_crew": [],
-        "attempted_job_names": [],
         "round_results": [],
         "between_round_log": [],
     }
@@ -119,7 +117,6 @@ def test_new_campaign_creates_campaign_record(fake_handler):
         "ai_game_id": None,
         "status": "waiting",
         "banked_loot": 0,
-        "notoriety": 0,
         "standing_crew": [],
         "round_results": [],
     }

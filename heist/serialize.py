@@ -322,8 +322,6 @@ def _round_result_to_dict(r: RoundResult) -> dict:
         "aborted": r.aborted,
         "escape_success": r.escape_success,
         "heat": r.heat,
-        "notoriety_before": r.notoriety_before,
-        "notoriety_after": r.notoriety_after,
         "banked_after": r.banked_after,
         "caught_member_ids": list(r.caught_member_ids),
         "crew_ids": list(r.crew_ids),
@@ -344,8 +342,6 @@ def _round_result_from_any(item: Any) -> RoundResult:
             aborted=bool(item.get("aborted", False)),
             escape_success=raw_escape,
             heat=_coerce_int(item.get("heat", 0)),
-            notoriety_before=_coerce_int(item.get("notoriety_before", 0)),
-            notoriety_after=_coerce_int(item.get("notoriety_after", 0)),
             banked_after=_coerce_int(item.get("banked_after", 0)),
             caught_member_ids=_coerce_int_list(item.get("caught_member_ids", [])),
             crew_ids=_coerce_int_list(item.get("crew_ids", [])),
@@ -360,8 +356,6 @@ def _round_result_from_any(item: Any) -> RoundResult:
         aborted=bool(getattr(item, "aborted", False)),
         escape_success=raw_escape,
         heat=_coerce_int(getattr(item, "heat", 0)),
-        notoriety_before=_coerce_int(getattr(item, "notoriety_before", 0)),
-        notoriety_after=_coerce_int(getattr(item, "notoriety_after", 0)),
         banked_after=_coerce_int(getattr(item, "banked_after", 0)),
         caught_member_ids=_coerce_int_list(getattr(item, "caught_member_ids", [])),
         crew_ids=_coerce_int_list(getattr(item, "crew_ids", [])),
@@ -375,8 +369,6 @@ def campaign_to_dict(campaign: Campaign) -> dict:
         "bankroll": campaign.bankroll,
         "banked_loot": campaign.banked_loot,
         "standing_crew": [character_to_dict(c) for c in campaign.standing_crew],
-        "notoriety": campaign.notoriety,
-        "attempted_job_names": sorted(campaign.attempted_job_names),
         "round_results": [_round_result_to_dict(r) for r in campaign.round_results],
         "between_round_log": [dict(entry) for entry in campaign.between_round_log],
     }
@@ -388,8 +380,6 @@ def campaign_from_dict(d: dict) -> Campaign:
         bankroll=int(d.get("bankroll", 0)),
         banked_loot=int(d.get("banked_loot", 0)),
         standing_crew=[character_from_dict(c) for c in d.get("standing_crew", [])],
-        notoriety=int(d.get("notoriety", 0)),
-        attempted_job_names=set(d.get("attempted_job_names", [])),
         round_results=[_round_result_from_any(r) for r in d.get("round_results", [])],
         between_round_log=[dict(entry) for entry in d.get("between_round_log", [])],
     )
@@ -553,8 +543,6 @@ def campaign_state_to_dict(
                 take = _coerce_int(r.get("take", 0), 0)
                 escape_source = r
                 heat = _coerce_int(r.get("heat", 0), 0)
-                notoriety_before = _coerce_int(r.get("notoriety_before", 0), 0)
-                notoriety_after = _coerce_int(r.get("notoriety_after", 0), 0)
                 banked_after = _coerce_int(r.get("banked_after", 0), 0)
                 caught_member_ids = _coerce_int_list(r.get("caught_member_ids", []))
                 round_crew_ids = _coerce_int_list(r.get("crew_ids", []))
@@ -569,8 +557,6 @@ def campaign_state_to_dict(
                     "captured": getattr(r, "captured", False),
                 }
                 heat = _coerce_int(getattr(r, "heat", 0), 0)
-                notoriety_before = _coerce_int(getattr(r, "notoriety_before", 0), 0)
-                notoriety_after = _coerce_int(getattr(r, "notoriety_after", 0), 0)
                 banked_after = _coerce_int(getattr(r, "banked_after", 0), 0)
                 caught_member_ids = _coerce_int_list(getattr(r, "caught_member_ids", []))
                 round_crew_ids = _coerce_int_list(getattr(r, "crew_ids", []))
@@ -593,8 +579,6 @@ def campaign_state_to_dict(
                 "aborted": aborted,
                 "escape": _escape_status_from_result(escape_source),
                 "heat": heat,
-                "notoriety_before": notoriety_before,
-                "notoriety_after": notoriety_after,
                 "banked_after": banked_after,
                 "caught_member_ids": caught_member_ids,
                 "crew": round_crew,
@@ -662,7 +646,6 @@ def campaign_state_to_dict(
             "ai_name": ai_name,
             "ai_game_id": ai_game_id,
             "banked": int(_state_value(entry, "banked_loot", _state_value(entry, "banked", 0))),
-            "notoriety": int(_state_value(entry, "notoriety", 0)),
             "last_round": last_round,
             "round_results": normalized_round_results,
             "crew": crew_members,

@@ -6,9 +6,8 @@ import random
 from collections.abc import Callable
 from typing import Any
 
-from heist import runner as runner_module
 from heist.ai import HeistAI
-from heist.content import BANKROLL, JOBS, ROSTER_BY_ID
+from heist.content import BANKROLL, ROSTER_BY_ID
 from heist.logs import log
 from heist.prompts import _summary_prompt
 from heist.runner import (
@@ -19,12 +18,7 @@ from heist.runner import (
     _draft_crew,
     run_one_job,
 )
-from heist.slate import build_slate
 from heist.state import SKILLS, Campaign, Character, HeistState, RoundResult, SkillLevel
-
-NOTORIETY_MEDIUM = 3    # Phase 3b: high-value jobs gated (not yet active)
-NOTORIETY_HIGH = 6      # Phase 3b: between-round capture (not yet active)
-NOTORIETY_CRITICAL = 9  # Raid - campaign ends early
 
 
 def _state_value(entry: Any, key: str, default: Any = None) -> Any:
@@ -103,12 +97,9 @@ def _active_crew_from_entry(entry: Any, roster_lookup: dict[int, Character]) -> 
 def settle_round(
     campaign: Campaign,
     state: HeistState,
-    notoriety_decay: int = 1,
 ) -> bool:
     """Update campaign in-place after one round. Returns True = end campaign."""
     campaign.banked_loot += state.final_take
-    notoriety_before = campaign.notoriety
-    campaign.notoriety = max(0, campaign.notoriety + state.heat - notoriety_decay)
     crew_ids_snapshot = [c.id for c in campaign.standing_crew]
 
     # Remove only the captured members from standing crew.
@@ -132,25 +123,15 @@ def settle_round(
         aborted=state.aborted,
         escape_success=state.escape_success,
         heat=state.heat,
-        notoriety_before=notoriety_before,
-        notoriety_after=campaign.notoriety,
         banked_after=campaign.banked_loot,
         caught_member_ids=list(state.caught_member_ids),
         crew_ids=crew_ids_snapshot,
     ))
-    campaign.attempted_job_names.add(state.job.name)
-    played = state.job.name
-    slate = campaign.slate_state
-    slate["current_slate"] = [j for j in slate["current_slate"] if j != played]
-    slate["rounds_on_slate"].pop(played, None)
 
     crew_wiped = len(campaign.standing_crew) == 0
-    raid = campaign.notoriety >= NOTORIETY_CRITICAL
     if crew_wiped:
         log.info("campaign_end_crew_wiped")
-    if raid:
-        log.info("campaign_end_notoriety_raid", notoriety=campaign.notoriety)
-    return crew_wiped or raid
+    return crew_wiped
 
 
 def _build_standings(
@@ -280,7 +261,6 @@ def _opening_wire_call(
     else:
         # Trash talk variant
         banked = int(_state_value(own_entry, "banked_loot", _state_value(own_entry, "banked", 0)))
-        notoriety = int(_state_value(own_entry, "notoriety", campaign.notoriety))
         job_name = _state_value(
             own_entry,
             "job_name",
@@ -325,7 +305,6 @@ def _opening_wire_call(
             "",
             "Your campaign totals:",
             f"- Banked loot: ${banked:,}",
-            f"- Notoriety: {notoriety}",
             "",
             "Your crew (pick ONE as the speaker, by id):",
             crew_personas,
@@ -486,7 +465,6 @@ def _reflection_call(
     )
 
     banked = int(_state_value(own_entry, "banked_loot", _state_value(own_entry, "banked", 0)))
-    notoriety = int(_state_value(own_entry, "notoriety", campaign.notoriety))
     job_name = _state_value(
         own_entry,
         "job_name",
@@ -531,7 +509,6 @@ def _reflection_call(
         "",
         "Campaign totals after this round:",
         f"- Banked loot: ${banked:,}",
-        f"- Notoriety: {notoriety}",
         f"- Active crew: {active_crew_lines}",
         "",
         "Rivals:",
@@ -622,8 +599,6 @@ def run_campaign(
         bankroll=BANKROLL - crew.total_cost,
         banked_loot=0,
         standing_crew=list(crew.members),
-        notoriety=0,
-        attempted_job_names=set(),
         round_results=[],
         num_ais=num_ais,
     )
@@ -635,23 +610,7 @@ def run_campaign(
             break
         if before_round is not None:
             before_round(campaign.round_idx)
-        slate = build_slate(
-            JOBS,
-            campaign.round_idx,
-            campaign.num_ais,
-            campaign.attempted_job_names,
-            campaign.slate_state,
-            rng=rng,
-        )
-        if not slate:
-            log.info("campaign_loop_slate_empty", round=_n)
-            break
-        original_jobs = runner_module.JOBS
-        try:
-            runner_module.JOBS = slate
-            result = run_one_job(strategy, ai, campaign, rng=rng, emit=emit)
-        finally:
-            runner_module.JOBS = original_jobs
+        result = run_one_job(strategy, ai, campaign, rng=rng, emit=emit)
         if result is None:
             log.info("campaign_loop_jobs_exhausted", round=_n)
             break
