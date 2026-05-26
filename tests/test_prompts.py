@@ -1,6 +1,7 @@
 """Pin the in-fiction tradecraft text inside the prompts. If a future edit
-strips the collaboration rule or the 'Hard needs High' teaching out, CI
-catches it before the next run regresses to the pre-Option-B behavior."""
+strips the Phase 4 rules — teamwork = +1 point, hidden 1-10 challenge scores,
+bring-margin — out of the rulebook, CI catches it before the AI regresses to
+playing on the old bucket rules."""
 
 from heist.content import MUSEUM
 from heist.prompts import (
@@ -20,17 +21,21 @@ from heist.state import (
 
 
 def test_tradecraft_block_teaches_collaboration():
-    text = _TRADECRAFT
-    assert "pair" in text.lower()
-    assert "two mediums" in text.lower()
-    assert "one level higher" in text.lower()
+    text = _TRADECRAFT.lower()
+    # Teamwork is +1 POINT (not +1 bucket), capped at 10.
+    assert "pair" in text or "two crew" in text
+    assert "one point" in text
+    assert "capped at 10" in text
+    # Must NOT teach the old "two Mediums hit High" rule.
+    assert "two mediums together hit high" not in text
 
 
-def test_tradecraft_block_teaches_hard_needs_high():
-    text = _TRADECRAFT
-    # The rule: Hard challenges need High coverage (or two Mediums paired).
-    assert "Hard" in text and "High" in text
-    assert "walk into a wall" in text.lower() or "no exceptions" in text.lower()
+def test_tradecraft_block_teaches_hidden_scores_and_margin():
+    text = _TRADECRAFT.lower()
+    # The rule: challenges hide a true 1-10 score under the bucket; bring margin.
+    assert "1 to 10" in text
+    assert "estimate" in text
+    assert "margin" in text
 
 
 def test_tradecraft_block_teaches_driver_rule():
