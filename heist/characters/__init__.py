@@ -578,6 +578,42 @@ ROSTER: list[Character] = [
         ),
         signature_line='"I\'ve been on the other side of this door. Trust me."',
     ),
+    Character(
+        id=17,
+        name='Priya "Patch" Iyer',
+        skills={"hacker": M},
+        skill_scores={"hacker": 7},
+        floor_cost=275_000,
+        backstory=(
+            "Ran security for a regional hospital network for nine years until she "
+            "flagged a breach the board wanted buried. They fired her for 'policy "
+            "violations' the week before her options vested. She's been freelancing "
+            "ever since, and she keeps the termination letter laminated in her bag."
+        ),
+        voice=(
+            "Precise and deadpan. Over-explains the thing she's about to do, then does "
+            "it faster than anyone expects. Says 'noted' instead of 'okay.'"
+        ),
+        motivation=(
+            "Paying for her father's memory-care facility, month to month. She prices "
+            "every job against how many weeks it buys him."
+        ),
+        quirk="Labels everything — cables, drives, people. Narrates her keystrokes under her breath.",
+        crew_dynamic=(
+            "Reliable and a little preachy about opsec. Will redo a sloppy crew "
+            "member's work without being asked and mention it exactly once."
+        ),
+        weakness=(
+            "Rigid. Brilliant on a plan she's prepped; rattled when the job deviates "
+            "and she has to improvise off-script."
+        ),
+        look=(
+            "South Asian woman in her late thirties: dark hair in a practical bun, "
+            "rectangular glasses, a worn field jacket over a hospital-lanyard habit of "
+            "clipping things to her collar. Calm, slightly impatient expression."
+        ),
+        signature_line='"Give me four minutes and a clean port. Noted."',
+    ),
 ]
 
 ROSTER_BY_ID: dict[int, Character] = {c.id: c for c in ROSTER}

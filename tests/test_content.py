@@ -25,11 +25,27 @@ def test_every_job_can_pay_out_on_a_clean_run():
 
 
 def test_roster_size_and_uniqueness():
-    assert len(ROSTER) == 16
+    assert len(ROSTER) == 17  # 16 original + Phase 4's 2nd Medium Hacker (Priya "Patch" Iyer)
     ids = [c.id for c in ROSTER]
-    assert len(set(ids)) == 16
+    assert len(set(ids)) == 17
     names = [c.name for c in ROSTER]
-    assert len(set(names)) == 16
+    assert len(set(names)) == 17
+
+
+def test_electronic_has_a_two_medium_collab_path():
+    """Phase 4 added a 2nd Medium Hacker so electronic isn't Marcus-or-bust:
+    two medium hackers must reach an effective High (8+)."""
+    from heist.mechanics import effective_skill_score, score_to_bucket
+    from heist.state import SkillLevel
+    med_hackers = [
+        c for c in ROSTER
+        if score_to_bucket(c.skill_scores.get("hacker", 0)) == SkillLevel.MEDIUM
+    ]
+    assert len(med_hackers) >= 2
+    best_two = sorted((c.skill_scores["hacker"] for c in med_hackers), reverse=True)[:2]
+    # Build throwaway crew from the two best medium hackers and check collaboration.
+    pair = [c for c in ROSTER if c.skill_scores.get("hacker") in best_two][:2]
+    assert effective_skill_score(pair, "hacker") >= 8
 
 
 def test_roster_by_id_matches():
