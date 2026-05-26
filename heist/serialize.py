@@ -326,6 +326,7 @@ def _round_result_to_dict(r: RoundResult) -> dict:
         "notoriety_after": r.notoriety_after,
         "banked_after": r.banked_after,
         "caught_member_ids": list(r.caught_member_ids),
+        "crew_ids": list(r.crew_ids),
     }
 
 
@@ -347,6 +348,7 @@ def _round_result_from_any(item: Any) -> RoundResult:
             notoriety_after=_coerce_int(item.get("notoriety_after", 0)),
             banked_after=_coerce_int(item.get("banked_after", 0)),
             caught_member_ids=_coerce_int_list(item.get("caught_member_ids", [])),
+            crew_ids=_coerce_int_list(item.get("crew_ids", [])),
         )
     raw_escape = getattr(item, "escape_success", getattr(item, "escape", None))
     if isinstance(raw_escape, str) and raw_escape in {"clean", "failed", "caught"}:
@@ -362,6 +364,7 @@ def _round_result_from_any(item: Any) -> RoundResult:
         notoriety_after=_coerce_int(getattr(item, "notoriety_after", 0)),
         banked_after=_coerce_int(getattr(item, "banked_after", 0)),
         caught_member_ids=_coerce_int_list(getattr(item, "caught_member_ids", [])),
+        crew_ids=_coerce_int_list(getattr(item, "crew_ids", [])),
     )
 
 
@@ -554,6 +557,7 @@ def campaign_state_to_dict(
                 notoriety_after = _coerce_int(r.get("notoriety_after", 0), 0)
                 banked_after = _coerce_int(r.get("banked_after", 0), 0)
                 caught_member_ids = _coerce_int_list(r.get("caught_member_ids", []))
+                round_crew_ids = _coerce_int_list(r.get("crew_ids", []))
             else:
                 round_idx = _coerce_int(getattr(r, "round_idx", rr_idx), rr_idx)
                 job_name = getattr(r, "job_name", getattr(r, "job", ""))
@@ -569,9 +573,19 @@ def campaign_state_to_dict(
                 notoriety_after = _coerce_int(getattr(r, "notoriety_after", 0), 0)
                 banked_after = _coerce_int(getattr(r, "banked_after", 0), 0)
                 caught_member_ids = _coerce_int_list(getattr(r, "caught_member_ids", []))
+                round_crew_ids = _coerce_int_list(getattr(r, "crew_ids", []))
             aborted = bool(
                 r.get("aborted", False) if isinstance(r, dict) else getattr(r, "aborted", False)
             )
+            round_caught = set(caught_member_ids)
+            round_crew = []
+            for cid in round_crew_ids:
+                char = roster_lookup.get(cid)
+                if char is None:
+                    continue
+                member = _crew_member_from_any(char, roster_lookup)
+                member["captured"] = cid in round_caught
+                round_crew.append(member)
             normalized_round_results.append({
                 "round_idx": round_idx,
                 "job_name": str(job_name),
@@ -583,6 +597,7 @@ def campaign_state_to_dict(
                 "notoriety_after": notoriety_after,
                 "banked_after": banked_after,
                 "caught_member_ids": caught_member_ids,
+                "crew": round_crew,
                 "game_id": round_game_ids[rr_idx] if rr_idx < len(round_game_ids) else None,
             })
         hiring_game_ids_list: list = _state_value(entry, "hiring_game_ids", []) or []

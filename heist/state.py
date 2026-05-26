@@ -154,6 +154,7 @@ class RoundResult:
     notoriety_after: int = 0
     banked_after: int = 0
     caught_member_ids: list[int] = field(default_factory=list)
+    crew_ids: list[int] = field(default_factory=list)
 
 
 @dataclass

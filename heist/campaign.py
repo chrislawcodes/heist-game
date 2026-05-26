@@ -109,6 +109,7 @@ def settle_round(
     campaign.banked_loot += state.final_take
     notoriety_before = campaign.notoriety
     campaign.notoriety = max(0, campaign.notoriety + state.heat - notoriety_decay)
+    crew_ids_snapshot = [c.id for c in campaign.standing_crew]
 
     # Remove only the captured members from standing crew.
     # A failed escape catches exactly one member; the rest escape with the loot.
@@ -135,6 +136,7 @@ def settle_round(
         notoriety_after=campaign.notoriety,
         banked_after=campaign.banked_loot,
         caught_member_ids=list(state.caught_member_ids),
+        crew_ids=crew_ids_snapshot,
     ))
     campaign.attempted_job_names.add(state.job.name)
     played = state.job.name

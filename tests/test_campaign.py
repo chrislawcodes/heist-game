@@ -2,6 +2,11 @@ from __future__ import annotations
 
 from heist.campaign import run_campaign, settle_round
 from heist.content import DEFAULT_PROMPT, JOBS, ROSTER
+from heist.serialize import (
+    _round_result_from_any,
+    _round_result_to_dict,
+    campaign_state_to_dict,
+)
 from heist.state import Campaign, Crew, HeistState, HiddenDepthRoll, RoundResult
 from heist.stub_responses import build_stub_ai
 
@@ -136,6 +141,69 @@ def test_settle_round_round_idx_increments():
     settle_round(campaign, state)
     assert campaign.round_idx == 1
     assert campaign.round_results[0].round_idx == 0
+
+
+def test_round_result_crew_ids_round_trip():
+    rr = RoundResult(
+        round_idx=0,
+        job_name="Test Job",
+        take=123,
+        aborted=False,
+        escape_success=True,
+        heat=1,
+        crew_ids=[1, 2, 3],
+    )
+
+    restored = _round_result_from_any(_round_result_to_dict(rr))
+
+    assert restored.crew_ids == [1, 2, 3]
+
+
+def test_settle_round_records_crew_snapshot_before_removal():
+    members = ROSTER[:3]
+    campaign = _make_campaign(crew_members=members)
+    state = _make_state(Crew(list(members)))
+    state.caught_member_ids = [members[1].id]
+
+    settle_round(campaign, state)
+
+    rr = campaign.round_results[-1]
+    assert rr.crew_ids == [m.id for m in members]
+    assert [c.id for c in campaign.standing_crew] == [members[0].id, members[2].id]
+
+
+def test_campaign_state_to_dict_emits_round_crew_snapshot():
+    members = ROSTER[:3]
+    campaign = _make_campaign(crew_members=members)
+    caught_id = members[1].id
+    round_result = RoundResult(
+        round_idx=0,
+        job_name="Test Job",
+        take=500,
+        aborted=False,
+        escape_success=True,
+        heat=0,
+        caught_member_ids=[caught_id],
+        crew_ids=[m.id for m in members],
+    )
+    game_states = [{
+        "ai_idx": 0,
+        "ai_name": "AI 1",
+        "banked_loot": 0,
+        "standing_crew": list(campaign.standing_crew),
+        "round_results": [round_result],
+    }]
+
+    state = campaign_state_to_dict(campaign, game_states, list(ROSTER))
+    round_rows = state["standings"][0]["round_results"]
+
+    assert len(round_rows) == 1
+    crew = round_rows[0]["crew"]
+    assert crew
+    captured_member = next(member for member in crew if member["id"] == caught_id)
+    safe_member = next(member for member in crew if member["id"] != caught_id)
+    assert captured_member["captured"] is True
+    assert safe_member["captured"] is False
 
 
 def test_run_campaign_stub_completes():
