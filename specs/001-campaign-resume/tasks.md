@@ -70,8 +70,8 @@
 
 **Independent Test**: War-room standings before/after a resume are unchanged for completed rounds; final round/sub-game counts have no duplicates.
 
-- [ ] T014 [US3] [heist/orchestration.py] Confirm/ensure the resume path re-emits the normal campaign events (`campaign_stage`, per-AI heist events, `campaign_round_done`, `campaign_done`) via the existing `set_stage`/`emit_*` so the war room continues without UI-side reconstruction (two-lanes). No new event types. (depends on T006)
-- [ ] T015 [US3] [tests/test_campaign_resume.py] Test no-duplication: a resumed campaign run to completion has exactly `num_rounds` `round_results` per team and no duplicate `round_game_ids`/`hiring_game_ids`. (depends on T006)
+- [X] T014 [US3] [heist/orchestration.py] Confirm/ensure the resume path re-emits the normal campaign events (`campaign_stage`, per-AI heist events, `campaign_round_done`, `campaign_done`) via the existing `set_stage`/`emit_*` so the war room continues without UI-side reconstruction (two-lanes). No new event types. (depends on T006)
+- [X] T015 [US3] [tests/test_campaign_resume.py] Test no-duplication: a resumed campaign run to completion has exactly `num_rounds` `round_results` per team and no duplicate `round_game_ids`/`hiring_game_ids`. (depends on T006)
 - [X] T016 [P: heist/lobby.html] [US3] Display the `interrupted` status in the lobby campaign list (distinct from running/done). (depends on T009)
 
 **Checkpoint**: US3 functional — resume is correct and visible.

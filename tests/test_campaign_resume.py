@@ -492,3 +492,86 @@ def test_resume_route_404_for_unknown_campaign(resume_client):
 
     assert status == 404
     assert spawned == []
+
+
+# ── T015 (US3): a resumed campaign completes with no duplicated rounds/subs ─────
+
+def _proceed_fakes(monkeypatch, *, take=1000):
+    """Fakes that let the conductor run rounds to completion deterministically."""
+    from types import SimpleNamespace
+
+    from heist.state import Crew, HeistState, HiddenDepthRoll
+
+    def fake_run_auction(ais, strategies, logs_per_ai, emit_tagged, emit_and_save,
+                         **kwargs):
+        crew = Crew(list(ROSTER[:4]))
+        emit_and_save({
+            "type": "auction_round_resolved",
+            "crews_after": {
+                str(i): [m.id for m in crew.members] for i in range(len(ais))
+            },
+        })
+        return SimpleNamespace(
+            crews={i: crew for i in range(len(ais))},
+            bankrolls_spent={i: 0 for i in range(len(ais))},
+        )
+
+    def fake_run_one_job(strategy, ai, campaign, *, rng, emit=None, snapshot_fn=None):
+        job = JOBS[0]
+        state = HeistState(
+            crew=Crew(list(campaign.standing_crew)),
+            job=job,
+            hidden_depth=HiddenDepthRoll(
+                element=job.hidden_depth[0], reward_label="x", reward_amount=take,
+            ),
+        )
+        state.final_take = take
+        state.escape_success = True
+        state.heat = 0
+        return state, {"epilogue": "done"}
+
+    monkeypatch.setattr("heist.auction.run_auction", fake_run_auction)
+    monkeypatch.setattr("heist.runner.run_one_job", fake_run_one_job)
+    monkeypatch.setattr("heist.campaign._opening_wire_call", lambda *a, **k: None)
+    monkeypatch.setattr("heist.campaign._reflection_call", lambda *a, **k: None)
+
+
+def test_resumed_campaign_completes_without_duplication(clean_state, monkeypatch):
+    """Resume a 2-round campaign that crashed at round 0 reflection (heist
+    checkpointed). It must finish with exactly num_rounds round_results per team
+    and no duplicate round/hiring sub-game ids."""
+    _proceed_fakes(monkeypatch, take=1000)
+    crew = list(ROSTER[:4])
+    pending = {
+        "final_take": 1000,
+        "heat": 0,
+        "caught_member_ids": [],
+        "job_name": JOBS[0].name,
+        "aborted": False,
+        "escape_success": True,
+    }
+    gs = _team_state(
+        0, "Aegis", crew,
+        banked_loot=0, round_results=[],
+        round_game_ids=[101], hiring_game_ids=[100], pending_heist=pending,
+    )
+    _seed_campaign(1, num_rounds=2, current_round_idx=0, current_stage="reflection",
+                   game_states=[gs])
+    with gamestate.lock:
+        gamestate.runtime.next_id = 200  # fresh sub-games won't reuse 100/101
+
+    orchestration.run_campaign_conductor(1, 2, resume=True)
+
+    with gamestate.lock:
+        rec = gamestate.games[1]
+        team = rec["game_states"][0]
+    assert rec["status"] == "done"
+    assert len(team["round_results"]) == 2          # exactly num_rounds
+    rgids = team["round_game_ids"]
+    hgids = team["hiring_game_ids"]
+    assert len(rgids) == len(set(rgids)), f"duplicate heist sub-games: {rgids}"
+    assert len(hgids) == len(set(hgids)), f"duplicate hiring sub-games: {hgids}"
+    assert rgids[0] == 101                           # round 0 heist not re-run
+    assert hgids[0] == 100                           # round 0 hiring not re-run
+    # Round 0 banked from the checkpoint (1000) + round 1 fresh heist (1000).
+    assert team["banked_loot"] == 2000
