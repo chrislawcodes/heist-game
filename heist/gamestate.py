@@ -25,6 +25,11 @@ class _Runtime:
     game_running: bool = False
     next_id: int = 1
 
+    def __init__(self) -> None:
+        # Campaign ids with a live conductor thread in THIS process. Used to
+        # guard campaign resume against spawning a second conductor.
+        self.active_campaigns: set[int] = set()
+
 
 runtime = _Runtime()
 
