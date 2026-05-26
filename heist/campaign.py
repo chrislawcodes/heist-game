@@ -218,9 +218,25 @@ def _opening_wire_call(
 
     active_crew = _active_crew_from_entry(own_entry, ROSTER_BY_ID)
     active_ids = {m.id for m in active_crew}
-    active_crew_lines = (
-        ", ".join(f"{m.name} ({_primary_skill_key(m)})" for m in active_crew)
-        or "none"
+
+    def _persona_block(member: Any) -> str:
+        # Give the AI enough of each crew member's personality to pick a speaker
+        # and write the trash talk in their distinct voice.
+        bits: list[str] = [
+            f"  - id {member.id} | {member.name} ({_primary_skill_key(member)})"
+        ]
+        if getattr(member, "voice", ""):
+            bits.append(f"    voice: {member.voice}")
+        if getattr(member, "motivation", ""):
+            bits.append(f"    motivation: {member.motivation}")
+        if getattr(member, "quirk", ""):
+            bits.append(f"    quirk: {member.quirk}")
+        if getattr(member, "signature_line", ""):
+            bits.append(f'    signature line: "{member.signature_line}"')
+        return "\n".join(bits)
+
+    crew_personas = (
+        "\n".join(_persona_block(m) for m in active_crew) or "  - none"
     )
 
     _, self_rank, rivals = _build_standings(ai_idx, ai_name, entries)
@@ -232,10 +248,11 @@ def _opening_wire_call(
             f"You are the Heist AI for {ai_name}.",
             "This is the opening round. There are no past results yet.",
             "",
-            f"Your crew: {active_crew_lines}",
+            "Your crew (pick ONE as the speaker, by id):",
+            crew_personas,
             f"Your starting bankroll: ${banked:,}",
             "",
-            "Rivals:",
+            "Rivals (rival crews/teams you can call out by name):",
         ]
         if rivals:
             for rival in rivals:
@@ -247,14 +264,17 @@ def _opening_wire_call(
         prompt_lines.extend([
             "",
             f"You are rank {self_rank} (all crews are even — rank by position).",
-            "Pick ONE of your own crew members as the speaker.",
-            "Direct your opening statement at one named rival.",
+            "Pick ONE of your own crew members as the speaker (use their id).",
+            "Write the opening statement IN THAT SPEAKER'S VOICE — let their",
+            "personality, motivation, quirk, and signature style come through.",
+            "Address ONE named rival crew directly, by name, inside the line",
+            'itself (e.g. "You Wreckers think...") — do not just mention them.',
             "Reply with ONLY JSON:",
             "{",
             '  "speaker_char_id": 4,',
             '  "target_ai_name": "Ghost",',
-            '  "text": "1-3 sentences in criminal crew tone — what you\'re going in for, '
-            'what you think of this rival"',
+            '  "text": "4-6 sentences, first person, in the speaker\'s distinct voice — '
+            'what you\'re going in for and what you think of the named rival. Stay in character."',
             "}",
         ])
     else:
@@ -306,9 +326,11 @@ def _opening_wire_call(
             "Your campaign totals:",
             f"- Banked loot: ${banked:,}",
             f"- Notoriety: {notoriety}",
-            f"- Active crew: {active_crew_lines}",
             "",
-            "Rivals:",
+            "Your crew (pick ONE as the speaker, by id):",
+            crew_personas,
+            "",
+            "Rivals (rival crews/teams you can call out by name):",
         ]
         if rivals:
             for rival in rivals:
@@ -321,13 +343,18 @@ def _opening_wire_call(
         prompt_lines.extend([
             "",
             f"You are rank {self_rank}.",
-            "Pick ONE of your own active crew members as the speaker.",
-            "Direct the trash talk at one named rival.",
+            "Pick ONE of your own active crew members as the speaker (use their id).",
+            "Write the trash talk IN THAT SPEAKER'S VOICE — let their personality,",
+            "motivation, quirk, and signature style come through, and react to how",
+            "this round actually went (the take, the escape, anyone caught).",
+            "Address ONE named rival crew directly, by name, inside the line itself",
+            '(e.g. "You Wreckers got lucky...") — do not just mention them.',
             "Reply with ONLY JSON:",
             "{",
             '  "speaker_char_id": 4,',
             '  "target_ai_name": "Ghost",',
-            '  "text": "1-3 sentences, criminal crew tone, direct and specific"',
+            '  "text": "4-6 sentences, first person, in the speaker\'s distinct voice — '
+            'react to this round and jab the named rival. Stay in character."',
             "}",
         ])
 
@@ -407,7 +434,7 @@ def _opening_wire_call(
             )
     target_name = target_rival["ai_name"] if target_rival is not None else target_name
 
-    text = (parsed.get("text", "").strip() or "We're ready.")[:400]
+    text = (parsed.get("text", "").strip() or "We're ready.")[:900]
 
     entry: dict[str, Any] = {
         "round": round_idx,
