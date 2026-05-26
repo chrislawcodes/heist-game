@@ -164,9 +164,15 @@ git cherry-pick <new-commit-sha>
 git push --force-with-lease
 ```
 
-### What is NOT here
+### Feature Factory — available, opt-in
 
-No Feature Factory, no structured spec/plan/implement runner, no adversarial AI reviews by default. The project is at a scale where Direct Path covers everything. If a change feels big enough that Direct Path is unsafe (data migrations, AI prompt audits across all call types, multi-day refactors), stop and discuss before dispatching.
+The shared Feature Factory skills (`/feature-spec` → `/feature-plan` → `/feature-tasks` → `/feature-implement`) live in `~/.claude/skills/` and are available in this repo. They are **not** the default here — for a project this size, **Direct Path covers everything**. Reach for the Feature Factory flow only when a change is big enough that Direct Path feels unsafe: data migrations, AI prompt audits across all call types, multi-day refactors. For those, prefer the structured spec → plan → tasks → implement flow over an ad-hoc "stop and discuss."
+
+The flow writes artifacts under `specs/NNN-feature-name/`. The Codex-is-the-implementer rule (see Direct Path above) applies to **Direct Path only** — when you run the Feature Factory flow, `feature-implement` writes the code directly, no Codex dispatch. The Staging Rule still applies, and merges still go through `/ship`.
+
+### What is still NOT here
+
+No adversarial AI reviews by default. If a change feels big enough that even the Feature Factory flow is unsafe, stop and discuss before dispatching.
 
 ### Cross-references
 
