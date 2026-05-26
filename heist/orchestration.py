@@ -451,6 +451,24 @@ def _crew_from_game_state(gs: dict) -> list:
     return result
 
 
+def _rehire_pool(campaigns: list, roster: list) -> list:
+    """Characters available to re-hire in a rehire auction.
+
+    Excludes anyone currently on a standing crew AND anyone who has ever been
+    caught — a caught crew member is out of the game for good and never returns
+    to the pool, even though they were removed from their team's standing crew.
+    """
+    excluded: set[int] = set()
+    for camp in campaigns:
+        if camp is None:
+            continue
+        for member in camp.standing_crew:
+            excluded.add(member.id)
+        for rr in camp.round_results:
+            excluded.update(rr.caught_member_ids)
+    return [c for c in roster if c.id not in excluded]
+
+
 def _build_game_states_snapshot(
     campaign_id: int,
     campaigns: list,
@@ -782,12 +800,7 @@ def run_campaign_conductor(campaign_id: int, num_rounds: int) -> None:
     def run_rehire_auction() -> None:
         from heist.auction import run_auction
 
-        all_standing_ids: set[int] = set()
-        for camp in campaigns:
-            if camp is not None:
-                for c in camp.standing_crew:
-                    all_standing_ids.add(c.id)
-        available_pool = [c for c in ROSTER if c.id not in all_standing_ids]
+        available_pool = _rehire_pool(campaigns, ROSTER)
 
         initial_crews_map: dict[int, list] = {}
         initial_bankrolls_map: dict[int, int] = {}
