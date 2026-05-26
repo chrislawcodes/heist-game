@@ -1,5 +1,27 @@
 from heist.content import JOBS, ROSTER, ROSTER_BY_ID
-from heist.state import SkillLevel
+from heist.state import ChallengeLevel, SkillLevel
+
+
+def test_every_job_can_pay_out_on_a_clean_run():
+    """Every job must be able to bank money on a successful run.
+
+    The take is built from scene_loot[category] when a challenge scene of that
+    category succeeds. So each job needs scene_loot that maps a positive amount
+    to at least one ACTIVE (non-NONE) challenge in its profile — otherwise the
+    crew can escape clean and still bank $0 (the old Corner Pharmacy bug).
+    """
+    for job in JOBS:
+        payable = sum(
+            amt
+            for cat, amt in job.scene_loot.items()
+            if amt > 0
+            and job.profile.get(cat, ChallengeLevel.NONE) != ChallengeLevel.NONE
+        )
+        assert payable > 0, (
+            f"{job.name}: scene_loot must pay into an active challenge category "
+            f"(scene_loot={job.scene_loot}, "
+            f"profile={ {k: v.name for k, v in job.profile.items()} })"
+        )
 
 
 def test_roster_size_and_uniqueness():

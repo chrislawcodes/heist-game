@@ -484,6 +484,7 @@ CORNER_PHARMACY = Job(
         ("Inventory safe", 280_000),
         ("Back-room stash", 330_000),
     ],
+    scene_loot={"physical": 280_000},
 )
 
 ART_FORGERY_RING = Job(
@@ -527,6 +528,7 @@ ART_FORGERY_RING = Job(
         ("Full wall exchange", 680_000),
         ("Wall plus archive", 740_000),
     ],
+    scene_loot={"social": 300_000, "electronic": 200_000},
 )
 
 PRIVATE_AIRFIELD = Job(
@@ -570,6 +572,7 @@ PRIVATE_AIRFIELD = Job(
         ("Full shipment", 620_000),
         ("Shipment plus pallet", 690_000),
     ],
+    scene_loot={"physical": 250_000, "confrontation": 200_000},
 )
 
 CITY_HALL_RECORDS = Job(
@@ -613,6 +616,7 @@ CITY_HALL_RECORDS = Job(
         ("File and attachments", 1_200_000),
         ("Archive plus evidence", 1_360_000),
     ],
+    scene_loot={"electronic": 550_000, "social": 400_000},
 )
 
 HARBOR_CONTAINER_SWAP = Job(
@@ -656,6 +660,7 @@ HARBOR_CONTAINER_SWAP = Job(
         ("Stacked pallet", 1_150_000),
         ("Dockside double", 1_280_000),
     ],
+    scene_loot={"physical": 550_000, "confrontation": 350_000},
 )
 
 FEDERAL_RESERVE_BRANCH = Job(
@@ -699,6 +704,7 @@ FEDERAL_RESERVE_BRANCH = Job(
         ("Vault plus cash trays", 2_150_000),
         ("Vault and archive", 2_450_000),
     ],
+    scene_loot={"electronic": 900_000, "physical": 800_000},
 )
 
 BILLIONAIRES_COMPOUND = Job(
@@ -742,6 +748,7 @@ BILLIONAIRES_COMPOUND = Job(
         ("Compound safehouse", 2_600_000),
         ("Island treasury", 2_950_000),
     ],
+    scene_loot={"physical": 1_100_000, "electronic": 1_000_000},
 )
 
 MINT = Job(
@@ -784,6 +791,7 @@ MINT = Job(
         ("Bullion run", 2_850_000),
         ("Bullion plus archive", 3_000_000),
     ],
+    scene_loot={"physical": 1_300_000, "electronic": 1_250_000},
 )
 
 JOBS: list[Job] = [
