@@ -34,12 +34,19 @@ def broadcast(event: dict) -> None:
     with lock:
         event_history.append(event)
         # Mirror into the relevant game's persistent event log so we can replay
-        # it later via /api/games/{id}/events. Route by game_id when present;
-        # fall back to the most-recently-running game for events without one.
+        # it later via /api/games/{id}/events. Route by game_id when present.
+        # Campaign-conductor events (campaign_stage / campaign_round_done /
+        # campaign_done) carry only a campaign_id and no game_id — file those
+        # into the campaign's own log, never into a heist sub-game's stream
+        # (which would corrupt that sub-game's step-by-step replay). Only events
+        # with neither id fall back to the most-recently-running game.
         target_gid = None
         stamped_gid = event.get("game_id")
+        campaign_gid = event.get("campaign_id")
         if stamped_gid is not None and stamped_gid in games:
             target_gid = stamped_gid
+        elif campaign_gid is not None and campaign_gid in games:
+            target_gid = campaign_gid
         else:
             for gid in reversed(list(games.keys())):
                 if games[gid].get("status") in ("running", "done"):
