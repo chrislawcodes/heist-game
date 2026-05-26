@@ -26,6 +26,18 @@ def test_roll_slate_scores_covers_every_job_and_active_category():
                 assert score_to_bucket(sc) == level
 
 
+def test_tier_alias_ladder_shifts_fog_band():
+    from heist.content import JOBS_BY_NAME
+    rng = random.Random(0)
+    museum = JOBS_BY_NAME["The Museum Gala"]   # 'easy' -> tier-1 fog
+    mint = JOBS_BY_NAME["The Mint"]            # 'elite' -> tier-3 fog
+    easy_hard = {roll_slate_scores([museum], rng)[museum.name]["physical"] for _ in range(30)}
+    elite_cat = next(k for k, v in mint.profile.items() if v == ChallengeLevel.HARD)
+    elite_hard = {roll_slate_scores([mint], rng)[mint.name][elite_cat] for _ in range(30)}
+    assert easy_hard == {8}                     # easy: a Hard is reliably an 8
+    assert elite_hard <= {9, 10}                # elite: Hards run 9-10
+
+
 def test_probe_reveals_exact_within_budget():
     scores = {"J": {"physical": 9, "social": 5}}
     ss = ScoutState(free_probes=2)
