@@ -99,6 +99,11 @@ def settle_round(
     state: HeistState,
 ) -> bool:
     """Update campaign in-place after one round. Returns True = end campaign."""
+    scouted = [
+        {"job": job, "category": cat, "score": score}
+        for job, cats in state.scout_state.exact_scores.items()
+        for cat, score in cats.items()
+    ]
     return _settle_round_core(
         campaign,
         final_take=state.final_take,
@@ -107,6 +112,7 @@ def settle_round(
         job_name=state.job.name,
         aborted=state.aborted,
         escape_success=state.escape_success,
+        scouted=scouted,
     )
 
 
@@ -119,6 +125,7 @@ def _settle_round_core(
     job_name: str,
     aborted: bool,
     escape_success: bool | None,
+    scouted: list[dict] | None = None,
 ) -> bool:
     """Bank one round's outcome from primitive fields — no ``HeistState`` needed.
 
@@ -153,6 +160,7 @@ def _settle_round_core(
         banked_after=campaign.banked_loot,
         caught_member_ids=list(caught_member_ids),
         crew_ids=crew_ids_snapshot,
+        scouted=list(scouted or []),
     ))
 
     crew_wiped = len(campaign.standing_crew) == 0

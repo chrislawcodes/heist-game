@@ -364,6 +364,7 @@ def _round_result_to_dict(r: RoundResult) -> dict:
         "banked_after": r.banked_after,
         "caught_member_ids": list(r.caught_member_ids),
         "crew_ids": list(r.crew_ids),
+        "scouted": [dict(s) for s in r.scouted],
     }
 
 
@@ -384,6 +385,7 @@ def _round_result_from_any(item: Any) -> RoundResult:
             banked_after=_coerce_int(item.get("banked_after", 0)),
             caught_member_ids=_coerce_int_list(item.get("caught_member_ids", [])),
             crew_ids=_coerce_int_list(item.get("crew_ids", [])),
+            scouted=[dict(s) for s in item.get("scouted", []) if isinstance(s, dict)],
         )
     raw_escape = getattr(item, "escape_success", getattr(item, "escape", None))
     if isinstance(raw_escape, str) and raw_escape in {"clean", "failed", "caught"}:
@@ -602,6 +604,9 @@ def campaign_state_to_dict(
             aborted = bool(
                 r.get("aborted", False) if isinstance(r, dict) else getattr(r, "aborted", False)
             )
+            scouted_raw = (
+                r.get("scouted", []) if isinstance(r, dict) else getattr(r, "scouted", [])
+            ) or []
             round_caught = set(caught_member_ids)
             round_crew = []
             for cid in round_crew_ids:
@@ -621,6 +626,7 @@ def campaign_state_to_dict(
                 "banked_after": banked_after,
                 "caught_member_ids": caught_member_ids,
                 "crew": round_crew,
+                "scouted": [dict(s) for s in scouted_raw if isinstance(s, dict)],
                 "game_id": round_game_ids[rr_idx] if rr_idx < len(round_game_ids) else None,
             })
         hiring_game_ids_list: list = _state_value(entry, "hiring_game_ids", []) or []

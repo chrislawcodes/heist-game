@@ -202,6 +202,8 @@ class RoundResult:
     banked_after: int = 0
     caught_member_ids: list[int] = field(default_factory=list)
     crew_ids: list[int] = field(default_factory=list)
+    # PHASE 4 — what the crew scouted this round: [{job, category, score}].
+    scouted: list[dict] = field(default_factory=list)
 
 
 @dataclass

@@ -1157,9 +1157,14 @@ body {
       const watchLink = r.game_id
         ? `<a class="rh-hire-link" href="/heist?campaign=${encodeURIComponent(gameId)}&ai=${encodeURIComponent(row.ai_idx)}&round=${encodeURIComponent(r.round_idx)}" title="Watch heist" onclick="event.stopPropagation()">→</a>`
         : '';
+      const scouted = Array.isArray(r.scouted) ? r.scouted : [];
+      const scoutTitle = scouted.map(s => `${s.job} · ${s.category} ${s.score}/10`).join('\n');
+      const scoutBadge = scouted.length
+        ? `<span class="rh-scout" title="Scouted this round:\n${esc(scoutTitle)}" style="opacity:.7;font-size:.85em;margin-left:4px;cursor:help">🔍${scouted.length}</span>`
+        : '';
       return `<div class="round-row ${cls} rh-nav" data-round-idx="${r.round_idx}" data-ai-idx="${row.ai_idx}">
       <span class="rh-num">R${r.round_idx + 1}</span>
-      <span class="rh-job">${esc(r.job_name || '—')}${isAbort ? ' <span class="rh-abort-tag">ABORT</span>' : ''}</span>
+      <span class="rh-job">${esc(r.job_name || '—')}${isAbort ? ' <span class="rh-abort-tag">ABORT</span>' : ''}${scoutBadge}</span>
       <span class="rh-take">${money(r.take || 0)}</span>
       <span class="rh-icon">${icon}</span>
       <span class="rh-links">${hireLink}${watchLink}</span>
