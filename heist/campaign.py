@@ -99,14 +99,41 @@ def settle_round(
     state: HeistState,
 ) -> bool:
     """Update campaign in-place after one round. Returns True = end campaign."""
-    campaign.banked_loot += state.final_take
+    return _settle_round_core(
+        campaign,
+        final_take=state.final_take,
+        heat=state.heat,
+        caught_member_ids=list(state.caught_member_ids),
+        job_name=state.job.name,
+        aborted=state.aborted,
+        escape_success=state.escape_success,
+    )
+
+
+def _settle_round_core(
+    campaign: Campaign,
+    *,
+    final_take: int,
+    heat: int,
+    caught_member_ids: list[int],
+    job_name: str,
+    aborted: bool,
+    escape_success: bool | None,
+) -> bool:
+    """Bank one round's outcome from primitive fields — no ``HeistState`` needed.
+
+    Shared by ``settle_round`` (live play) and by campaign resume, which settles
+    from a persisted ``pending_heist`` checkpoint without re-running the heist.
+    Returns True if the campaign should end (crew wiped).
+    """
+    campaign.banked_loot += final_take
     crew_ids_snapshot = [c.id for c in campaign.standing_crew]
 
     # Remove only the captured members from standing crew.
     # A failed escape catches exactly one member; the rest escape with the loot.
     # Crew caught during scene challenges are also lost here.
-    if state.caught_member_ids:
-        caught_set = set(state.caught_member_ids)
+    if caught_member_ids:
+        caught_set = set(caught_member_ids)
         campaign.standing_crew = [
             c for c in campaign.standing_crew if c.id not in caught_set
         ]
@@ -118,13 +145,13 @@ def settle_round(
 
     campaign.round_results.append(RoundResult(
         round_idx=campaign.round_idx,
-        job_name=state.job.name,
-        take=state.final_take,
-        aborted=state.aborted,
-        escape_success=state.escape_success,
-        heat=state.heat,
+        job_name=job_name,
+        take=final_take,
+        aborted=aborted,
+        escape_success=escape_success,
+        heat=heat,
         banked_after=campaign.banked_loot,
-        caught_member_ids=list(state.caught_member_ids),
+        caught_member_ids=list(caught_member_ids),
         crew_ids=crew_ids_snapshot,
     ))
 

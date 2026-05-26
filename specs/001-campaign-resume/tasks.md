@@ -24,7 +24,7 @@
 
 ⚠️ **CRITICAL**: No user story work begins until this phase is complete.
 
-- [ ] T002 [P: heist/gamestate.py] Add `runtime.active_campaigns: set[int]` to `_Runtime` in heist/gamestate.py (double-conductor guard registry; init empty).
+- [X] T002 [P: heist/gamestate.py] Add `runtime.active_campaigns: set[int]` to `_Runtime` in heist/gamestate.py (double-conductor guard registry; init empty).
 - [ ] T003 [P: tests/test_campaign_resume.py] Add a `campaign_from_dict` round-trip test: build a `Campaign`, snapshot it the way `snapshot_all` does (`campaign_to_dict` + extras), and confirm `campaign_from_dict` reconstructs `standing_crew` / `banked_loot` / `round_results` ignoring extra keys (`ai_idx`, `round_game_ids`, …). If it does NOT round-trip, fix `heist/serialize.py:campaign_from_dict` to read only campaign fields.
 - [ ] T004 [heist/orchestration.py] In `run_campaign_conductor`, stamp `game["checkpoint_version"] = 1` inside `snapshot_all()` (so resumable campaigns are marked) and add the `resume: bool = False` parameter to the signature.
 - [ ] T005 [heist/orchestration.py] Resume reconstruction in `run_campaign_conductor` (when `resume=True`): rebuild `campaigns[i]` from `game_states[i]` via `campaign_from_dict`; restore `round_gids_per_ai`, `hiring_gids`, `current_round_sub_gids` from persisted `round_game_ids`/`hiring_game_ids`; read `start_round=current_round_idx`, `start_stage=current_stage`. (depends on T004)
