@@ -16,6 +16,7 @@ No database. State is a JSON record per game at `state/games/<id>.json`. This fe
 | `current_stage` | str | — | `opening_wire`/`hiring`/`heist`/`reflection` — written by `set_stage()`. **Resume start stage.** |
 | `progress` | obj | — | Heartbeat (`updated_at`, …) — used for stall detection |
 | `game_states[i]` | obj | — | Per‑team snapshot from `snapshot_all()`: `campaign_to_dict(camp)` (standing_crew, banked_loot, round_results) + `round_game_ids`, `hiring_game_ids`, `ai_idx`, `ai_name`, `status`. **The per‑team checkpoint.** |
+| `game_states[i].pending_heist` | obj/null | ✅ | Heist‑take checkpoint, written after the heist stage: `{final_take, heat, caught_member_ids, job_name, aborted, escape_success}`. Lets reflection resume + settle without re‑running the heist. Cleared (set null) once `settle_round` consumes it. |
 | `ais_cfg` | list | — | Per‑AI `{name, agent, prompt}` — rebuilds the backends on resume |
 | **`checkpoint_version`** | int | ✅ | Stamped by the conductor (`=1`). Marks a campaign as resumable under the new checkpointing. Absent ⇒ pre‑existing stall ⇒ marked `interrupted`. |
 | **`resumed_count`** | int | ✅ (optional) | Times this campaign has been resumed (observability; supports repeatable‑resume, FR‑011). |

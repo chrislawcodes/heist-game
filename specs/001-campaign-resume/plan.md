@@ -63,13 +63,24 @@ Make `run_campaign_conductor` resumable at a **stage boundary**: on resume it re
 
 **Alternatives considered**: round‑boundary only (re‑run whole interrupted round) — simpler but re‑runs hiring → double‑charge risk; rejected per the resolved stage‑boundary decision.
 
-### Decision 3: Interrupted parallel‑heist stage re‑runs the whole heist stage for the round
+### Decision 3: Persist each team's heist result so reflection resumes without re‑running the heist (REFINED — chose heist‑take checkpointing, 2026‑05‑26)
 
-**Chosen**: If `start_stage == "heist"`, re‑run the heist stage for **all** still‑active teams in `start_round` (the existing thread‑per‑AI fan‑out), discarding any partially‑written round sub‑games for that round and opening fresh ones.
+**Discovery during implementation**: The persisted record only cleanly captures (a) completed rounds (`round_results`, written after reflection) and (b) post‑hiring `standing_crew`/`banked_loot`. The heist's outcome lives only in the in‑memory `heist_states` and is **never persisted** — `settle_round` (in reflection) is the first thing that writes a round's result. Mid‑hiring snapshots are also inconsistent (banked loot is deducted only at the end of the auction). So the plan's clean four‑stage boundaries did not all exist on disk.
 
-**Rationale**: Heists run as parallel daemon threads joined before reflection; mid‑stage there is no per‑team "this heist already settled" record (settle happens once, after the join, in reflection). Re‑running the heist stage for the round is safe because the round's take is only banked in `settle_round` (reflection), which has not yet run. This keeps v1 simple and correct at the cost of re‑playing in‑progress heists.
+**Chosen** (heist‑take checkpointing): After the heist stage (post‑join), persist each team's minimal heist result — `final_take`, `heat`, `caught_member_ids`, `job_name`, `aborted`, `escape_success` — into `game_states[i].pending_heist`. After `settle_round` consumes it (reflection), clear `pending_heist`. This makes all four stage boundaries genuinely resumable:
 
-**Tradeoffs**: Pro — no need to reconcile half‑finished parallel heists or reuse `resume_heist`. Con — an almost‑finished heist is replayed (extra AI cost). Acceptable for ≤3 AIs; `resume_heist`‑based mid‑scene resume is a future enhancement.
+| Persisted `current_stage` of `start_round` | Resume action |
+|---|---|
+| `opening_wire` / `hiring` | hiring not cleanly committed → redo the round from the top (re‑run hiring → heist → reflection). Reconstructed `camp` is pre‑hiring, so no double‑charge. |
+| `heist` | hiring done; heist was in progress (its `pending_heist` not yet persisted) → re‑run heist → reflection. |
+| `reflection` | heist done + `pending_heist` persisted → load `pending_heist`, run reflection/`settle_round` **without re‑running the heist**. |
+
+**Idempotency guards**:
+- **Settle‑once**: a round is settled iff its `RoundResult` is in `round_results`. `effective_start = min(len(camp.round_results))` over active teams; skip rounds `< effective_start`. If `round_results` already contains `start_round` (crash after the post‑reflection snapshot), skip the round.
+- **`settle_round` needs only** `final_take`/`heat`/`caught_member_ids`/`job`/`aborted`/`escape_success` from the `HeistState`; on resume we feed it a lightweight object built from `pending_heist` (refactor `settle_round` to accept those fields, or wrap them) — no full `HeistState` reconstruction.
+- **Sub‑game ids**: truncate `round_gids_per_ai[i]` / `heist_states` to `effective_start` length before re‑running a round so a re‑run heist appends one fresh sub‑game id (the partial pre‑crash sub‑game becomes a harmless orphaned record).
+
+**Tradeoffs**: Pro — faithful resume; a crash during reflection wastes **zero** Codex calls. Con — one new persisted field (`pending_heist`) + its reconstruction; a crash *during* the heist still re‑runs that round's heist (its output genuinely wasn't saved).
 
 ### Decision 4: Eligibility via `checkpoint_version`; old stalls → `interrupted`
 

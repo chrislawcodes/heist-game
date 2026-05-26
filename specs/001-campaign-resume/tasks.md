@@ -14,7 +14,7 @@
 
 **Purpose**: Get the branch current and ready to implement.
 
-- [ ] T001 Rebase `feat/campaign-resume` onto `origin/main` (worktree is off `8dea0d3`; main has #69) so implementation lands on current code; re-run preflight after.
+- [X] T001 Rebase `feat/campaign-resume` onto `origin/main` (worktree is off `8dea0d3`; main has #69) so implementation lands on current code; re-run preflight after.
 
 ---
 
@@ -28,6 +28,7 @@
 - [ ] T003 [P: tests/test_campaign_resume.py] Add a `campaign_from_dict` round-trip test: build a `Campaign`, snapshot it the way `snapshot_all` does (`campaign_to_dict` + extras), and confirm `campaign_from_dict` reconstructs `standing_crew` / `banked_loot` / `round_results` ignoring extra keys (`ai_idx`, `round_game_ids`, …). If it does NOT round-trip, fix `heist/serialize.py:campaign_from_dict` to read only campaign fields.
 - [ ] T004 [heist/orchestration.py] In `run_campaign_conductor`, stamp `game["checkpoint_version"] = 1` inside `snapshot_all()` (so resumable campaigns are marked) and add the `resume: bool = False` parameter to the signature.
 - [ ] T005 [heist/orchestration.py] Resume reconstruction in `run_campaign_conductor` (when `resume=True`): rebuild `campaigns[i]` from `game_states[i]` via `campaign_from_dict`; restore `round_gids_per_ai`, `hiring_gids`, `current_round_sub_gids` from persisted `round_game_ids`/`hiring_game_ids`; read `start_round=current_round_idx`, `start_stage=current_stage`. (depends on T004)
+- [ ] T005b [heist/orchestration.py + heist/campaign.py] Heist-take checkpoint (plan Decision 3 / chosen Option B): after the heist stage (post-join) write each team's `pending_heist = {final_take, heat, caught_member_ids, job_name, aborted, escape_success}` into `game_states[i]`; clear it (null) once `settle_round` consumes it in reflection. Refactor `settle_round` to accept those fields (or a lightweight result object) so resume settles without a full `HeistState`. (depends on T005)
 - [ ] T006 [heist/orchestration.py] Round/stage skip logic in the conductor loop: skip rounds `< start_round`; for `start_round`, resume at `start_stage`'s boundary per plan Decision 2 (opening_wire→…, hiring→…, heist→skip hire+redo heist+reflection, reflection→redo settle only); rounds `> start_round` run normally. Reconcile `settle_round`-once via `len(camp.round_results)` vs `start_round`. (depends on T005)
 - [ ] T007 [heist/orchestration.py] Wrap the conductor body so it adds `campaign_id` to `runtime.active_campaigns` on entry and removes it in a `finally`. (depends on T002)
 - [ ] T008 [P: tests/test_campaign_resume.py] Foundation tests: (a) stage-skip idempotency — a campaign reconstructed at `start_stage="heist"` does NOT re-run hiring (banked_loot unchanged) and does NOT double-append a `RoundResult`; (b) `settle_round` runs exactly once when the crash landed between settle and round-advance. (depends on T006)
