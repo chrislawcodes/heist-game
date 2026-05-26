@@ -56,9 +56,12 @@ _JOB_BIDS: dict[str, list[tuple[int, int, str]]] = {
 
 
 def _bid_response(job_name: str) -> str:
+    # Bid each pick's true floor cost (the hardcoded amounts in _JOB_BIDS are
+    # legacy hints; pricing is owned by the curve in mechanics.score_floor_cost).
+    from heist.content import ROSTER_BY_ID
     bids = [
-        {"character_id": cid, "bid": amt, "rationale": why}
-        for (cid, amt, why) in _JOB_BIDS[job_name]
+        {"character_id": cid, "bid": ROSTER_BY_ID[cid].floor_cost, "rationale": why}
+        for (cid, _amt, why) in _JOB_BIDS[job_name]
     ]
     return json.dumps({
         "casting_strategy": f"Crew built for {job_name}.",

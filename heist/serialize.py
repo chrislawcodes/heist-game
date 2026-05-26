@@ -146,6 +146,7 @@ def scene_to_dict(s: Scene) -> dict:
         "title": s.title,
         "challenge_skill": s.challenge_skill,
         "challenge_level": s.challenge_level.name if s.challenge_level else None,
+        "challenge_score": s.challenge_score,
         "is_core": s.is_core,
         "context": s.context,
         "category": s.category,
@@ -230,6 +231,7 @@ def scene_from_dict(d: dict) -> Scene:
         is_core=bool(d.get("is_core", False)),
         context=d.get("context", ""),
         category=d.get("category"),
+        challenge_score=d.get("challenge_score"),
     )
 
 
@@ -272,6 +274,7 @@ def state_from_dict(d: dict) -> HeistState:
         crew=crew,
         job=job,
         hidden_depth=hidden,
+        challenge_scores={k: int(v) for k, v in d.get("challenge_scores", {}).items()},
         scene_results=[scene_result_from_dict(r) for r in d.get("scene_results", [])],
         caught_member_ids=[int(i) for i in d.get("caught_member_ids", [])],
         secured_take=int(d.get("secured_take", 0)),
@@ -291,6 +294,7 @@ def state_to_dict(state: HeistState) -> dict:
     return {
         "crew": crew_to_dict(state.crew),
         "job": job_to_dict(state.job),
+        "challenge_scores": dict(state.challenge_scores),
         "caught_member_ids": list(state.caught_member_ids),
         "secured_take": state.secured_take,
         "heat": state.heat,

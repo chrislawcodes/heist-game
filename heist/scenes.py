@@ -13,6 +13,9 @@ The runner now grades each scene outcome instead of using a binary pass/fail
 cascade.
 """
 
+import random
+
+from heist.mechanics import roll_one_score, score_to_bucket
 from heist.state import (
     CHALLENGE_TO_SKILL,
     ChallengeLevel,
@@ -48,8 +51,30 @@ def _apply_modifications(
     return modified, added, bonus
 
 
-def generate_scenes(job: Job, hidden: HiddenDepthRoll) -> list[Scene]:
+def generate_scenes(
+    job: Job,
+    hidden: HiddenDepthRoll,
+    *,
+    rng: random.Random | None = None,
+    challenge_scores: dict[str, int] | None = None,
+) -> list[Scene]:
+    """Build the scene list, stamping each challenge scene's true 1-10 score.
+
+    `challenge_scores` (if given) is the per-round defense map — it may be
+    pre-rolled by scouting; it is filled in place for any category not yet rolled
+    or whose bucket changed under hidden depth, so it ends as the round's truth.
+    """
+    rng = rng or random.Random()
+    challenge_scores = challenge_scores if challenge_scores is not None else {}
     profile, added, bonus_element = _apply_modifications(job.profile, hidden)
+
+    def _score_for(category: str, level: ChallengeLevel) -> int:
+        sc = challenge_scores.get(category)
+        if sc is None or int(score_to_bucket(sc)) != int(level):
+            sc = roll_one_score(level, job.tier, rng)
+            challenge_scores[category] = sc
+        return sc
+
     scenes: list[Scene] = []
     n = 1
 
@@ -82,6 +107,7 @@ def generate_scenes(job: Job, hidden: HiddenDepthRoll) -> list[Scene]:
                 challenge_skill=CHALLENGE_TO_SKILL[category],
                 challenge_level=level, is_core=is_core, context=ctx,
                 category=category,
+                challenge_score=_score_for(category, level),
             )
         )
         n += 1
@@ -95,6 +121,7 @@ def generate_scenes(job: Job, hidden: HiddenDepthRoll) -> list[Scene]:
                 challenge_skill=CHALLENGE_TO_SKILL[cat],
                 challenge_level=lvl, is_core=is_core, context=el.description,
                 category=cat,
+                challenge_score=_score_for(cat, lvl),
             )
         )
         n += 1
@@ -112,6 +139,7 @@ def generate_scenes(job: Job, hidden: HiddenDepthRoll) -> list[Scene]:
                     f"Bonus opportunity worth ${lo:,}–${hi:,}. Pursuing it requires "
                     f"a {bonus_level.name} {bonus_skill} challenge."
                 ),
+                challenge_score=roll_one_score(bonus_level, job.tier, rng),
             )
         )
         n += 1
