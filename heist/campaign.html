@@ -392,6 +392,11 @@ body {
   padding: 56px 14px 56px;
   position: relative;
 }
+/* During the round-results spotlight the enlarged card scales past the center
+   column. Relax the clip on the center panel + its scroll so the card bleeds
+   out over the left/right rails instead of being cut at the column edge. */
+.panel.reveal-bleed,
+.standings-scroll.reveal-bleed { overflow: visible; }
 
 /* Wire */
 .wire-round {
@@ -1802,6 +1807,15 @@ body {
     const settleEase = 'cubic-bezier(0.2,0.8,0.2,1)';
     const finalRefs = board.afterOrder.map(model => board.refsByAiIdx.get(model.aiIdx)).filter(Boolean);
 
+    // Let the enlarged card bleed out over the side rails instead of being
+    // clipped at the center column. Set before any rect measurement so the
+    // FLIP math stays consistent; cleared in the finally below even on cancel.
+    const scrollEl = document.getElementById('standings-scroll');
+    const panelEl = scrollEl ? scrollEl.closest('.panel') : null;
+    const bleedEls = [scrollEl, panelEl].filter(Boolean);
+    bleedEls.forEach(el => el.classList.add('reveal-bleed'));
+
+    try {
     for (const model of board.afterOrder) {
       if (token.cancelled) return;
 
@@ -1827,7 +1841,7 @@ body {
         ref.take.style.transform = 'translateY(0)';
         ref.card.classList.add('spotlight');
         ref.card.style.transformOrigin = 'center center';
-        ref.card.style.zIndex = '10';
+        ref.card.style.zIndex = '30';
 
         await animate(popDuration, t => {
           const scale = 1 + (popScale - 1) * t;
@@ -1895,6 +1909,9 @@ body {
         ref.card.style.zIndex = '';
         ref.card.classList.remove('spotlight');
       }
+    }
+    } finally {
+      bleedEls.forEach(el => el.classList.remove('reveal-bleed'));
     }
 
     board.refs = finalRefs;
