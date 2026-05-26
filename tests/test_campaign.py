@@ -25,7 +25,7 @@ def _make_state(crew, job=None, take=1_000_000, escape_success=True, heat=0):
     return state
 
 
-def _make_campaign(crew_members=None, notoriety=0):
+def _make_campaign(crew_members=None):
     from heist.content import BANKROLL
 
     members = crew_members or ROSTER[:4]
@@ -34,8 +34,6 @@ def _make_campaign(crew_members=None, notoriety=0):
         bankroll=BANKROLL,
         banked_loot=0,
         standing_crew=list(members),
-        notoriety=notoriety,
-        attempted_job_names=set(),
         round_results=[],
     )
 
@@ -74,30 +72,16 @@ def test_settle_round_capture_on_failed_escape():
     assert campaign.standing_crew[0].id == members[1].id
 
 
-def test_settle_round_notoriety_accumulates_and_decays():
-    campaign = _make_campaign()
-    state1 = _make_state(Crew(list(campaign.standing_crew)), heat=3)
-
-    settle_round(campaign, state1, notoriety_decay=1)
-    assert campaign.notoriety == 2
-
-    state2 = _make_state(Crew(list(campaign.standing_crew)), take=0, heat=0)
-    settle_round(campaign, state2, notoriety_decay=1)
-    assert campaign.notoriety == 1
-
-
-def test_settle_round_records_notoriety_window_and_caught_ids():
+def test_settle_round_records_caught_ids():
     members = ROSTER[:2]
-    campaign = _make_campaign(crew_members=members, notoriety=4)
+    campaign = _make_campaign(crew_members=members)
     caught_id = members[0].id
     state = _make_state(Crew(list(members)), heat=3)
     state.caught_member_ids = [caught_id]
 
-    settle_round(campaign, state, notoriety_decay=2)
+    settle_round(campaign, state)
 
     rr = campaign.round_results[0]
-    assert rr.notoriety_before == 4
-    assert rr.notoriety_after == 5
     assert rr.caught_member_ids == [caught_id]
 
 
@@ -112,25 +96,6 @@ def test_settle_round_crew_wipe_ends_campaign():
 
     assert ended is True
     assert campaign.standing_crew == []
-
-
-def test_settle_round_critical_notoriety_ends_campaign():
-    campaign = _make_campaign(notoriety=8)
-    state = _make_state(Crew(list(campaign.standing_crew)), take=0, heat=2)
-
-    ended = settle_round(campaign, state, notoriety_decay=1)
-
-    assert campaign.notoriety == 9
-    assert ended is True
-
-
-def test_settle_round_marks_job_attempted():
-    campaign = _make_campaign()
-    state = _make_state(Crew(list(campaign.standing_crew)))
-
-    settle_round(campaign, state)
-
-    assert state.job.name in campaign.attempted_job_names
 
 
 def test_settle_round_round_idx_increments():
@@ -212,5 +177,3 @@ def test_run_campaign_stub_completes():
     assert len(campaign.round_results) >= 1
     assert campaign.banked_loot >= 0
     assert len(extras) == len(campaign.round_results)
-    job_names = [r.job_name for r in campaign.round_results]
-    assert len(job_names) == len(set(job_names))

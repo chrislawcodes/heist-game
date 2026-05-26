@@ -142,7 +142,6 @@ def _job_prompt(crew: Crew, available_jobs: list | None = None) -> str:
 def _campaign_context(campaign: Campaign) -> str:
     return (
         f"Campaign context: Round {campaign.round_idx + 1}/{campaign.rounds_total}. "
-        f"Notoriety: {campaign.notoriety}/10. "
         f"Banked loot: ${campaign.banked_loot:,}. "
         f"Standing crew: {len(campaign.standing_crew)} member(s)."
     )

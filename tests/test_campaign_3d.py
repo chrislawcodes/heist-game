@@ -22,8 +22,6 @@ def _campaign() -> Campaign:
         bankroll=2_000_000,
         banked_loot=0,
         standing_crew=list(ROSTER[:4]),
-        notoriety=0,
-        attempted_job_names=set(),
         round_results=[],
         between_round_log=[],
     )
@@ -157,15 +155,11 @@ def test_round_result_serialization_handles_new_fields_and_old_payloads():
         aborted=False,
         escape_success=True,
         heat=1,
-        notoriety_before=4,
-        notoriety_after=5,
         banked_after=6,
         caught_member_ids=[7, 8],
     )
 
     payload = _round_result_to_dict(rr)
-    assert payload["notoriety_before"] == 4
-    assert payload["notoriety_after"] == 5
     assert payload["banked_after"] == 6
     assert payload["caught_member_ids"] == [7, 8]
     assert _round_result_from_any(payload) == rr
@@ -179,8 +173,6 @@ def test_round_result_serialization_handles_new_fields_and_old_payloads():
         "heat": 2,
     }
     restored_old = _round_result_from_any(old_payload)
-    assert restored_old.notoriety_before == 0
-    assert restored_old.notoriety_after == 0
     assert restored_old.banked_after == 0
     assert restored_old.caught_member_ids == []
 
@@ -193,8 +185,6 @@ def test_round_result_serialization_handles_new_fields_and_old_payloads():
         heat=9,
     )
     restored_obj = _round_result_from_any(legacy_obj)
-    assert restored_obj.notoriety_before == 0
-    assert restored_obj.notoriety_after == 0
     assert restored_obj.banked_after == 0
     assert restored_obj.caught_member_ids == []
 

@@ -382,7 +382,7 @@ def run_one_job(
     from heist.scenes import generate_scenes
     from heist.state import Crew
 
-    available_jobs = [j for j in JOBS if j.name not in campaign.attempted_job_names]
+    available_jobs = list(JOBS)
     if not available_jobs:
         return None
 

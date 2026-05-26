@@ -19,13 +19,6 @@ from heist.locations import (  # noqa: F401
 
 BANKROLL = 2_000_000
 
-JOB_TIER_UNLOCK_ROUND: dict[str, int] = {
-    "easy": 1,
-    "medium": 3,
-    "hard": 6,
-    "elite": 8,
-}
-
 DEFAULT_PROMPT = (
     "I want to run a clean, professional heist with a balanced crew. Pick whichever job "
     "fits the crew best — I trust your judgment. Build me a team that can handle whatever "

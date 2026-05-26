@@ -426,8 +426,7 @@ def recover_games() -> tuple[int, int]:
 # ── campaign conductor ────────────────────────────────────────────────────────
 
 def _campaign_ended(camp: Any) -> bool:
-    from heist.campaign import NOTORIETY_CRITICAL
-    return len(camp.standing_crew) == 0 or camp.notoriety >= NOTORIETY_CRITICAL
+    return len(camp.standing_crew) == 0
 
 
 def _crew_from_game_state(gs: dict) -> list:
@@ -777,8 +776,6 @@ def run_campaign_conductor(campaign_id: int, num_rounds: int) -> None:
                 bankroll=BANKROLL - crew_cost,
                 banked_loot=0,
                 standing_crew=list(crew_members),
-                notoriety=0,
-                attempted_job_names=set(),
                 round_results=[],
             )
 

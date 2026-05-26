@@ -590,9 +590,7 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                     "rounds_total": num_rounds,
                     "banked_loot": 0,
                     "bankroll": 0,
-                    "notoriety": 0,
                     "standing_crew": [],
-                    "attempted_job_names": [],
                     "round_results": [],
                     "between_round_log": [],
                 },
@@ -603,7 +601,6 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                         "ai_game_id": None,
                         "status": "waiting",
                         "banked_loot": 0,
-                        "notoriety": 0,
                         "standing_crew": [],
                         "round_results": [],
                     }
@@ -734,13 +731,13 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                 "quick_test": True,
                 "campaign_state": {
                     "rounds_total": num_rounds, "banked_loot": 0,
-                    "bankroll": 0, "notoriety": 0, "standing_crew": [],
-                    "attempted_job_names": [], "round_results": [],
+                    "bankroll": 0, "standing_crew": [],
+                    "round_results": [],
                     "between_round_log": [],
                 },
                 "game_states": [
                     {"ai_idx": i, "ai_name": ai["name"], "ai_game_id": None,
-                     "status": "waiting", "banked_loot": 0, "notoriety": 0,
+                     "status": "waiting", "banked_loot": 0,
                      "standing_crew": [], "round_results": []}
                     for i, ai in enumerate(ais)
                 ],

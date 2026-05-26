@@ -150,8 +150,6 @@ class RoundResult:
     aborted: bool
     escape_success: bool | None
     heat: int
-    notoriety_before: int = 0
-    notoriety_after: int = 0
     banked_after: int = 0
     caught_member_ids: list[int] = field(default_factory=list)
     crew_ids: list[int] = field(default_factory=list)
@@ -163,17 +161,8 @@ class Campaign:
     bankroll: int
     banked_loot: int
     standing_crew: list["Character"] = field(default_factory=list)
-    notoriety: int = 0
-    attempted_job_names: set[str] = field(default_factory=set)
     round_results: list[RoundResult] = field(default_factory=list)
     num_ais: int = 1
-    # Rolling slate state. Managed by heist/slate.py each round.
-    # current_slate: list of job names currently on offer
-    # rounds_on_slate: how many rounds each job has been sitting unchosen
-    slate_state: dict = field(default_factory=lambda: {
-        "current_slate": [],
-        "rounds_on_slate": {},
-    })
     between_round_log: list[dict] = field(default_factory=list)
 
     @property
