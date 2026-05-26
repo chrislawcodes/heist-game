@@ -41,32 +41,37 @@ What you know about this work:
   • Every job is a profile of four challenge types — Electronic (cameras,
     networks, electronic locks), Physical (vaults, safes, structural),
     Confrontation (guards, armed response), and Social (blending in, talking
-    your way through). Each one rates None, Low, Medium, or Hard.
+    your way through). Each is shown as a bucket: None, Low, Medium, or Hard.
 
-  • Crew members have skill ratings in those areas — Low, Medium, or High.
-    A specialist hits their level. A Hard challenge needs a High to clear
-    alone, no exceptions.
+  • That bucket is only an ESTIMATE. Under it, every challenge has a hidden true
+    difficulty from 1 to 10 (1-3 Low, 4-7 Medium, 8-10 Hard). A published "Hard"
+    might be an 8 or a 10 — you can't see the exact number, so leave margin.
 
-  • Two crew members with skill in the same area work above the sum of their
-    parts: pair them and you act at one level higher than the higher one,
-    capped at High. Two Mediums together hit High. Two Lows together hit
-    Medium. This is the move that makes a tight budget work — and it's how
-    you cover a Hard area without paying for a $1,100 High specialist.
+  • Crew skills are shown as an exact 1-10 score (these are public). Same
+    buckets: 1-3 Low, 4-7 Medium, 8-10 High.
 
-  • The exit always matters. A High Driver covers any escape; no driver
+  • Teamwork adds exactly ONE point. Put two crew in the same area and your
+    effective score is the higher of the two PLUS 1, capped at 10. So a pair of
+    Mediums only reaches High if one is already near the top — a 7 pairs up to 8
+    (High), but two ordinary Mediums (say 5 and 6) only reach 7, still Medium.
+    Do NOT assume two Mediums can cover a Hard; most of the time they cannot.
+
+  • The exit always matters. A strong Driver covers a clean escape; no driver
     means running on foot, and that limits which jobs you'll survive.
 
-  • A Hard challenge with no High coverage and no two Mediums to pair on it
-    is a walk into a wall. Plan around them or don't take the job.
+How a scene resolves — your crew's effective score vs the challenge's true
+score (the margin is your score minus the challenge's score):
 
-How a scene resolves — your crew's effective skill vs the challenge level:
+  • Beat it by 2 or more: CLEAN — you pass, no heat.
+  • Tie, or beat it by 1: SQUEAK — you pass, but heat +1.
+  • Short by 1 to 3: FAIL — the scene fails, heat +1.
+  • Short by 4 or more: CAUGHT — the scene fails AND a crew member is taken,
+    heat +1.
+  (A challenge with no defense always comes up clean.)
 
-  • Beat the level (skill higher than the challenge): CLEAN — you pass, no heat.
-  • Match it exactly: SQUEAK — you pass, but heat +1.
-  • Fall one level short: FAIL — the scene fails, heat +1.
-  • Fall two or more levels short: CAUGHT — the scene fails AND a crew member
-    is taken, heat +1.
-  (A challenge rated None always comes up clean.)
+  Since you can't see the exact challenge number, margin is your safety net: a
+  score that only matches the bucket can squeak (costing heat) or, if the hidden
+  number runs high, fail outright. Bring more than you think you need on a Hard.
 
 Heat and the getaway:
 
@@ -86,10 +91,10 @@ The take:
 
 Across a campaign (multiple rounds):
 
-  • Heat carries forward as Notoriety: after each round Notoriety = previous
-    Notoriety + that round's heat − 1 (it cools by 1 per round, never below 0).
-  • If Notoriety reaches 9, the law raids you and the campaign ends early.
-  • Crew caught on a failed escape are gone for the rest of the campaign."""
+  • You draft your crew once and keep it across rounds, banking loot as you go.
+    Heat resets each round — it only affects that round's own escape.
+  • Crew taken (a CAUGHT scene or a failed escape) are gone for the rest of the
+    campaign. If your whole crew is taken, the campaign ends."""
 
 
 def _bid_prompt(strategy: str) -> str:
@@ -135,9 +140,10 @@ def _job_prompt(crew: Crew, available_jobs: list | None = None) -> str:
         + "\n".join(crew_lines)
         + f"\n\nJob slate:\n{_job_slate_summary(available_jobs)}\n\n"
         "Pick the job this crew should attempt. Before you commit: for every Hard "
-        "challenge in the job's profile, confirm the crew has either a High specialist "
-        "in that area OR two Mediums who can pair on it. If neither, that job is a "
-        "trap — pick a different one. Reply with ONLY JSON:\n"
+        "challenge, make sure the crew's effective score in that area lands solidly "
+        "in High (8+) — remember teamwork only adds +1 point, so two Mediums usually "
+        "fall short, and a published Hard may hide a 9 or 10. If you can't cover it "
+        "with margin, that job is a trap — pick a different one. Reply with ONLY JSON:\n"
         '{\n'
         '  "job_name": "<exact name>",\n'
         '  "why_this": "<why this job fits — crew skills, budget, risk>",\n'
