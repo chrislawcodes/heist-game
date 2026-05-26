@@ -21,9 +21,11 @@ from heist.state import (
     HiddenDepthElement,
     HiddenDepthRoll,
     Job,
+    RevealLevel,
     RoundResult,
     Scene,
     SceneResult,
+    ScoutState,
     SkillLevel,
 )
 
@@ -266,6 +268,37 @@ def hidden_depth_from_dict(d: dict, job: Job) -> HiddenDepthRoll:
     )
 
 
+def scout_state_to_dict(ss: ScoutState) -> dict:
+    return {
+        "reveals": {
+            j: {c: lvl.name for c, lvl in cats.items()} for j, cats in ss.reveals.items()
+        },
+        "exact_scores": {j: dict(cats) for j, cats in ss.exact_scores.items()},
+        "reward_reveal": dict(ss.reward_reveal),
+        "free_probes": ss.free_probes,
+        "probes_spent_free": ss.probes_spent_free,
+        "probes_paid": ss.probes_paid,
+    }
+
+
+def scout_state_from_dict(d: dict | None) -> ScoutState:
+    d = d or {}
+    return ScoutState(
+        reveals={
+            j: {c: RevealLevel[n] for c, n in cats.items()}
+            for j, cats in d.get("reveals", {}).items()
+        },
+        exact_scores={
+            j: {c: int(s) for c, s in cats.items()}
+            for j, cats in d.get("exact_scores", {}).items()
+        },
+        reward_reveal={k: int(v) for k, v in d.get("reward_reveal", {}).items()},
+        free_probes=int(d.get("free_probes", 0)),
+        probes_spent_free=int(d.get("probes_spent_free", 0)),
+        probes_paid=int(d.get("probes_paid", 0)),
+    )
+
+
 def state_from_dict(d: dict) -> HeistState:
     job = job_from_dict(d["job"])
     crew = crew_from_dict(d["crew"])
@@ -275,6 +308,7 @@ def state_from_dict(d: dict) -> HeistState:
         job=job,
         hidden_depth=hidden,
         challenge_scores={k: int(v) for k, v in d.get("challenge_scores", {}).items()},
+        scout_state=scout_state_from_dict(d.get("scout_state")),
         scene_results=[scene_result_from_dict(r) for r in d.get("scene_results", [])],
         caught_member_ids=[int(i) for i in d.get("caught_member_ids", [])],
         secured_take=int(d.get("secured_take", 0)),
@@ -295,6 +329,7 @@ def state_to_dict(state: HeistState) -> dict:
         "crew": crew_to_dict(state.crew),
         "job": job_to_dict(state.job),
         "challenge_scores": dict(state.challenge_scores),
+        "scout_state": scout_state_to_dict(state.scout_state),
         "caught_member_ids": list(state.caught_member_ids),
         "secured_take": state.secured_take,
         "heat": state.heat,

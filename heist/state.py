@@ -142,6 +142,9 @@ class ScoutState:
     free_probes:  crew size + best-driver bonus, granted at round start
     """
     reveals: dict[str, dict[str, RevealLevel]] = field(default_factory=dict)
+    # Revealed EXACT challenge scores: job_name -> {category -> 1-10 score}.
+    # Source of truth for what scouting has learned (buckets stay public).
+    exact_scores: dict[str, dict[str, int]] = field(default_factory=dict)
     reward_reveal: dict[str, int] = field(default_factory=dict)
     free_probes: int = 0
     probes_spent_free: int = 0
@@ -149,6 +152,9 @@ class ScoutState:
 
     def level(self, job: str, category: str) -> RevealLevel:
         return self.reveals.get(job, {}).get(category, RevealLevel.HIDDEN)
+
+    def scouted_score(self, job: str, category: str) -> int | None:
+        return self.exact_scores.get(job, {}).get(category)
 
     def reveal(self, job: str, category: str) -> RevealLevel:
         """Advance one step (HIDDEN→BUCKET→EXACT); no-op at EXACT. Returns new level."""
