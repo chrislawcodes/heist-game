@@ -1198,6 +1198,9 @@ body {
         ? resolveHeat(row, currentResult || previousResult, currentResult ? roundIdx : roundIdx - 1)
         : 0;
       const caughtIds = new Set((currentResult?.caught_member_ids || []).map(v => String(v)));
+      const roundCrew = (currentResult && Array.isArray(currentResult.crew) && currentResult.crew.length)
+        ? currentResult.crew
+        : (row.crew || []);
       const aiColor = aiColorKey(row.ai_idx, index);
       const sortBefore = roundNumber === 0
         ? (row.rank ?? index + 1)
@@ -1210,7 +1213,7 @@ body {
         aiIdx: row.ai_idx,
         aiName: row.ai_name,
         aiColor,
-        crew: row.crew || [],
+        crew: roundCrew,
         reflectionsByRound: row.reflections_by_round || [],
         roundResult: currentResult,
         previousResult,
@@ -1291,7 +1294,8 @@ body {
     const roundZero = viewedRound === 0;
     if (roundZero) return '';
     const playedByRound = new Map((row.round_results || []).map(r => [r.round_idx, r]));
-    const rows = Array.from({ length: totalRounds || 0 }, (_, i) => {
+    const count = Math.max(0, Math.min(viewedRound, totalRounds || viewedRound));
+    const rows = Array.from({ length: count }, (_, i) => {
       const r = playedByRound.get(i);
       if (!r) {
         return `<div class="round-row rh-sat">
