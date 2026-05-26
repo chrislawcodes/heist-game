@@ -1,0 +1,36 @@
+# Campaign Resume — endpoint contract
+# Style: the heist server is a hand-rolled http.server with /api/* string-dispatch
+# routes (no framework). This documents the one new route.
+
+endpoints:
+  - name: resume_campaign
+    method: POST
+    path: /api/campaign/{id}/resume
+    description: >
+      Manually revive a stalled campaign (server up, conductor thread gone/hung)
+      without restarting the server. Idempotent guard: refuses if a live
+      conductor for this campaign already exists in this process.
+    path_params:
+      - name: id
+        type: int
+        description: Campaign game id
+    body: {}            # empty JSON
+    responses:
+      - status: 200
+        body: { ok: true, campaign_id: int, resumed_from: { round_idx: int, stage: string } }
+        when: campaign is_campaign, status=running, checkpoint_version>=1, and NOT in active_campaights
+      - status: 409
+        body: { ok: false, error: "campaign already running" }
+        when: a live conductor for this id exists (in runtime.active_campaigns)
+      - status: 422
+        body: { ok: false, error: "campaign not resumable" }
+        when: not a campaign, already done/interrupted, or missing checkpoint_version
+      - status: 404
+        body: { ok: false, error: "no such campaign" }
+    side_effects:
+      - spawns a daemon thread run_campaign_conductor(id, num_rounds, resume=True)
+      - emits normal campaign events as it continues (two-lanes)
+    authentication: none   # local operator tool, consistent with existing /api/* endpoints
+
+# Auto-resume is NOT an endpoint — it runs inside recover_games() at server
+# startup (heist/server.py already calls orchestration.recover_games()).
