@@ -317,6 +317,7 @@ body {
   text-transform: uppercase;
 }
 .action-link:hover { background: rgba(232,160,48,0.1); }
+.action-resume { background: transparent; cursor: pointer; font-family: inherit; }
 .action-delete {
   width: 32px;
   height: 32px;
@@ -479,6 +480,14 @@ function renderStatusPill(progressInfo, status) {
       ariaLabel: 'Done',
     };
   }
+  if (status === 'interrupted') {
+    return {
+      label: 'Interrupted',
+      className: 'status-pill status-stalled',
+      dotClass: 'status-dot',
+      ariaLabel: 'Interrupted',
+    };
+  }
   if (!progressInfo || progressInfo.mode === 'none') {
     return {
       label: 'Running',
@@ -589,6 +598,14 @@ function renderCampaigns(campaigns) {
     const deleteBtn = campaign.status === 'running'
       ? `<button class="action-delete action-delete-running" onclick="deleteCampaign(${campaign.id}, '${esc(title).replace(/'/g, "\\'")}', true)" title="Force-delete this running campaign">✕</button>`
       : `<button class="action-delete" onclick="deleteCampaign(${campaign.id}, '${esc(title).replace(/'/g, "\\'")}')" title="Delete this campaign">✕</button>`;
+    // Offer Resume on a campaign whose conductor looks gone: a "running" record
+    // that's gone cold (stalled heartbeat) or one flagged interrupted. The
+    // backend has the final say — a non-resumable one surfaces a 409/422.
+    const canResume = (campaign.status === 'running' && progress.mode === 'stalled')
+      || campaign.status === 'interrupted';
+    const resumeBtn = canResume
+      ? `<button class="action-link action-resume" onclick="resumeCampaign(${campaign.id})" title="Resume this stalled campaign from its last checkpoint">Resume</button>`
+      : '';
     const chipHtml = renderCampaignChip(progress, campaign.status);
 
     return `
@@ -615,6 +632,7 @@ function renderCampaigns(campaigns) {
         </div>
         ${leader}
         <div class="game-actions">
+          ${resumeBtn}
           <a class="action-link" href="/campaign?game=${campaign.id}">War Room -></a>
           ${deleteBtn}
         </div>
@@ -698,6 +716,23 @@ async function mediumTest() {
     window.location = `/campaign?game=${data.campaign_id}`;
   } catch (err) {
     alert('Medium test failed: ' + err.message);
+  }
+}
+
+async function resumeCampaign(id) {
+  try {
+    const resp = await fetch(`/api/campaign/${id}/resume`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) {
+      throw new Error(data.error || resp.status);
+    }
+    refresh();
+  } catch (err) {
+    alert('Resume failed: ' + err.message);
   }
 }
 

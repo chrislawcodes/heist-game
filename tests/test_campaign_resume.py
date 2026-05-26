@@ -373,3 +373,122 @@ def test_recover_games_leaves_done_campaign_untouched(clean_state, monkeypatch):
     with gamestate.lock:
         assert gamestate.games[9]["status"] == "done"
     assert resumed == []
+
+
+# ── T013 (US2): POST /api/campaign/<id>/resume guard logic ─────────────────────
+
+@pytest.fixture()
+def resume_client(clean_state, monkeypatch):
+    """A FakeHandler-backed client + a spy that records conductor spawns instead
+    of running them, so the resume route can be exercised without real threads."""
+    import io
+    import json
+
+    from heist import server as server_mod
+
+    spawned: list[tuple] = []
+    spawned_evt = threading.Event()
+
+    def spy_conductor(cid, num_rounds, resume=False):
+        spawned.append((cid, num_rounds, resume))
+        spawned_evt.set()
+
+    monkeypatch.setattr(orchestration, "run_campaign_conductor", spy_conductor)
+
+    class FakeHandler(server_mod._Handler):
+        def __init__(self, path: str, body: bytes = b""):
+            self.path = path
+            self.rfile = io.BytesIO(body)
+            self.wfile = io.BytesIO()
+            self.headers = {"Content-Length": str(len(body))}
+            self._status_code = None
+
+        def send_response(self, code, message=None):
+            self._status_code = code
+
+        def send_header(self, key, value):
+            pass
+
+        def end_headers(self):
+            pass
+
+    def post(path: str):
+        handler = FakeHandler(path, b"{}")
+        handler.do_POST()
+        raw = handler.wfile.getvalue()
+        data = json.loads(raw.decode()) if raw else {}
+        return handler._status_code, data
+
+    return post, spawned, spawned_evt
+
+
+def _seed_running_campaign(gid, *, checkpoint_version=1, round_idx=2, stage="hiring"):
+    crew = list(ROSTER[:4])
+    gs = _team_state(
+        0, "Aegis", crew,
+        banked_loot=100_000, round_results=[],
+        round_game_ids=[101], hiring_game_ids=[100], pending_heist=None,
+    )
+    rec = {
+        "id": gid,
+        "created_at": time.time(),
+        "is_campaign": True,
+        "status": "running",
+        "num_rounds": 5,
+        "current_round_idx": round_idx,
+        "current_stage": stage,
+        "game_states": [gs],
+        "ais_cfg": [{"name": "Aegis", "agent": "stub", "prompt": "Win."}],
+        "events": [],
+    }
+    if checkpoint_version is not None:
+        rec["checkpoint_version"] = checkpoint_version
+    with gamestate.lock:
+        gamestate.games[gid] = rec
+    return rec
+
+
+def test_resume_route_proceeds_for_stalled_campaign(resume_client):
+    post, spawned, spawned_evt = resume_client
+    _seed_running_campaign(5, round_idx=2, stage="hiring")
+
+    status, body = post("/api/campaign/5/resume")
+
+    assert status == 200
+    assert body["ok"] is True
+    assert body["campaign_id"] == 5
+    assert body["resumed_from"] == {"round_idx": 2, "stage": "hiring"}
+    assert spawned_evt.wait(timeout=2.0)
+    assert spawned == [(5, 5, True)]
+
+
+def test_resume_route_refuses_when_conductor_live(resume_client):
+    post, spawned, _ = resume_client
+    _seed_running_campaign(5)
+    with gamestate.lock:
+        gamestate.runtime.active_campaigns.add(5)
+
+    status, body = post("/api/campaign/5/resume")
+
+    assert status == 409
+    assert spawned == []  # guarded — no second conductor
+
+
+def test_resume_route_422_for_non_resumable_campaign(resume_client):
+    post, spawned, _ = resume_client
+    # Running campaign but no checkpoint_version → predates checkpointing.
+    _seed_running_campaign(5, checkpoint_version=None)
+
+    status, body = post("/api/campaign/5/resume")
+
+    assert status == 422
+    assert spawned == []
+
+
+def test_resume_route_404_for_unknown_campaign(resume_client):
+    post, spawned, _ = resume_client
+
+    status, body = post("/api/campaign/999/resume")
+
+    assert status == 404
+    assert spawned == []

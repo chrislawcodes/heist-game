@@ -148,6 +148,10 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                 self._handle_quick_campaign()
             elif p == "/api/medium-campaign":
                 self._handle_medium_campaign()
+            elif p.startswith("/api/campaign/") and p.endswith("/resume"):
+                self._handle_resume_campaign(
+                    p[len("/api/campaign/"):-len("/resume")]
+                )
             else:
                 self.send_response(404)
                 self.end_headers()
@@ -667,6 +671,56 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             daemon=True,
         )
         t.start()
+
+    def _handle_resume_campaign(self, id_str: str) -> None:
+        """Manually revive a stalled campaign (record still "running" but its
+        conductor thread is gone) without restarting the server.
+
+        404 no such campaign · 422 not resumable (not a campaign / not running /
+        no checkpoint_version) · 409 a live conductor already owns it.
+        """
+        try:
+            cid = int(id_str)
+        except (TypeError, ValueError):
+            self._json_error(404, "no such campaign")
+            return
+        game = gamestate.get_game(cid)
+        if not game:
+            self._json_error(404, "no such campaign")
+            return
+        # Only a checkpointed, still-"running" campaign is resumable. A done or
+        # interrupted campaign (the latter predates checkpointing) cannot be
+        # continued — it would have to restart from round 0.
+        if (
+            not game.get("is_campaign")
+            or game.get("status") != "running"
+            or int(game.get("checkpoint_version", 0) or 0) < 1
+        ):
+            self._json_error(422, "campaign not resumable")
+            return
+        # A live conductor for this id means it isn't actually stalled.
+        with gamestate.lock:
+            if cid in gamestate.runtime.active_campaigns:
+                self._json_error(409, "campaign already running")
+                return
+        num_rounds = int(game.get("num_rounds", 0) or 0)
+        resumed_from = {
+            "round_idx": int(game.get("current_round_idx", 0) or 0),
+            "stage": game.get("current_stage") or "opening_wire",
+        }
+        t = threading.Thread(
+            target=orchestration.run_campaign_conductor,
+            args=(cid, num_rounds),
+            kwargs={"resume": True},
+            name=f"campaign-resume-{cid}",
+            daemon=True,
+        )
+        t.start()
+        self._json_ok({
+            "ok": True,
+            "campaign_id": cid,
+            "resumed_from": resumed_from,
+        })
 
     def _handle_quick_game(self):
         """One-click preset: launch the two QUICK_TEST_TEAMS (The Operators and

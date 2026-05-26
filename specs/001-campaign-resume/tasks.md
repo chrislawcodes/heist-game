@@ -56,9 +56,9 @@
 
 **Independent Test**: POST `/api/campaign/<id>/resume` on a stalled campaign → it continues; on a live one → 409; other games unaffected.
 
-- [ ] T011 [US2] [heist/server.py] Add route `POST /api/campaign/<id>/resume` → `_handle_resume_campaign`: 404 if no such game; 422 if not a campaign / already done|interrupted / missing `checkpoint_version`; 409 if `id` in `runtime.active_campaigns`; else spawn `run_campaign_conductor(id, num_rounds, resume=True)` and return `{ok, campaign_id, resumed_from:{round_idx,stage}}` per contracts/resume-api.yaml. (depends on T007, T009)
-- [ ] T012 [US2] [heist/lobby.html] Add a "Resume" affordance on a stalled / `interrupted`-but-resumable campaign row that POSTs the new endpoint; surface failures (409/422) to the user. (depends on T011)
-- [ ] T013 [US2] [tests/test_campaign_resume.py] Test the resume guard logic: refuses (409-equivalent) when the campaign id is in `active_campaigns`; proceeds when not; 422 path for a non-resumable campaign. (depends on T011)
+- [X] T011 [US2] [heist/server.py] Add route `POST /api/campaign/<id>/resume` → `_handle_resume_campaign`: 404 if no such game; 422 if not a campaign / already done|interrupted / missing `checkpoint_version`; 409 if `id` in `runtime.active_campaigns`; else spawn `run_campaign_conductor(id, num_rounds, resume=True)` and return `{ok, campaign_id, resumed_from:{round_idx,stage}}` per contracts/resume-api.yaml. (depends on T007, T009)
+- [X] T012 [US2] [heist/lobby.html] Add a "Resume" affordance on a stalled / `interrupted`-but-resumable campaign row that POSTs the new endpoint; surface failures (409/422) to the user. (depends on T011)
+- [X] T013 [US2] [tests/test_campaign_resume.py] Test the resume guard logic: refuses (409-equivalent) when the campaign id is in `active_campaigns`; proceeds when not; 422 path for a non-resumable campaign. (depends on T011)
 
 **Checkpoint**: US2 functional — manual resume works and is guarded.
 
@@ -72,7 +72,7 @@
 
 - [ ] T014 [US3] [heist/orchestration.py] Confirm/ensure the resume path re-emits the normal campaign events (`campaign_stage`, per-AI heist events, `campaign_round_done`, `campaign_done`) via the existing `set_stage`/`emit_*` so the war room continues without UI-side reconstruction (two-lanes). No new event types. (depends on T006)
 - [ ] T015 [US3] [tests/test_campaign_resume.py] Test no-duplication: a resumed campaign run to completion has exactly `num_rounds` `round_results` per team and no duplicate `round_game_ids`/`hiring_game_ids`. (depends on T006)
-- [ ] T016 [P: heist/lobby.html] [US3] Display the `interrupted` status in the lobby campaign list (distinct from running/done). (depends on T009)
+- [X] T016 [P: heist/lobby.html] [US3] Display the `interrupted` status in the lobby campaign list (distinct from running/done). (depends on T009)
 
 **Checkpoint**: US3 functional — resume is correct and visible.
 
