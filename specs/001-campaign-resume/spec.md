@@ -2,7 +2,7 @@
 
 - **Feature branch**: `feat/campaign-resume`
 - **Created**: 2026-05-26
-- **Status**: Draft — awaiting clarification answers
+- **Status**: Ready for planning — clarifications resolved 2026-05-26
 - **Input**: Revive a campaign that was interrupted mid-run (most commonly because the server process restarted and the daemon conductor thread died) and continue it from where it left off, instead of leaving it stuck `status="running"` forever or having to delete it and restart from round 0.
 
 ## Background (grounded in current code)
@@ -72,10 +72,10 @@ As a viewer watching a campaign, after it resumes I see it continue normally —
 - **FR-002**: A resumed campaign MUST continue from a safe checkpoint at or before the point of interruption and complete only the **remaining** rounds — it MUST NOT restart from round 0. (Supports US1)
 - **FR-003**: Resume MUST be idempotent with respect to economy and roster: it MUST NOT double‑bank loot already banked, MUST NOT re‑charge for crew already hired, and MUST NOT re‑bid for crew already won in a completed stage. (Supports US1, US3)
 - **FR-004**: All already‑completed rounds MUST be preserved exactly across a resume — job, take, banked total, standing crew, caught members, and recorded sub‑game ids unchanged. (Supports US3)
-- **FR-005**: If the campaign was interrupted partway through a round, the system MUST resume that round from a defined, safe boundary [granularity TBD — see Clarification Q1] and complete it without duplicating any already‑completed stage. (Supports US1)
+- **FR-005**: If the campaign was interrupted partway through a round, the system MUST resume that round at the **stage boundary**: completed stages of that round (e.g. a finished hiring auction) are kept, and the system redoes only from the stage that was in progress when interrupted (tracked by `current_stage`), without duplicating any already‑completed stage. (Supports US1)
 - **FR-006**: A campaign that CANNOT be safely resumed (insufficient or inconsistent checkpoint) MUST be moved to a clear non‑running terminal state (e.g., `interrupted`/`error`) — it MUST NOT be left dangling as `running`. (Supports US1)
 - **FR-007**: On resume the engine MUST emit the same kind of events it emits during normal play, so the war room reflects the continued campaign without the UI reconstructing state (two‑lanes rule). (Supports US3)
-- **FR-008**: Operators MUST be able to manually trigger resume of a single stalled campaign without restarting the server. (Supports US2) [auto/manual scope — see Clarification Q2]
+- **FR-008**: Operators MUST be able to manually trigger resume of a single stalled campaign without restarting the server. Both paths are required: auto‑resume on startup (FR‑001) **and** this manual path. (Supports US2)
 - **FR-009**: The system MUST guard against running two conductors for the same campaign concurrently (e.g., a manual Resume on a campaign that is actually still alive must no‑op or be rejected). (Supports US2)
 - **FR-010**: The campaign MUST persist enough state at safe checkpoints (per‑round and per‑stage: standing crew, banked loot, round_results, current round, current stage, sub‑game ids) for a resume to reconstruct the in‑memory campaign deterministically. Where the existing persisted `game_states` already capture this, the feature SHOULD reuse it rather than add a parallel store. (Supports US1)
 - **FR-011**: Resume MUST be repeatable — a campaign interrupted, resumed, and interrupted again MUST still resume correctly. (Supports US1)
@@ -98,48 +98,12 @@ As a viewer watching a campaign, after it resumes I see it continue normally —
 
 - Scope is the multiplayer **campaign** path (`run_campaign_conductor`); single Phase‑1 games are already recovered by `recover_games()` and are out of scope.
 - The persisted `game_states` (with `round_results` appended at each round's settle) are treated as the primary checkpoint, so the cleanest safe resume point is a **round/stage boundary**, reconstructing in‑memory `Campaign` objects from persisted state and restarting the conductor loop at `current_round_idx`.
-- Old campaigns persisted before this feature may lack a sufficient checkpoint; per FR‑006 they are marked terminal rather than force‑resumed (so today's stalled game 14 likely becomes `interrupted`, not revived) — unless Clarification Q3 directs a best‑effort reconstruction from existing `game_states`.
+- **Resolved**: Campaigns already stalled before this feature ships are **always** marked terminal (`interrupted`), never force‑resumed — so today's game 14 becomes `interrupted` and must be deleted + re‑run. Only campaigns that begin running under this feature's checkpointing are resumable.
 - "Stalled" detection for manual resume can reuse the existing progress heartbeat staleness (`progress.updated_at` older than the stall threshold).
 - No game mechanics, auction model, or UI beyond a resume affordance/indicator change.
 
-## Clarification Needed
+## Resolved Decisions (2026-05-26)
 
-### Question 1: Resume granularity (the core design fork)
-
-**Context**: FR‑005 — "resume that round from a defined, safe boundary." Where, exactly, can a campaign safely pick back up?
-
-**What we need to know**: How fine‑grained should resume be?
-
-| Option | Answer | Implications |
-|--------|--------|--------------|
-| A | **Round boundary** — re‑run the entire interrupted round from its hiring auction | Simplest; reuses existing per‑round persistence. Re‑does the interrupted round's AI work (extra cost/latency) and needs care so re‑running hiring doesn't double‑charge crew already hired. |
-| B | **Stage boundary** (recommended) — keep completed stages of the interrupted round (e.g. keep the hiring result if the crash was during the heist), redo only from the stage it died in | Less wasted AI work and avoids double‑charging hiring; requires consistent per‑stage checkpointing (`current_stage` already exists). |
-| C | **Mid‑heist** — reuse `resume_heist` to resume the exact scene a team was on | Most faithful (no re‑run at all) but most complex; must coordinate per‑AI heist snapshots with the conductor's parallel‑heist stage. |
-| Custom | Your own answer | — |
-
-**Your choice**: _[awaiting]_
-
-### Question 2: Auto, manual, or both?
-
-**Context**: FR‑008 — manual resume; FR‑001 — startup auto‑resume.
-
-| Option | Answer | Implications |
-|--------|--------|--------------|
-| A | **Auto on startup only** | Covers the main cause (process restart). A campaign that stalls while the server stays up needs a restart to recover. |
-| B | **Manual button only** | Operator decides; nothing auto‑resumes (simpler, but routine restarts still need a click per campaign). |
-| C | **Both** (recommended) | Auto‑resume on startup + a manual Resume affordance for stalls while the server is up. Most robust. |
-| Custom | Your own answer | — |
-
-**Your choice**: _[awaiting]_
-
-### Question 3: What about already‑stalled campaigns (no new checkpoint)?
-
-**Context**: Edge case + FR‑006. Campaigns like the current game 14 stalled before this feature exists, but their `game_states` already hold completed `round_results` and standing crew.
-
-| Option | Answer | Implications |
-|--------|--------|--------------|
-| A | **Best‑effort reconstruct** from existing `game_states` — resume at `current_round_idx` | Could revive game 14 and similar. Relies on the existing persisted state being complete enough; small risk if a round was mid‑settle. |
-| B | **Mark terminal** ("interrupted") — only campaigns started after this feature ships are resumable | Safer/cleaner; you'd delete game 14 and re‑run. |
-| Custom | Your own answer | — |
-
-**Your choice**: _[awaiting]_
+- **Resume granularity → Stage boundary.** Keep completed stages of the interrupted round; redo only from the stage that was in progress (`current_stage`). Drives FR‑005.
+- **Trigger → Both auto + manual.** Auto‑resume eligible campaigns on server startup (FR‑001) **and** expose a manual Resume action for a campaign that stalls while the server is up (FR‑008).
+- **Pre‑existing stalls → Always terminal.** Campaigns stalled before this feature ships are marked `interrupted`, not revived (so game 14 is deleted + re‑run). Only campaigns started under the new checkpointing are resumable. Drives FR‑006.
