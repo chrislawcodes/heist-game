@@ -163,6 +163,57 @@ Every event includes `ai_idx` so the viewer can split per-AI state. The shell's 
 
 On startup, `_recover_games()` reloads every game record. For any game whose status is `running`, it scans `state/games/<id>/` for in-flight AI snapshots and spawns resume threads via `resume_heist()`. AIs without snapshots are marked errored.
 
+### Campaigns + resume (`heist/orchestration.py`)
+
+A **campaign** is a multi-round contest driven by one daemon thread,
+`run_campaign_conductor(campaign_id, num_rounds)`. Each round runs four stages
+in lockstep: `opening_wire → hiring → heist → reflection` (only the heist stage
+runs the AIs in parallel — one thread per team, joined before reflection). After
+each stage the conductor calls `snapshot_all()`, which persists each team's
+checkpoint into the campaign record at `game_states[i]`.
+
+**Checkpoint model.** The persisted campaign record is the resume checkpoint —
+no separate store:
+
+- `game_states[i]` — per-team `campaign_to_dict()` (standing_crew, banked_loot,
+  round_results) plus `round_game_ids` / `hiring_game_ids` (the per-round
+  sub-game ids) and `pending_heist`.
+- `pending_heist` — the heist's outcome (`final_take`, `heat`,
+  `caught_member_ids`, `job_name`, `aborted`, `escape_success`) written after
+  the heist join and cleared once reflection's `settle_round` banks it. Without
+  it a crash between heist and settle would lose the take (settle is the first
+  thing that durably records a round). It lets reflection settle on resume
+  **without re-running the heist**.
+- `current_round_idx` / `current_stage` — the conductor's position, written by
+  `set_stage()`.
+- `checkpoint_version` (=1) — marks a campaign as resumable under this model.
+  A `running` campaign **without** it predates checkpointing and is treated as a
+  permanent stall (status flipped to `interrupted`).
+
+**Resume** (`run_campaign_conductor(..., resume=True)`) rebuilds each team's
+`Campaign` from `game_states[i]` via `campaign_from_dict`, restores the sub-game
+id lists, and re-enters the round loop at the persisted stage boundary —
+skipping every stage already completed so nothing is re-run or double-counted
+(hiring deducts loot, the heist computes the take, settle banks it; re-entering a
+completed stage would double-count). Idempotency rails: a round is settled iff
+its `RoundResult` is present (`len(round_results)` vs the round index), and a
+team whose `pending_heist` is set does not re-run its heist. Resume re-emits the
+normal campaign events (`campaign_stage`, per-AI heist events,
+`campaign_round_done`, `campaign_done`) through the same `set_stage`/broadcast
+path, so the war room continues with no UI-side reconstruction (two-lanes).
+
+Two entry points:
+
+- **Auto** — `recover_games()` at server startup spawns
+  `run_campaign_conductor(gid, num_rounds, resume=True)` for each checkpointed
+  `running` campaign; uncheckpointed ones become `interrupted`.
+- **Manual** — `POST /api/campaign/<id>/resume` revives a campaign whose record
+  still says `running` but whose conductor thread is gone (the lobby shows a
+  Resume button on stalled/interrupted rows). `runtime.active_campaigns` (the
+  set of campaign ids with a live conductor in this process) guards against a
+  second conductor: the route returns 409 if the id is already live, 422 if the
+  campaign isn't resumable, 404 if unknown.
+
 ### `--web-dir` flag
 
 `python -m heist serve --web-dir /path/to/some/worktree/heist` makes the server read HTML / JS files from that directory instead of the one where `heist/server.py` lives. Lets a single server preview any worktree's UI changes without restarting.

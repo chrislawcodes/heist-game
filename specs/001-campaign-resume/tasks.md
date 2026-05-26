@@ -80,9 +80,9 @@
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T017 Run preflight: `python3 -m ruff check . && mypy heist/ agents.py demo.py && pytest -q` — fix any failures at the root cause (no suppressions).
-- [ ] T018 Manual verification from quickstart.md against an isolated-state staging-style server (US1 restart, US2 manual resume, US3 no-duplication, pre-existing stall → interrupted).
-- [ ] T019 [P: ARCHITECTURE.md] Document campaign resume (the checkpoint model + auto/manual paths) in ARCHITECTURE.md.
+- [X] T017 Run preflight: `python3 -m ruff check . && mypy heist/ agents.py demo.py && pytest -q` — fix any failures at the root cause (no suppressions).
+- [X] T018 Manual verification from quickstart.md against an isolated-state staging-style server (US1 restart, US2 manual resume, US3 no-duplication, pre-existing stall → interrupted).
+- [X] T019 [P: ARCHITECTURE.md] Document campaign resume (the checkpoint model + auto/manual paths) in ARCHITECTURE.md.
 - [ ] T020 Push branch; refresh staging; **stop for user review on staging before `/ship`** (do not auto-ship).
 
 ---
