@@ -146,6 +146,8 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                 self._handle_quick_game()
             elif p == "/api/quick-campaign":
                 self._handle_quick_campaign()
+            elif p == "/api/medium-campaign":
+                self._handle_medium_campaign()
             else:
                 self.send_response(404)
                 self.end_headers()
@@ -704,11 +706,18 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         )
         t.start()
 
-    def _handle_quick_campaign(self) -> None:
-        """One-click preset: 3-round campaign with The Operators (codex-mini),
-        The Wreckers (codex-mini), and The Ghost (gemini) — three contrasting
-        philosophies competing across 3 rounds."""
+    def _handle_medium_campaign(self) -> None:
+        """Medium Test preset: same three AIs as Quick Test, but 7 rounds."""
+        from heist.content import MEDIUM_TEST_CAMPAIGN_ROUNDS
+        self._handle_quick_campaign(num_rounds=MEDIUM_TEST_CAMPAIGN_ROUNDS)
+
+    def _handle_quick_campaign(self, num_rounds: int | None = None) -> None:
+        """One-click preset campaign with three contrasting codex-mini AIs —
+        The Operators, The Wreckers, and The Ghost. Quick Test runs 3 rounds;
+        Medium Test passes num_rounds=7."""
         from heist.content import QUICK_TEST_CAMPAIGN, QUICK_TEST_CAMPAIGN_ROUNDS
+        if num_rounds is None:
+            num_rounds = QUICK_TEST_CAMPAIGN_ROUNDS
         _pt = ZoneInfo("America/Los_Angeles")
         _now = datetime.now(_pt)
         _campaign_name = _now.strftime("%A %B %-d, %-I:%M %p PT")
@@ -716,7 +725,6 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             gid = gamestate.runtime.next_id
             gamestate.runtime.next_id += 1
             ais = [dict(team) for team in QUICK_TEST_CAMPAIGN]
-            num_rounds = QUICK_TEST_CAMPAIGN_ROUNDS
             gamestate.games[gid] = {
                 "id": gid,
                 "created_at": time.time(),

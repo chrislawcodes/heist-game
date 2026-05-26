@@ -85,3 +85,5 @@ QUICK_TEST_CAMPAIGN: list[dict] = [
     {"name": "The Ghost",     "prompt": GHOST_PROMPT,     "agent": "codex-mini"},
 ]
 QUICK_TEST_CAMPAIGN_ROUNDS = 3
+# Medium Test reuses the same three AIs but runs a longer campaign.
+MEDIUM_TEST_CAMPAIGN_ROUNDS = 7

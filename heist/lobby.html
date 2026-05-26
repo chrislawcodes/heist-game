@@ -382,7 +382,8 @@ body {
     <div class="tagline">Write the strategy. Watch the crew work.</div>
     <div class="hero-actions">
       <button class="btn btn-primary" onclick="newCampaign()">+ New Campaign</button>
-      <button class="btn btn-secondary" onclick="quickTest()" title="Launch a 3-round campaign: The Operators (Codex) vs The Wreckers (Codex) vs The Ghost (Gemini)">▶ Quick Test</button>
+      <button class="btn btn-secondary" onclick="quickTest()" title="Launch a 3-round campaign: The Operators vs The Wreckers vs The Ghost (all Codex)">▶ Quick Test</button>
+      <button class="btn btn-secondary" onclick="mediumTest()" title="Launch a 7-round campaign: The Operators vs The Wreckers vs The Ghost (all Codex)">▶ Medium Test</button>
     </div>
   </header>
 
@@ -679,6 +680,24 @@ async function quickTest() {
     window.location = `/campaign?game=${data.campaign_id}`;
   } catch (err) {
     alert('Quick test failed: ' + err.message);
+  }
+}
+
+async function mediumTest() {
+  try {
+    const resp = await fetch('/api/medium-campaign', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    });
+    if (!resp.ok) {
+      const data = await resp.json();
+      throw new Error(data.error || resp.status);
+    }
+    const data = await resp.json();
+    window.location = `/campaign?game=${data.campaign_id}`;
+  } catch (err) {
+    alert('Medium test failed: ' + err.message);
   }
 }
 
