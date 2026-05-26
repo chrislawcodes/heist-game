@@ -43,8 +43,8 @@
 
 **Independent Test**: Launch a campaign, complete round 1, restart the server, confirm it resumes and finishes with round-1 results intact (no restart from round 0); a campaign without `checkpoint_version` becomes `interrupted`.
 
-- [ ] T009 [US1] [heist/orchestration.py] Add an `is_campaign` branch to `recover_games()`: for `status=="running"` campaign records — if `checkpoint_version >= 1`, spawn `run_campaign_conductor(gid, num_rounds, resume=True)`; else set `status="interrupted"` and persist. Ensure these records no longer fall into the single-game `ais`/auction path. (depends on T006)
-- [ ] T010 [US1] [tests/test_campaign_resume.py] Test `recover_games` campaign branch: a running campaign WITH `checkpoint_version` is scheduled for resume (assert a conductor is spawned / state primed); a running campaign WITHOUT it is flipped to `interrupted`; a `done` campaign is untouched. (depends on T009)
+- [X] T009 [US1] [heist/orchestration.py] Add an `is_campaign` branch to `recover_games()`: for `status=="running"` campaign records — if `checkpoint_version >= 1`, spawn `run_campaign_conductor(gid, num_rounds, resume=True)`; else set `status="interrupted"` and persist. Ensure these records no longer fall into the single-game `ais`/auction path. (depends on T006)
+- [X] T010 [US1] [tests/test_campaign_resume.py] Test `recover_games` campaign branch: a running campaign WITH `checkpoint_version` is scheduled for resume (assert a conductor is spawned / state primed); a running campaign WITHOUT it is flipped to `interrupted`; a `done` campaign is untouched. (depends on T009)
 
 **Checkpoint**: US1 fully functional — restart mid-campaign and it continues; old stalls go terminal.
 

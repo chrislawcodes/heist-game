@@ -8,6 +8,7 @@ stage (no double-banked loot, no duplicate round results / sub-game ids).
 """
 from __future__ import annotations
 
+import threading
 import time
 
 import pytest
@@ -291,3 +292,84 @@ def test_resume_at_reflection_settles_from_pending_heist(clean_state, monkeypatc
     # The caught member is removed from standing crew by settle.
     assert crew[0].id not in _crew_ids(team)
     assert len(_crew_ids(team)) == 3
+
+
+# ── T010 (US1): recover_games campaign branch ──────────────────────────────────
+
+def _campaign_record(gid, *, status, num_rounds=5, checkpoint_version=None):
+    rec = {
+        "id": gid,
+        "created_at": time.time(),
+        "is_campaign": True,
+        "status": status,
+        "num_rounds": num_rounds,
+        "game_states": [],
+        "ais_cfg": [],
+    }
+    if checkpoint_version is not None:
+        rec["checkpoint_version"] = checkpoint_version
+    return rec
+
+
+def test_recover_games_resumes_checkpointed_campaign(clean_state, monkeypatch):
+    """A running campaign WITH checkpoint_version is scheduled for resume via the
+    conductor (resume=True), and its status stays running."""
+    resumed: list[tuple] = []
+    spawned = threading.Event()
+
+    def spy_conductor(cid, num_rounds, resume=False):
+        resumed.append((cid, num_rounds, resume))
+        spawned.set()
+
+    monkeypatch.setattr(orchestration, "run_campaign_conductor", spy_conductor)
+    monkeypatch.setattr(
+        orchestration, "load_game_records",
+        lambda: {7: _campaign_record(7, status="running", num_rounds=5,
+                                      checkpoint_version=1)},
+    )
+
+    orchestration.recover_games()
+
+    assert spawned.wait(timeout=2.0), "expected a resume conductor to be spawned"
+    assert resumed == [(7, 5, True)]
+    with gamestate.lock:
+        assert gamestate.games[7]["status"] == "running"
+
+
+def test_recover_games_marks_uncheckpointed_campaign_interrupted(clean_state, monkeypatch):
+    """A running campaign WITHOUT checkpoint_version predates checkpointing →
+    flipped to interrupted, never resumed."""
+    resumed: list[tuple] = []
+    monkeypatch.setattr(
+        orchestration, "run_campaign_conductor",
+        lambda *a, **k: resumed.append(a),
+    )
+    monkeypatch.setattr(
+        orchestration, "load_game_records",
+        lambda: {8: _campaign_record(8, status="running")},  # no checkpoint_version
+    )
+
+    orchestration.recover_games()
+
+    with gamestate.lock:
+        assert gamestate.games[8]["status"] == "interrupted"
+    assert resumed == []
+
+
+def test_recover_games_leaves_done_campaign_untouched(clean_state, monkeypatch):
+    """A finished campaign is neither resumed nor flipped to interrupted."""
+    resumed: list[tuple] = []
+    monkeypatch.setattr(
+        orchestration, "run_campaign_conductor",
+        lambda *a, **k: resumed.append(a),
+    )
+    monkeypatch.setattr(
+        orchestration, "load_game_records",
+        lambda: {9: _campaign_record(9, status="done", checkpoint_version=1)},
+    )
+
+    orchestration.recover_games()
+
+    with gamestate.lock:
+        assert gamestate.games[9]["status"] == "done"
+    assert resumed == []

@@ -343,12 +343,32 @@ def recover_games() -> tuple[int, int]:
     ai_resuming = 0
     auction_restart: list[int] = []
     pending: list[tuple[int, int, dict, dict]] = []  # (gid, ai_idx, snap, ai_cfg)
+    campaign_resume: list[tuple[int, int]] = []  # (campaign_id, num_rounds)
 
     with gamestate.lock:
         for gid, record in records.items():
             gamestate.games[gid] = record
             gamestate.runtime.next_id = max(gamestate.runtime.next_id, gid + 1)
             games_recovered += 1
+
+            # Campaigns recover through the conductor, not the single-game path.
+            # A running campaign stamped with checkpoint_version is resumable;
+            # one without it predates checkpointing → a permanent stall, marked
+            # interrupted so it no longer shows as "running" forever.
+            if record.get("is_campaign"):
+                if record.get("status") == "running":
+                    if int(record.get("checkpoint_version", 0) or 0) >= 1:
+                        campaign_resume.append(
+                            (gid, int(record.get("num_rounds", 0) or 0))
+                        )
+                    else:
+                        record["status"] = "interrupted"
+                continue
+
+            # Campaign sub-games (hiring / heist) are owned by their conductor —
+            # never recover them through the single-game auction/snapshot path.
+            if record.get("is_campaign_sub") or record.get("is_hiring_sub"):
+                continue
 
             if record.get("status") != "running":
                 continue
@@ -416,6 +436,17 @@ def recover_games() -> tuple[int, int]:
             args=(ai_cfg.get("prompt", ""), ai_cfg.get("agent", "stub"),
                   None, gid, ai_idx),
             kwargs={"resume_snapshot": snap},
+            daemon=True,
+        )
+        t.start()
+
+    for cid, num_rounds in campaign_resume:
+        log.info("campaign_recovered", campaign_id=cid, num_rounds=num_rounds)
+        t = threading.Thread(
+            target=run_campaign_conductor,
+            args=(cid, num_rounds),
+            kwargs={"resume": True},
+            name=f"campaign-resume-{cid}",
             daemon=True,
         )
         t.start()
