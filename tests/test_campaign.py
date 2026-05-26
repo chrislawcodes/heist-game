@@ -38,6 +38,27 @@ def _make_campaign(crew_members=None):
     )
 
 
+def test_caught_crew_excluded_from_rehire_pool():
+    """A caught crew member is out for good — never back in the rehire pool."""
+    from heist.orchestration import _rehire_pool
+
+    members = ROSTER[:3]
+    on_crew, caught, free = members[0], members[1], members[2]
+    camp = _make_campaign(crew_members=[on_crew])
+    camp.round_results = [
+        RoundResult(
+            round_idx=0, job_name="J", take=0, aborted=False,
+            escape_success=False, heat=0, caught_member_ids=[caught.id],
+        ),
+    ]
+
+    pool_ids = {c.id for c in _rehire_pool([camp], list(ROSTER))}
+
+    assert on_crew.id not in pool_ids   # already on a standing crew
+    assert caught.id not in pool_ids    # caught -> permanently out of the pool
+    assert free.id in pool_ids          # untouched free agent stays available
+
+
 def test_settle_round_banks_take():
     campaign = _make_campaign()
     state = _make_state(Crew(list(campaign.standing_crew)))
