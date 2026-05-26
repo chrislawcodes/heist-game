@@ -425,6 +425,11 @@ def recover_games() -> tuple[int, int]:
 
 # ── campaign conductor ────────────────────────────────────────────────────────
 
+# Order of the four per-round stages. Used by resume to skip stages already
+# completed before a crash (resume re-enters at the persisted stage boundary).
+_STAGE_ORDER = {"opening_wire": 0, "hiring": 1, "heist": 2, "reflection": 3}
+
+
 def _campaign_ended(camp: Any) -> bool:
     return len(camp.standing_crew) == 0
 
@@ -507,17 +512,29 @@ def _build_game_states_snapshot(
     return result
 
 
-def run_campaign_conductor(campaign_id: int, num_rounds: int) -> None:
+def run_campaign_conductor(
+    campaign_id: int, num_rounds: int, resume: bool = False,
+) -> None:
     """One thread that runs all AIs through each round in lockstep.
 
     Stages per round: opening_wire → hiring → heist → reflection.
     Updates game['current_stage'] and game['current_round_idx'] after each stage.
+
+    When ``resume=True``, rebuilds each team's Campaign from the persisted
+    ``game_states`` and re-enters the loop at the first un-settled round, at the
+    stage boundary recorded in ``current_stage`` — without re-running completed
+    stages (see campaign-resume spec). Idempotent: never double-banks loot.
     """
-    from heist.campaign import _opening_wire_call, _reflection_call, settle_round
+    from heist.campaign import (
+        _opening_wire_call,
+        _reflection_call,
+        _settle_round_core,
+        settle_round,
+    )
     from heist.content import BANKROLL, ROSTER  # noqa: F401 used below
     from heist.persist import save_game_record
     from heist.runner import TurnLog, run_one_job
-    from heist.serialize import campaign_to_dict, crew_to_dict
+    from heist.serialize import campaign_from_dict, campaign_to_dict, crew_to_dict
     from heist.state import Campaign as CampaignType
     from heist.state import Crew as CrewType
     from heist.state import HeistState
@@ -581,6 +598,11 @@ def run_campaign_conductor(campaign_id: int, num_rounds: int) -> None:
 
     campaigns: list[CampaignType | None] = [None] * num_ais
     heist_states: list[HeistState | None] = [None] * num_ais
+    # Per-team heist-take checkpoint (Decision 3 / Option B): the heist's outcome
+    # lives only in memory until reflection settles it, so we persist a minimal
+    # snapshot after the heist join and clear it once settle_round consumes it.
+    # On resume this lets reflection settle without re-running the heist.
+    pending_heist_per_ai: list[dict | None] = [None] * num_ais
     logs_per_ai: list[list[TurnLog]] = [[] for _ in range(num_ais)]
     round_gids_per_ai: list[list[int]] = [[] for _ in range(num_ais)]
     current_round_sub_gids: list[int | None] = [None] * num_ais
@@ -605,6 +627,9 @@ def run_campaign_conductor(campaign_id: int, num_rounds: int) -> None:
             game = gamestate.games.get(campaign_id)
             if not game:
                 return
+            # Mark this campaign as resumable under the new checkpointing model.
+            # Absent ⇒ a pre-existing stall ⇒ recover_games marks it interrupted.
+            game["checkpoint_version"] = 1
             for i, camp in enumerate(campaigns):
                 if camp is None:
                     continue
@@ -615,6 +640,7 @@ def run_campaign_conductor(campaign_id: int, num_rounds: int) -> None:
                     "round_game_ids": list(round_gids_per_ai[i]),
                     "hiring_game_ids": list(hiring_gids),
                     "ai_game_id": round_gids_per_ai[i][-1] if round_gids_per_ai[i] else None,
+                    "pending_heist": pending_heist_per_ai[i],
                     "status": "done" if finished else "running",
                 }
                 game["game_states"][i] = entry
@@ -860,38 +886,110 @@ def run_campaign_conductor(campaign_id: int, num_rounds: int) -> None:
                         m.id for m in newly_hired_crew.members
                     ]
 
+    # Guard against a second conductor for this campaign in THIS process
+    # (manual resume checks active_campaigns before spawning). Added here, once
+    # the AI backends built cleanly; removed in the finally below.
+    with gamestate.lock:
+        gamestate.runtime.active_campaigns.add(campaign_id)
+
     last_round_idx = 0
     try:
-        for round_idx in range(num_rounds):
+        # ── Resume reconstruction ────────────────────────────────────────────
+        # Rebuild each team's Campaign + per-round sub-game id lists from the
+        # persisted game_states, then compute where to re-enter the round loop.
+        start_round = 0
+        resume_stage_idx = 0
+        if resume:
+            with gamestate.lock:
+                game = gamestate.games.get(campaign_id)
+                persisted_states = list(game.get("game_states", [])) if game else []
+                persisted_round = int(game.get("current_round_idx", 0) or 0) if game else 0
+                persisted_stage = (
+                    (game.get("current_stage") if game else None) or "opening_wire"
+                )
+            for i in range(num_ais):
+                gs = persisted_states[i] if i < len(persisted_states) else None
+                if not isinstance(gs, dict) or not gs:
+                    continue
+                campaigns[i] = campaign_from_dict(gs)
+                round_gids_per_ai[i] = list(gs.get("round_game_ids", []) or [])
+                ph = gs.get("pending_heist")
+                pending_heist_per_ai[i] = dict(ph) if isinstance(ph, dict) else None
+            # hiring_gids is the same list across teams — restore from any team
+            # that recorded it.
+            for i in range(num_ais):
+                gs = persisted_states[i] if i < len(persisted_states) else None
+                if isinstance(gs, dict) and gs.get("hiring_game_ids"):
+                    for r, hg in enumerate(gs.get("hiring_game_ids", []) or []):
+                        if r < len(hiring_gids):
+                            hiring_gids[r] = hg
+                    break
+            # Settle-once reconciliation: a round is settled iff its RoundResult
+            # is present in every active team's round_results.
+            active_lens = [
+                len(c.round_results)
+                for c in campaigns
+                if c is not None and not _campaign_ended(c)
+            ]
+            if active_lens:
+                min_settled = min(active_lens)
+                if min_settled == persisted_round:
+                    # Conductor was mid-round at the persisted stage.
+                    start_round = persisted_round
+                    resume_stage_idx = _STAGE_ORDER.get(persisted_stage, 0)
+                else:
+                    # Either the persisted round already settled everywhere
+                    # (crash after the post-reflection snapshot) or a team lags
+                    # the stage marker — restart the earliest unsettled round.
+                    start_round = min_settled
+                    resume_stage_idx = 0
+            else:
+                start_round = persisted_round
+                resume_stage_idx = 0
+            log.info(
+                "campaign_resume",
+                campaign_id=campaign_id,
+                start_round=start_round,
+                resume_stage_idx=resume_stage_idx,
+                persisted_round=persisted_round,
+                persisted_stage=persisted_stage,
+            )
+
+        for round_idx in range(start_round, num_rounds):
             last_round_idx = round_idx
+            # For the resume round, skip stages already completed; later rounds
+            # run every stage.
+            rs = resume_stage_idx if round_idx == start_round else 0
 
             # ── Stage 1: Opening Wire ────────────────────────────────────────
-            set_stage("opening_wire", round_idx)
-            game_states_snapshot = _build_game_states_snapshot(
-                campaign_id, campaigns, ais_cfg, ais, round_gids_per_ai, heist_states,
-            )
-            for i in range(num_ais):
-                camp = campaigns[i]
-                if camp is not None and not _campaign_ended(camp):
-                    _opening_wire_call(
-                        camp, i, round_idx, ais[i],
-                        game_states_snapshot, logs_per_ai[i],
-                        make_emit_fn(i),
-                    )
-                elif camp is None and round_idx == 0:
-                    # Before first auction, campaigns are None — still generate wire
-                    pass
-            snapshot_all()
+            if rs <= _STAGE_ORDER["opening_wire"]:
+                set_stage("opening_wire", round_idx)
+                game_states_snapshot = _build_game_states_snapshot(
+                    campaign_id, campaigns, ais_cfg, ais, round_gids_per_ai, heist_states,
+                )
+                for i in range(num_ais):
+                    camp = campaigns[i]
+                    if camp is not None and not _campaign_ended(camp):
+                        _opening_wire_call(
+                            camp, i, round_idx, ais[i],
+                            game_states_snapshot, logs_per_ai[i],
+                            make_emit_fn(i),
+                        )
+                    elif camp is None and round_idx == 0:
+                        # Before first auction, campaigns are None — still generate wire
+                        pass
+                snapshot_all()
 
             # ── Stage 2: Hiring ──────────────────────────────────────────────
-            set_stage("hiring", round_idx)
-            open_hiring_sub_game(round_idx)
-            if round_idx == 0:
-                run_initial_auction()
-            else:
-                run_rehire_auction()
-            close_hiring_sub_game(round_idx)
-            snapshot_all()
+            if rs <= _STAGE_ORDER["hiring"]:
+                set_stage("hiring", round_idx)
+                open_hiring_sub_game(round_idx)
+                if round_idx == 0:
+                    run_initial_auction()
+                else:
+                    run_rehire_auction()
+                close_hiring_sub_game(round_idx)
+                snapshot_all()
 
             # ── Stage 3: Heist (parallel — each AI's heist is independent) ────
             # Each AI runs its own crew/job/scenes against its own Campaign
@@ -899,52 +997,77 @@ def run_campaign_conductor(campaign_id: int, num_rounds: int) -> None:
             # per-AI index (sub-game, logs, heist_states) under gamestate.lock.
             # So the heists run concurrently; we join them all before moving on,
             # which keeps the stage barrier (reflection waits for every heist).
-            set_stage("heist", round_idx)
+            if rs <= _STAGE_ORDER["heist"]:
+                set_stage("heist", round_idx)
 
-            def _run_heist(i: int, round_idx: int = round_idx) -> None:
-                camp = campaigns[i]
-                if camp is None or _campaign_ended(camp) or not camp.standing_crew:
-                    return
-                rng = random.Random()
-                rgid = open_round_sub_game(i, round_idx)
-                emit_fn = make_emit_fn(i)
-                crew_evt = {
-                    "type": "crew_known",
-                    "crew": crew_to_dict(CrewType(members=list(camp.standing_crew))),
-                    "game_id": rgid,
-                    "campaign_id": campaign_id,
-                    "ai_idx": i,
-                }
-                gamestate.broadcast(crew_evt)
-                try:
-                    result = run_one_job(
-                        strategies[i], ais[i], camp, rng=rng, emit=emit_fn,
-                    )
-                except Exception as exc:
-                    log.error(
-                        "campaign_conductor_heist_failed",
-                        campaign_id=campaign_id,
-                        ai_idx=i,
-                        round=round_idx,
-                        error=str(exc),
-                        traceback=traceback.format_exc(),
-                    )
-                    result = None
-                close_round_sub_game(i)
-                heist_states[i] = result[0] if result is not None else None
+                def _run_heist(i: int, round_idx: int = round_idx) -> None:
+                    camp = campaigns[i]
+                    if camp is None or _campaign_ended(camp) or not camp.standing_crew:
+                        return
+                    # Resume idempotency: if this team's heist already completed
+                    # and was checkpointed before a crash, don't re-run it —
+                    # reflection will settle from the persisted pending_heist. In
+                    # live play this is always None at heist start (the prior
+                    # round's settle cleared it).
+                    if pending_heist_per_ai[i] is not None:
+                        return
+                    rng = random.Random()
+                    rgid = open_round_sub_game(i, round_idx)
+                    emit_fn = make_emit_fn(i)
+                    crew_evt = {
+                        "type": "crew_known",
+                        "crew": crew_to_dict(CrewType(members=list(camp.standing_crew))),
+                        "game_id": rgid,
+                        "campaign_id": campaign_id,
+                        "ai_idx": i,
+                    }
+                    gamestate.broadcast(crew_evt)
+                    try:
+                        result = run_one_job(
+                            strategies[i], ais[i], camp, rng=rng, emit=emit_fn,
+                        )
+                    except Exception as exc:
+                        log.error(
+                            "campaign_conductor_heist_failed",
+                            campaign_id=campaign_id,
+                            ai_idx=i,
+                            round=round_idx,
+                            error=str(exc),
+                            traceback=traceback.format_exc(),
+                        )
+                        result = None
+                    close_round_sub_game(i)
+                    heist_states[i] = result[0] if result is not None else None
 
-            heist_threads = [
-                threading.Thread(
-                    target=_run_heist,
-                    args=(i,),
-                    name=f"heist-c{campaign_id}-r{round_idx}-ai{i}",
-                )
-                for i in range(num_ais)
-            ]
-            for t in heist_threads:
-                t.start()
-            for t in heist_threads:
-                t.join()
+                heist_threads = [
+                    threading.Thread(
+                        target=_run_heist,
+                        args=(i,),
+                        name=f"heist-c{campaign_id}-r{round_idx}-ai{i}",
+                    )
+                    for i in range(num_ais)
+                ]
+                for t in heist_threads:
+                    t.start()
+                for t in heist_threads:
+                    t.join()
+
+            # Heist-take checkpoint (Option B): persist each team's heist result
+            # so reflection can settle without re-running the heist on resume.
+            # Runs whether or not the heist stage executed this iteration — for a
+            # resumed reflection (heist skipped) it keeps the reconstructed
+            # pending_heist; for a fresh heist it records the new result.
+            for i in range(num_ais):
+                st = heist_states[i]
+                if st is not None:
+                    pending_heist_per_ai[i] = {
+                        "final_take": st.final_take,
+                        "heat": st.heat,
+                        "caught_member_ids": list(st.caught_member_ids),
+                        "job_name": st.job.name,
+                        "aborted": st.aborted,
+                        "escape_success": st.escape_success,
+                    }
             snapshot_all()
 
             # ── Stage 4: Reflection + settle ─────────────────────────────────
@@ -955,15 +1078,40 @@ def run_campaign_conductor(campaign_id: int, num_rounds: int) -> None:
             any_ended = False
             for i in range(num_ais):
                 camp = campaigns[i]
-                state = heist_states[i]
-                if camp is None or state is None:
+                if camp is None or _campaign_ended(camp):
                     continue
-                _reflection_call(
-                    camp, i, round_idx, ais[i],
-                    game_states_after, logs_per_ai[i],
-                    make_emit_fn(i),
-                )
-                ended = settle_round(camp, state)
+                # Settle-once: skip any team whose RoundResult for this round was
+                # already banked on a prior (crashed) attempt.
+                if len(camp.round_results) > round_idx:
+                    pending_heist_per_ai[i] = None
+                    continue
+                state = heist_states[i]
+                ph = pending_heist_per_ai[i]
+                if state is None and ph is None:
+                    # No heist happened for this team this round — nothing to settle.
+                    continue
+                if state is not None:
+                    _reflection_call(
+                        camp, i, round_idx, ais[i],
+                        game_states_after, logs_per_ai[i],
+                        make_emit_fn(i),
+                    )
+                    ended = settle_round(camp, state)
+                elif ph is not None:
+                    # Resumed from checkpoint: settle from the persisted heist
+                    # result without re-running the heist (the reflection
+                    # commentary for this one round is skipped — cosmetic only).
+                    ended = _settle_round_core(
+                        camp,
+                        final_take=int(ph.get("final_take", 0)),
+                        heat=int(ph.get("heat", 0)),
+                        caught_member_ids=list(ph.get("caught_member_ids", []) or []),
+                        job_name=str(ph.get("job_name", "")),
+                        aborted=bool(ph.get("aborted", False)),
+                        escape_success=ph.get("escape_success"),
+                    )
+                # Consumed — clear so the next round's heist runs normally.
+                pending_heist_per_ai[i] = None
                 if ended:
                     any_ended = True
             snapshot_all()
@@ -990,3 +1138,6 @@ def run_campaign_conductor(campaign_id: int, num_rounds: int) -> None:
         )
         snapshot_all(finished=True)
         gamestate.broadcast({"type": "campaign_done", "campaign_id": campaign_id})
+    finally:
+        with gamestate.lock:
+            gamestate.runtime.active_campaigns.discard(campaign_id)
