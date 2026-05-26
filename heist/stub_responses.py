@@ -127,6 +127,14 @@ def _round_bid_response(prompt: str) -> str:
     })
 
 
+def _scout_response(prompt: str) -> str:
+    """Stub scouting: probe the physical defense of the first job or two on the
+    slate, so the scout path + reveal events get exercised end-to-end."""
+    names = re.findall(r"- '([^']+)':", prompt)
+    probes = [{"job": nm, "category": "physical"} for nm in names[:2]]
+    return json.dumps({"probes": probes, "rationale": "Case the nearest physical defenses."})
+
+
 def _job_response(job_name: str) -> str:
     return json.dumps({
         "job_name": job_name,
@@ -183,6 +191,8 @@ class _GenericStub(StubHeistAI):
         return AgentTurn(text=text, session_id="stub-session")
 
     def _dispatch(self, prompt: str) -> str:
+        if "SCOUTING — before you pick" in prompt:
+            return _scout_response(prompt)
         if "of crew bidding" in prompt:
             return _round_bid_response(prompt)
         if "Draft your crew" in prompt:

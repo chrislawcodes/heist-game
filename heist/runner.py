@@ -30,6 +30,7 @@ from heist.mechanics import (
     Outcome,
     effective_skill,
     escape_resolves,
+    free_probe_budget,
     job_is_viable,
     outcome_is_pass,
 )
@@ -43,6 +44,7 @@ from heist.prompts import (
     _scene_assign_prompt,
     _scene_decision_prompt,
     _scene_narrate_prompt,
+    _scout_prompt,
     _summary_prompt,
 )
 from heist.resolution import (
@@ -53,6 +55,7 @@ from heist.resolution import (
     _scene_category,
     _validate_bids,
 )
+from heist.scouting import apply_probes, roll_slate_scores
 from heist.state import (
     Campaign,
     Character,
@@ -61,6 +64,7 @@ from heist.state import (
     HiddenDepthRoll,
     Scene,
     SceneResult,
+    ScoutState,
     SkillLevel,
     TurnLog,
 )
@@ -369,6 +373,37 @@ def _run_scene_loop(
         )
 
 
+def _run_scout_turn(
+    crew: Crew,
+    available_jobs: list,
+    slate_scores: dict[str, dict[str, int]],
+    ai: HeistAI,
+    logs: list[TurnLog],
+    emit: EmitFn,
+) -> ScoutState:
+    """Pre-commit scouting: the AI probes the slate to reveal exact 1-10 challenge
+    scores within its free budget (crew size + best-driver bonus). Emits a
+    `scouted` event per applied probe so the viewer can reveal incrementally."""
+    scout_state = ScoutState(free_probes=free_probe_budget(crew.members))
+    if scout_state.free_probes <= 0:
+        return scout_state
+    try:
+        _, parsed = _call_json(
+            ai, _scout_prompt(crew, available_jobs, scout_state), "scout", logs, emit
+        )
+    except Exception as exc:
+        log.warn("scout_turn_failed", error=str(exc))
+        return scout_state
+    probes = parsed.get("probes", []) if isinstance(parsed, dict) else []
+    events = apply_probes(
+        scout_state, slate_scores, probes if isinstance(probes, list) else []
+    )
+    if emit:
+        for ev in events:
+            emit(ev)
+    return scout_state
+
+
 def run_one_job(
     strategy: str,
     ai: HeistAI,
@@ -398,10 +433,17 @@ def run_one_job(
         "campaign_round": campaign.round_idx,
     }
 
-    # Job pick with campaign context prepended.
+    # Roll this round's hidden challenge scores for the whole slate, then let the
+    # crew scout before committing. The picked job reuses its rolled scores.
+    slate_scores = roll_slate_scores(available_jobs, rng)
+    scout_state = _run_scout_turn(crew, available_jobs, slate_scores, ai, logs, emit)
+
+    # Job pick with campaign context prepended (slate shows any scouted exacts).
     ctx = _campaign_context(campaign)
     _, job_parsed = _call_json(
-        ai, ctx + "\n\n" + _job_prompt(crew, available_jobs), "job_pick", logs, emit
+        ai,
+        ctx + "\n\n" + _job_prompt(crew, available_jobs, scout_state),
+        "job_pick", logs, emit,
     )
 
     # Validate; fall back to first available if AI picks an already-attempted job.
@@ -422,7 +464,11 @@ def run_one_job(
         emit({"type": "job_known", "job": job_to_dict(job)})
 
     hidden = _roll_hidden_depth(job, rng, emit)
-    state = HeistState(crew=crew, job=job, hidden_depth=hidden)
+    state = HeistState(
+        crew=crew, job=job, hidden_depth=hidden,
+        challenge_scores=dict(slate_scores.get(job.name, {})),
+        scout_state=scout_state,
+    )
     scenes = generate_scenes(job, hidden, rng=rng, challenge_scores=state.challenge_scores)
 
     _snapshot(
