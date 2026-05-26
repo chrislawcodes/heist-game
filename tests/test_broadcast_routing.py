@@ -132,3 +132,41 @@ def test_broadcast_appends_to_event_history_regardless_of_game_id():
     gs.broadcast({"type": "pong"})
 
     assert len(gs.event_history) == 2
+
+
+# ---------------------------------------------------------------------------
+# (c) campaign-conductor events route to the campaign, not a heist sub-game
+# ---------------------------------------------------------------------------
+
+def test_campaign_event_routes_to_campaign_not_running_subgame():
+    """A campaign_* event (campaign_id, no game_id) lands in the campaign's
+    own log — never in a concurrently-running heist sub-game's stream.
+
+    Regression: the most-recently-running fallback used to file conductor
+    events (campaign_stage / campaign_round_done / campaign_done) into the
+    active heist sub-game, corrupting that sub-game's step-by-step replay.
+    """
+    gs.games[1] = _make_game(1, status="running")   # the campaign record
+    gs.games[2] = _make_game(2, status="running")   # an active heist sub-game
+
+    gs.broadcast({"type": "campaign_stage", "campaign_id": 1, "stage": "hiring"})
+    gs.broadcast({"type": "campaign_round_done", "campaign_id": 1, "round_idx": 0})
+
+    assert len(gs.games[1]["events"]) == 2
+    assert [e["type"] for e in gs.games[1]["events"]] == [
+        "campaign_stage", "campaign_round_done",
+    ]
+    # The heist sub-game's stream stays clean.
+    assert len(gs.games[2]["events"]) == 0
+
+
+def test_game_id_wins_over_campaign_id_when_both_present():
+    """An event carrying both ids routes by game_id (the sub-game), so heist
+    and reflection events stay in their round's sub-game stream."""
+    gs.games[1] = _make_game(1, status="running")   # campaign
+    gs.games[2] = _make_game(2, status="running")   # heist sub-game
+
+    gs.broadcast({"type": "scene_done", "game_id": 2, "campaign_id": 1})
+
+    assert len(gs.games[2]["events"]) == 1
+    assert len(gs.games[1]["events"]) == 0

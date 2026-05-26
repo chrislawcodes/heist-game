@@ -562,6 +562,11 @@ function _attachStrategyToStarts(events) {
 // ── isVisibleEvent: true for events that produce a visible DOM change ─────────
 function _isVisibleEvent(e) {
   if (e.type === 'hidden_depth_rolled') return false;
+  // Campaign-conductor events (campaign_stage / campaign_round_done /
+  // campaign_done) can leak into an older sub-game's persisted event log.
+  // The hire/heist replay has no renderer for them, so they would otherwise
+  // surface as blank, dead stop-points. Never treat them as visible stages.
+  if (typeof e.type === 'string' && e.type.startsWith('campaign_')) return false;
   if (e.type === 'turn_start') {
     // Auction bid starts are visible: they show the strategy card before chips
     // land, so the user sees intent before the bids are revealed.
