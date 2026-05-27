@@ -204,6 +204,22 @@ class RoundResult:
     crew_ids: list[int] = field(default_factory=list)
     # PHASE 4 — what the crew scouted this round: [{job, category, score}].
     scouted: list[dict] = field(default_factory=list)
+    # CONTESTED BOARD — the board this team saw this round, and whether it lost
+    # its first choice to a lower-banked rival.
+    board: list[str] = field(default_factory=list)
+    contested: bool = False
+
+
+@dataclass
+class BoardRound:
+    """One round's contested job board — emitted as events and persisted so
+    replay/resume restore the exact board and contention outcome without the
+    viewer recomputing anything (two-lane rule)."""
+    round_idx: int
+    board: list[str] = field(default_factory=list)          # ≤8 job names shown
+    pick_order: list[int] = field(default_factory=list)     # ai_idx ascending by banked
+    claims: dict[int, str] = field(default_factory=dict)    # ai_idx -> claimed job
+    contested: list[dict] = field(default_factory=list)     # [{ai_idx, wanted, got}]
 
 
 @dataclass
@@ -215,6 +231,10 @@ class Campaign:
     round_results: list[RoundResult] = field(default_factory=list)
     num_ais: int = 1
     between_round_log: list[dict] = field(default_factory=list)
+    # CONTESTED BOARD — job names any team has attempted (consumed globally,
+    # never re-offered). Single-AI: authoritative here. Multi-AI: the conductor
+    # owns the shared set and mirrors it into each per-AI campaign each round.
+    consumed_jobs: set[str] = field(default_factory=set)
 
     @property
     def round_idx(self) -> int:
