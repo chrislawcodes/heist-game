@@ -718,30 +718,31 @@ _RAW_ROSTER: list[Character] = [
     ),
     Character(
         id=21,
-        name='Bruna "Anvil" Costa',
+        name='Soo-jin "Anvil" Han',
         skills={},
         skill_scores={"muscle": 9, "driver": 6},
         floor_cost=0,
         backstory=(
-            "Afro-Brazilian former competitive strongwoman who ran the door at São Paulo's "
-            "roughest clubs and drove armored cash transport on the side — until she realized "
-            "she understood the trucks, and the people loading them, better than her bosses did."
+            "Korean former Olympic weightlifter who lost her medal and her funding to a doping "
+            "test she still swears was sabotage. Spent two angry years driving forklifts and box "
+            "trucks in a Busan port before someone offered her work where the strength and the "
+            "steering both mattered."
         ),
         voice=(
-            "Calm and dry, with a wrestler's economy of words. Lets a long silence do the work "
-            "a threat would. When she finally jokes, it lands hard."
+            "Spare and even — answers in as few words as the question allows. Lets a long "
+            "silence do the work a threat would; when she finally jokes, it lands hard."
         ),
         motivation=(
-            "Putting her two nephews through school back home, and buying back the gym her old "
-            "coach lost to the bank."
+            "Clearing her name is impossible, so she'll settle for never needing anyone's "
+            "permission again — and a gym of her own."
         ),
         quirk="Chalks her hands before anything physical, even when there's nothing to grip.",
         crew_dynamic="The steady center of the crew — says little, but the room organizes around where she stands.",
-        weakness="An old competition knee that buckles without warning on stairs and long sprints.",
+        weakness="The shoulder that ended her career still gives out under a sudden full load.",
         look=(
-            "Powerfully built Afro-Brazilian woman in her late thirties: close-cropped hair, "
-            "broad shoulders, a faint scar through one eyebrow, calm steady eyes. Chalked "
-            "forearms, sleeves pushed up."
+            "Powerfully built Korean woman in her late thirties: close-cropped hair, broad "
+            "shoulders, a lifter's thick wrists and forearms, a calm flat gaze. Chalked hands, "
+            "sleeves pushed up."
         ),
         signature_line='"Stay behind me. It\'s simpler for everyone."',
     ),
