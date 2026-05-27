@@ -316,7 +316,8 @@ _RAW_ROSTER: list[Character] = [
             "volunteer refreshment table at galas, fundraisers, and receptions. Every room "
             "taught her the same thing: an older woman with a coffee urn and a tray of pastries "
             "is the one person nobody watches, questions, or remembers. A VISITOR badge and full "
-            "hands get her anywhere — and she walks back out with more than the empties."
+            "hands get her anywhere — and she leaves with more than the empties: the petty cash, "
+            "the loose jewelry, whatever a desk drawer or display case was hiding."
         ),
         voice=(
             "Warm and unhurried, grandmotherly — the easy kindness of someone who's poured ten "
@@ -327,7 +328,7 @@ _RAW_ROSTER: list[Character] = [
             "Put three foster kids through the same system she aged out of herself. Now she's "
             "saving for the day she never has to clock in for anyone again."
         ),
-        quirk="Always carrying something — a tray, a coffee pot, a stack of folding chairs. Nobody stops an older woman with her hands full.",
+        quirk="Quick, quiet hands — pours your coffee with one and has the desk drawer open with the other. A hairpin handles most small locks, and nobody ever stops an older woman whose hands are full.",
         crew_dynamic=(
             "Mother-hen energy that's half real, half tool: mends the crew's nerves and their "
             "shirt buttons, and keeps a quiet tally of who owes her."

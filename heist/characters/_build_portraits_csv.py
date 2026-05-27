@@ -220,10 +220,10 @@ CHARACTERS: list[dict] = [
     {
         "id": 9, "file": "c09_pearl", "name": "Pearl Sutton",
         "skills": "Inside Man 7, Safecracker 3", "floor_cost": 295_000,
-        "backstory": "Decades in event hospitality — hotel banquets, conference catering, and lately the volunteer refreshment table at galas, fundraisers, and receptions. Every room taught her the same thing: an older woman with a coffee urn and a tray of pastries is the one person nobody watches, questions, or remembers. A VISITOR badge and full hands get her anywhere — and she walks back out with more than the empties.",
+        "backstory": "Decades in event hospitality — hotel banquets, conference catering, and lately the volunteer refreshment table at galas, fundraisers, and receptions. Every room taught her the same thing: an older woman with a coffee urn and a tray of pastries is the one person nobody watches, questions, or remembers. A VISITOR badge and full hands get her anywhere — and she leaves with more than the empties: the petty cash, the loose jewelry, whatever a desk drawer or display case was hiding.",
         "voice": "Warm and unhurried, grandmotherly — the easy kindness of someone who's poured ten thousand cups of coffee and remembered every name. Goes flat and precise the instant the door closes.",
         "motivation": "Put three foster kids through the same system she aged out of herself. Now she's saving for the day she never has to clock in for anyone again.",
-        "quirk": "Always carrying something — a tray, a coffee pot, a stack of folding chairs. Nobody stops an older woman with her hands full.",
+        "quirk": "Quick, quiet hands — pours your coffee with one and has the desk drawer open with the other. A hairpin handles most small locks, and nobody ever stops an older woman whose hands are full.",
         "crew_dynamic": "Mother-hen energy that's half real, half tool: mends the crew's nerves and their shirt buttons, and keeps a quiet tally of who owes her.",
         "weakness": "Can't help fixing things — squares a crooked tray, straightens a stranger's collar — and the help who's too attentive is the help that gets noticed.",
         "look": (
