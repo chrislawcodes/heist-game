@@ -404,6 +404,38 @@ def _run_scout_turn(
     return scout_state
 
 
+def pick_job_from_board(
+    ai: HeistAI,
+    crew: Crew,
+    available_jobs: list,
+    scout_state: ScoutState,
+    campaign: Campaign,
+    logs: list[TurnLog],
+    emit: EmitFn,
+) -> Any:
+    """Ask the AI to pick a job from the board; fall back to the first available
+    if it names an off-board / already-taken job. Returns the chosen Job.
+
+    Extracted so the multi-AI conductor can resolve contention with the same
+    pick + fallback logic the single-AI path uses."""
+    ctx = _campaign_context(campaign)
+    _, job_parsed = _call_json(
+        ai,
+        ctx + "\n\n" + _job_prompt(crew, available_jobs, scout_state),
+        "job_pick", logs, emit,
+    )
+    jobs_by_name = {j.name: j for j in available_jobs}
+    name = job_parsed.get("job_name", "") if isinstance(job_parsed, dict) else ""
+    if name not in jobs_by_name:
+        log.warn(
+            "job_pick_fallback",
+            picked=name,
+            available=[j.name for j in available_jobs],
+        )
+        name = available_jobs[0].name
+    return jobs_by_name[name]
+
+
 def run_one_job(
     strategy: str,
     ai: HeistAI,
@@ -412,13 +444,24 @@ def run_one_job(
     rng: random.Random,
     emit: EmitFn = None,
     snapshot_fn: SnapshotFn = None,
+    board: list | None = None,
+    assigned_job: Any | None = None,
+    slate_scores: dict[str, dict[str, int]] | None = None,
+    scout_state: ScoutState | None = None,
 ) -> tuple[HeistState, dict[str, Any]] | None:
-    """Run one campaign round. Returns (state, extras) or None if job pool empty."""
+    """Run one campaign round. Returns (state, extras) or None if no jobs.
+
+    The slate is ``board`` (the round's contested board) when provided, else the
+    full ``JOBS`` pool (single-heist / legacy). When ``assigned_job`` is given
+    (the conductor already resolved contention) the internal job-pick is skipped.
+    ``slate_scores`` / ``scout_state`` may be supplied by the conductor so its
+    board-stage scouting carries into the heist; otherwise they're computed here.
+    """
     from heist.scenes import generate_scenes
     from heist.state import Crew
 
-    available_jobs = list(JOBS)
-    if not available_jobs:
+    available_jobs = list(board) if board is not None else list(JOBS)
+    if not available_jobs and assigned_job is None:
         return None
 
     crew = Crew(members=list(campaign.standing_crew))
@@ -433,30 +476,18 @@ def run_one_job(
         "campaign_round": campaign.round_idx,
     }
 
-    # Roll this round's hidden challenge scores for the whole slate, then let the
-    # crew scout before committing. The picked job reuses its rolled scores.
-    slate_scores = roll_slate_scores(available_jobs, rng)
-    scout_state = _run_scout_turn(crew, available_jobs, slate_scores, ai, logs, emit)
+    # Roll the round's hidden challenge scores for the board (the conductor may
+    # supply a shared roll), then scout before committing. The picked job reuses
+    # its rolled scores.
+    if slate_scores is None:
+        slate_scores = roll_slate_scores(available_jobs, rng)
+    if scout_state is None:
+        scout_state = _run_scout_turn(crew, available_jobs, slate_scores, ai, logs, emit)
 
-    # Job pick with campaign context prepended (slate shows any scouted exacts).
-    ctx = _campaign_context(campaign)
-    _, job_parsed = _call_json(
-        ai,
-        ctx + "\n\n" + _job_prompt(crew, available_jobs, scout_state),
-        "job_pick", logs, emit,
-    )
-
-    # Validate; fall back to first available if AI picks an already-attempted job.
-    jobs_by_name = {j.name: j for j in available_jobs}
-    name = job_parsed.get("job_name", "")
-    if name not in jobs_by_name:
-        log.warn(
-            "job_pick_fallback",
-            picked=name,
-            available=[j.name for j in available_jobs],
-        )
-        name = available_jobs[0].name
-    job = jobs_by_name[name]
+    if assigned_job is not None:
+        job = assigned_job
+    else:
+        job = pick_job_from_board(ai, crew, available_jobs, scout_state, campaign, logs, emit)
 
     if emit:
         from heist.serialize import job_to_dict
