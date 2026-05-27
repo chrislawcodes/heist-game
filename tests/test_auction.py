@@ -364,7 +364,7 @@ def test_run_auction_end_to_end_with_stub_ais():
     assert isinstance(result.crews[1], Crew)
     assert [c.id for c in result.crews[0].members] == [2, 6, 8, 10]
     assert [c.id for c in result.crews[1].members] == [9, 11, 12, 14]
-    assert result.bankrolls_spent == {0: 1_285_000, 1: 925_000}
+    assert result.bankrolls_spent == {0: 1_510_000, 1: 925_000}
     assert result.rounds
     assert any(evt["type"] == "auction_round_resolved" for evt in broadcast_events)
     assert any(evt["type"] == "crew_known" for evt in turn_events)

@@ -196,26 +196,24 @@ CHARACTERS: list[dict] = [
     },
     {
         "id": 8, "file": "c08_theo", "name": "Theo Kapoor",
-        "skills": "Inside Man M", "floor_cost": 200_000,
-        "backstory": "Failed actor — three years off-Broadway, then a long slide into voiceover work and stand-in gigs. A director he respected once told him he was 'always lying about the wrong thing.' He took it badly, then he took it as a job description.",
+        "skills": "Inside Man 8", "floor_cost": 425_000,
+        "backstory": "Second-generation Indian-American from New Jersey, trained at Juilliard, then three years off-Broadway cast as 'terrorist #2' and 'exotic friend.' A director he respected told him he was 'always lying about the wrong thing.' He took it badly, then took it as a job description.",
         "voice": "Smooth and adaptable. Has a default voice for the road and an actor's range underneath. Hums between sentences.",
         "motivation": "Still wants to be on a stage. Tells himself the work funds the gap until his next callback, even though it has been the work for nine years now.",
         "quirk": "Says 'well, well, well' before lying. Has not noticed this tell yet.",
         "crew_dynamic": "Charming, slightly performative. Reads the room well, gets a little resentful when the room reads him back.",
         "weakness": "Can't take direction from people he thinks are less talented than he is. Which is most people.",
         "look": (
-            "Three-quarter angle, soft confident smile mid-sentence. "
-            "An Indian-American man in his early forties — dark brown hair pushed back, a small "
-            "earring in the left ear, a close-trimmed beard going grey at the chin. Open-collar "
-            "shirt under a cardigan. One hand gesturing slightly. Light hatching, expressive "
-            "eyes that are performing sincerity and doing a good job of it."
+            "Three-quarter angle, half his attention on you and half on the mirror. An "
+            "Indian-American man in his early forties: dark hair swept back, a small left "
+            "earring, a close-trimmed greying beard. A sharp jacket half-on over an open "
+            "collar. A practiced, magnetic half-smile that's quietly selling you something."
         ),
         "setting": (
-            "A theater dressing room — a mirror ringed with bare bulbs behind him (rendered "
-            "as bright hatched circles), a counter scattered with makeup, rolled scripts, and "
-            "a half-empty coffee cup. A costume rack at the edge of frame shows suit jackets "
-            "on hangers. His own headshot photograph is tucked in the corner of the mirror, "
-            "slightly curled at the edges. The room smells like ambition and cold coffee."
+            "A theater dressing room — a mirror ringed with bare bulbs throwing hard "
+            "cross-hatched light, costume pieces and a wig block in the shadows behind him, a "
+            "scatter of fake IDs and event lanyards among the greasepaint on the counter. The "
+            "bright mirror and the black room read like two of him."
         ),
         "signature_line": '"Well, well, well — you must be the host."',
     },
@@ -488,24 +486,24 @@ CHARACTERS: list[dict] = [
         "signature_line": '"Everything\'s got a seam. Give me a minute to find it."',
     },
     {
-        "id": 20, "file": "c20_renata", "name": 'Renata "Echo" Salazar',
+        "id": 20, "file": "c20_rafael", "name": 'Rafael "Echo" Salazar',
         "skills": "Inside Man 9, Hacker 5", "floor_cost": 750_000,
-        "backstory": "Former corporate-intelligence interrogator who realized a forged badge and a warm smile got her more than any subpoena. Left the firm the day they tried to make her testify against the wrong people.",
-        "voice": "Warm and precise. Mirrors your cadence back within a sentence so you feel understood. Never raises her voice.",
-        "motivation": "Proving she was always the smartest person in rooms built to overlook her.",
+        "backstory": "Former corporate-intelligence interrogator who realized a forged badge and a warm smile got him more than any subpoena. Left the firm the day they tried to make him testify against the wrong people.",
+        "voice": "Warm and precise. Mirrors your cadence back within a sentence so you feel understood. Never raises his voice.",
+        "motivation": "Proving he was always the smartest person in rooms built to overlook him.",
         "quirk": "Repeats your last two words back as a question to keep you talking.",
         "crew_dynamic": "Runs the human layer like a switchboard. The crew's default face.",
         "weakness": "Can't resist a genuinely clever mark — slows down to enjoy the duel.",
         "look": (
-            "Straight-on, eye-level, composed. A Latina woman in her forties, deliberately "
+            "Straight-on, eye-level, composed. A Latino man in his forties, deliberately "
             "ordinary — neat blazer, simple haircut, the most forgettable person in any room by "
             "design. Soft, attentive eyes that miss nothing and a warm, disarming half-smile. "
-            "A visitor badge clipped to her lapel."
+            "A visitor badge clipped to his lapel."
         ),
         "setting": (
             "A polished public lobby at night, mostly dark: a reception desk and turnstiles "
-            "softly cross-hatched behind her, a wall clock, a potted plant. A single overhead "
-            "light pools on her; she holds a phone loosely, mid-conversation with someone just "
+            "softly cross-hatched behind him, a wall clock, a potted plant. A single overhead "
+            "light pools on him; he holds a phone loosely, mid-conversation with someone just "
             "out of frame."
         ),
         "signature_line": '"...by design? Tell me more about \'by design.\'"',
