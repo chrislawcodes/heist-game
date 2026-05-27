@@ -35,7 +35,7 @@ def _with_derived(c: Character) -> Character:
 _RAW_ROSTER: list[Character] = [
     Character(
         id=1,
-        name='Marcus "Prodigy" Renault',
+        name='Marcus "Prodigy"',
         skills={"hacker": H, "driver": L},
         skill_scores={"hacker": 10, "driver": 2},
         floor_cost=1_200_000,
@@ -134,7 +134,7 @@ _RAW_ROSTER: list[Character] = [
     ),
     Character(
         id=4,
-        name='Vance "The Wall" Tobin',
+        name='Vance "The Wall"',
         skills={"muscle": H},
         skill_scores={"muscle": 8},
         floor_cost=425_000,
@@ -233,7 +233,7 @@ _RAW_ROSTER: list[Character] = [
     ),
     Character(
         id=7,
-        name='Lin "Closer" Chen',
+        name='Lin "Closer"',
         skills={"inside_man": H, "safecracker": L},
         skill_scores={"inside_man": 9, "safecracker": 2},
         floor_cost=700_000,
@@ -380,7 +380,7 @@ _RAW_ROSTER: list[Character] = [
     ),
     Character(
         id=11,
-        name='Jolene "Jo" Hayes',
+        name='Jolene "Jo"',
         skills={"safecracker": M, "hacker": L},
         skill_scores={"safecracker": 6, "hacker": 4},
         floor_cost=200_000,
@@ -556,7 +556,7 @@ _RAW_ROSTER: list[Character] = [
     ),
     Character(
         id=16,
-        name='Valentina "Val" Cruz',
+        name='Valentina "Val"',
         skills={"muscle": M, "inside_man": L},
         skill_scores={"muscle": 5, "inside_man": 5},
         floor_cost=200_000,
@@ -597,7 +597,7 @@ _RAW_ROSTER: list[Character] = [
     ),
     Character(
         id=17,
-        name='Priya "Patch" Iyer',
+        name='Priya "Patch"',
         skills={"hacker": M},
         skill_scores={"hacker": 7, "inside_man": 5},
         floor_cost=275_000,
@@ -633,7 +633,7 @@ _RAW_ROSTER: list[Character] = [
     ),
     Character(
         id=18,
-        name='Nadia "Relay" Santos',
+        name='Nadia "Relay"',
         skills={},
         skill_scores={"hacker": 8, "driver": 6},
         floor_cost=0,
@@ -665,7 +665,7 @@ _RAW_ROSTER: list[Character] = [
     ),
     Character(
         id=19,
-        name='Tavita "Crowbar" Faleolo',
+        name='Tavita "Crowbar"',
         skills={},
         skill_scores={"safecracker": 8, "muscle": 6},
         floor_cost=0,
@@ -692,7 +692,7 @@ _RAW_ROSTER: list[Character] = [
     ),
     Character(
         id=20,
-        name='Rafael "Echo" Salazar',
+        name='Rafael "Echo"',
         skills={},
         skill_scores={"inside_man": 9, "hacker": 5},
         floor_cost=0,
@@ -719,7 +719,7 @@ _RAW_ROSTER: list[Character] = [
     ),
     Character(
         id=21,
-        name='Soo-jin "Anvil" Han',
+        name='Soo-jin "Anvil"',
         skills={},
         skill_scores={"muscle": 9, "driver": 6},
         floor_cost=0,
