@@ -17,7 +17,7 @@ from pathlib import Path
 
 CHARACTERS: list[dict] = [
     {
-        "id": 1, "file": "c01_marcus", "name": 'Marcus "Prodigy" Renault',
+        "id": 1, "file": "c01_marcus", "name": 'Marcus "Prodigy"',
         "skills": "Hacker H, Driver L", "floor_cost": 1_100_000,
         "backstory": "Got caught running a botnet at seventeen in Lyon, did three years in a French juvenile facility, came out at twenty already too well-known for legitimate work, fell into corporate espionage by twenty-two.",
         "voice": "Switches between rapid French-accented English and dead silence. Doesn't joke, doesn't notice when other people do. Uses 'obviously' too much.",
@@ -96,7 +96,7 @@ CHARACTERS: list[dict] = [
         "signature_line": '"Sweetheart, count again. There\'s eleven."',
     },
     {
-        "id": 4, "file": "c04_vance", "name": 'Vance "The Wall" Tobin',
+        "id": 4, "file": "c04_vance", "name": 'Vance "The Wall"',
         "skills": "Muscle H", "floor_cost": 700_000,
         "backstory": "Heavyweight boxer out of Detroit, ranked top twenty in the late 2000s. Got knocked out by a southpaw he should have beaten, took a head injury, never fought again. The pension stopped at $1,200 a month.",
         "voice": "Slow and deliberate, like every word costs him a thought. Pronounces every consonant. Calls everyone 'boss' — even people he doesn't respect.",
@@ -170,7 +170,7 @@ CHARACTERS: list[dict] = [
         "signature_line": '"Hey hey, what\'re we doin\'? Talk to me here."',
     },
     {
-        "id": 7, "file": "c07_lin", "name": 'Lin "Closer" Chen',
+        "id": 7, "file": "c07_lin", "name": 'Lin "Closer"',
         "skills": "Inside Man H, Safecracker L", "floor_cost": 1_100_000,
         "backstory": "Stanford MBA, recruited into McKinsey out of school, washed out after refusing to falsify a client's quarterly report. The career was over either way; she chose the version that paid more.",
         "voice": "Crystal-clear, mid-tempo, never raised. Uses business-school vocabulary on purpose — 'stakeholder alignment,' 'downside scenario.'",
@@ -267,7 +267,7 @@ CHARACTERS: list[dict] = [
         "signature_line": '"Quiet, please. I need to listen."',
     },
     {
-        "id": 11, "file": "c11_jolene", "name": 'Jolene "Jo" Hayes',
+        "id": 11, "file": "c11_jolene", "name": 'Jolene "Jo"',
         "skills": "Safecracker M, Hacker L", "floor_cost": 400_000,
         "backstory": "Grew up in Tulsa, daughter of a competitive locksmith champion who never paid for a hotel because he could open the door of the room next to his. Picked up some computer security in community college because the local jobs all wanted both.",
         "voice": "Easy Oklahoma drawl, says 'y'all' without irony. Talks through her work out loud — sometimes to the lock, sometimes to no one.",
@@ -395,7 +395,7 @@ CHARACTERS: list[dict] = [
         "signature_line": '"Lord have mercy. Where do you want it?"',
     },
     {
-        "id": 16, "file": "c16_val", "name": 'Valentina "Val" Cruz',
+        "id": 16, "file": "c16_val", "name": 'Valentina "Val"',
         "skills": "Muscle M, Inside Man L", "floor_cost": 400_000,
         "backstory": "Eight years as a Cook County corrections officer in Chicago — knew every shift pattern, every blind spot, every guard who'd look the other way for the right story. Left after a use-of-force review that went nowhere. Does asset recovery now.",
         "voice": "Flat Chicago working-class. Short sentences. Doesn't explain herself twice. When she laughs it surprises people — loud and genuine, gone in a second.",
@@ -419,7 +419,7 @@ CHARACTERS: list[dict] = [
         "signature_line": '"I\'ve been on the other side of this door. Trust me."',
     },
     {
-        "id": 17, "file": "c17_priya", "name": 'Priya "Patch" Iyer',
+        "id": 17, "file": "c17_priya", "name": 'Priya "Patch"',
         "skills": "Hacker 7, Inside 5", "floor_cost": 325_000,
         "backstory": "Ran security for a regional hospital network until she flagged a breach the board wanted buried; fired the week before her options vested. Freelances now, and keeps the termination letter laminated in her bag.",
         "voice": "Precise and deadpan. Over-explains the thing she's about to do, then does it faster than anyone expects. Says 'noted' instead of 'okay.'",
@@ -442,7 +442,7 @@ CHARACTERS: list[dict] = [
         "signature_line": '"Give me four minutes and a clean port. Noted."',
     },
     {
-        "id": 18, "file": "c18_nadia", "name": 'Nadia "Relay" Santos',
+        "id": 18, "file": "c18_nadia", "name": 'Nadia "Relay"',
         "skills": "Hacker 8, Driver 6", "floor_cost": 525_000,
         "backstory": "Manila-raised; ran traffic-cam and toll-system intrusions for a rideshare syndicate before going independent, and learned to drive in EDSA gridlock. She'd rather own the last ten seconds than trust a stranger with them.",
         "voice": "Clipped and technical. Narrates latency and ETAs in the same breath. Calls every plan 'the relay.'",
@@ -463,7 +463,7 @@ CHARACTERS: list[dict] = [
         "signature_line": '"Window\'s nine seconds. I\'m already in, and the car\'s already moving."',
     },
     {
-        "id": 19, "file": "c19_tavita", "name": 'Tavita "Crowbar" Faleolo',
+        "id": 19, "file": "c19_tavita", "name": 'Tavita "Crowbar"',
         "skills": "Safecracker 8, Muscle 6", "floor_cost": 525_000,
         "backstory": "Samoan-New Zealander who ran demolition crews in Auckland and learned the fastest way through a wall is knowing where it's weak. Did a stretch for an 'industrial accident' that only the insurers believed was an accident.",
         "voice": "Low and unhurried. Fond of construction metaphors. Rarely finishes a coffee.",
@@ -486,7 +486,7 @@ CHARACTERS: list[dict] = [
         "signature_line": '"Everything\'s got a seam. Give me a minute to find it."',
     },
     {
-        "id": 20, "file": "c20_rafael", "name": 'Rafael "Echo" Salazar',
+        "id": 20, "file": "c20_rafael", "name": 'Rafael "Echo"',
         "skills": "Inside Man 9, Hacker 5", "floor_cost": 750_000,
         "backstory": "Former corporate-intelligence interrogator who realized a forged badge and a warm smile got him more than any subpoena. Left the firm the day they tried to make him testify against the wrong people.",
         "voice": "Warm and precise. Mirrors your cadence back within a sentence so you feel understood. Never raises his voice.",
@@ -509,7 +509,7 @@ CHARACTERS: list[dict] = [
         "signature_line": '"...by design? Tell me more about \'by design.\'"',
     },
     {
-        "id": 21, "file": "c21_soojin", "name": 'Soo-jin "Anvil" Han',
+        "id": 21, "file": "c21_soojin", "name": 'Soo-jin "Anvil"',
         "skills": "Muscle 9, Driver 6", "floor_cost": 800_000,
         "backstory": "Korean former Olympic weightlifter who lost her medal and her funding to a doping test she still swears was sabotage. Spent two angry years driving forklifts and box trucks in a Busan port before someone offered her work where the strength and the steering both mattered.",
         "voice": "Spare and even — answers in as few words as the question allows. Lets a long silence do the work a threat would; when she finally jokes, it lands hard.",

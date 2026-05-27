@@ -187,8 +187,10 @@ def _job_prompt(
         '{\n'
         '  "job_name": "<exact name>",\n'
         '  "why_this": "<why this job fits — crew skills, budget, risk>",\n'
-        '  "why_not":  "<for each of the other jobs on the slate, one sentence on '
-        'why it was a worse pick>"\n'
+        '  "why_not":  "<Group the jobs you passed on by the reason you passed — '
+        "two or three short lines, each line one reason followed by the jobs it "
+        "covers, e.g. 'Too defended for this crew: Museum Gala, Server Farm.' Put "
+        'each group on its own line. Do NOT write one sentence per job>"\n'
         "}"
     )
 

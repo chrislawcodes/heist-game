@@ -577,6 +577,7 @@ function _isVisibleEvent(e) {
     if (label === 'bid')             return true;
     if (/^bid_round_\d+$/.test(label)) return true;  // auction: each round's bids
     if (label === 'job_pick')        return true;
+    if (label === 'scout')           return true;
     if (label === 'casting_summary') return true;
     if (/^scene_\d+_(?:escape_)?narrate$/.test(label)) return true;
     return false;
@@ -1197,11 +1198,20 @@ function _railFromTurnEnd(e) {
     if (whyThis || whyNot) {
       body = '';
       if (whyThis) body += `<div class="thought-sub-head">Why this job</div>${esc(whyThis)}`;
-      if (whyNot)  body += `<div class="thought-sub-head">Why not the others</div>${esc(whyNot)}`;
+      if (whyNot)  body += `<div class="thought-sub-head">Why not the others</div>${esc(whyNot).replace(/\n/g, '<br>')}`;
     } else {
       body = esc(legacy || '—');
     }
     _addThought(aiIdx, 'job', 'Job pick', body);
+  } else if (e.label === 'scout' && e.parsed) {
+    const rationale = e.parsed.rationale || '';
+    const probes = Array.isArray(e.parsed.probes) ? e.parsed.probes : [];
+    const count = probes.length;
+    const head = count
+      ? `Cased ${count} ${count === 1 ? 'cell' : 'cells'} of the slate.`
+      : 'Looked over the slate, probed nothing.';
+    const body = rationale ? esc(rationale) : esc(head);
+    _addThought(aiIdx, 'job', 'Scouting', body);
   }
 }
 
