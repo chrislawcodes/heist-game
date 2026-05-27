@@ -219,7 +219,7 @@ CHARACTERS: list[dict] = [
     },
     {
         "id": 9, "file": "c09_pearl", "name": "Pearl Sutton",
-        "skills": "Inside Man 7, Muscle 4", "floor_cost": 275_000,
+        "skills": "Inside Man 7, Safecracker 3", "floor_cost": 295_000,
         "backstory": "Decades in event hospitality — hotel banquets, conference catering, and lately the volunteer refreshment table at galas, fundraisers, and receptions. Every room taught her the same thing: an older woman with a coffee urn and a tray of pastries is the one person nobody watches, questions, or remembers. A VISITOR badge and full hands get her anywhere — and she walks back out with more than the empties.",
         "voice": "Warm and unhurried, grandmotherly — the easy kindness of someone who's poured ten thousand cups of coffee and remembered every name. Goes flat and precise the instant the door closes.",
         "motivation": "Put three foster kids through the same system she aged out of herself. Now she's saving for the day she never has to clock in for anyone again.",

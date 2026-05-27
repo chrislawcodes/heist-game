@@ -308,9 +308,9 @@ _RAW_ROSTER: list[Character] = [
     Character(
         id=9,
         name="Pearl Sutton",
-        skills={"inside_man": M, "muscle": L},
-        skill_scores={"inside_man": 7, "muscle": 4},
-        floor_cost=275_000,
+        skills={"inside_man": M, "safecracker": L},
+        skill_scores={"inside_man": 7, "safecracker": 3},
+        floor_cost=295_000,
         backstory=(
             "Decades in event hospitality — hotel banquets, conference catering, and lately the "
             "volunteer refreshment table at galas, fundraisers, and receptions. Every room "
