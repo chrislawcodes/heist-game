@@ -418,10 +418,14 @@ const Shell = {
       const primary = Shell.helpers.primarySkill(c);
       const initials = (c.name || '?').slice(0,1).toUpperCase();
       const skillsHtml = SKILL_KEYS.map(sk => {
-        const val = Shell.helpers.skillVal(c, sk);
+        const val = Shell.helpers.skillVal(c, sk);   // 0-3 bucket count → bar segments
+        const apiKey = SKILL_SHORT_TO_API[sk];
+        // The number shows the public 1-10 score, not the 1-3 bucket the bars use.
+        const score = (c.skill_scores && c.skill_scores[apiKey] != null)
+          ? c.skill_scores[apiKey] : 0;
         const segs = Array.from({length:3}, (_, j) =>
           `<span class="seg ${j < val ? 'f-' + sk : ''}"></span>`).join('');
-        return `<div class="cc-skill"><span class="cc-skill-label">${SKILL_LABEL[sk]}</span><div class="cc-skill-bars">${segs}</div><span class="cc-skill-num${val === 0 ? ' zero' : ''}">${val}</span></div>`;
+        return `<div class="cc-skill"><span class="cc-skill-label">${SKILL_LABEL[sk]}</span><div class="cc-skill-bars">${segs}</div><span class="cc-skill-num${score === 0 ? ' zero' : ''}">${score}</span></div>`;
       }).join('');
       const idAttr = noId ? '' : ` id="cc-${c.id}"`;
       const costRow = hideCost ? '' :
