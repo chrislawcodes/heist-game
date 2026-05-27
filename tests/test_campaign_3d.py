@@ -110,9 +110,9 @@ def test_campaign_state_to_dict_coverage_uses_active_crew_only():
     crew = state["standings"][0]["crew"]
     coverage = _coverage_from_crew(crew)
     assert coverage["hack"] == 3  # Marcus "Prodigy"
-    assert coverage["safe"] == 0  # captured Rook is ignored
-    assert coverage["soc"] == 2   # Pearl Sutton
-    assert coverage["musc"] == 2  # Pearl Sutton's muscle is Medium now (v2 re-score)
+    assert coverage["safe"] == 1  # captured Rook ignored; Pearl's Low safecracker remains
+    assert coverage["soc"] == 2   # Pearl Sutton (Inside Man Medium)
+    assert coverage["musc"] == 0  # Pearl's old muscle is gone — she's now a light safecracker
     assert coverage["drive"] == 1  # Marcus' low driver support
 
 
