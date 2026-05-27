@@ -221,31 +221,26 @@ CHARACTERS: list[dict] = [
     },
     {
         "id": 9, "file": "c09_pearl", "name": "Pearl Sutton",
-        "skills": "Inside Man M, Muscle L", "floor_cost": 400_000,
-        "backstory": "Catholic boarding-school girl who ran away at sixteen, joined a small-town hustler's two-person grift in West Virginia, and learned more in eighteen months than the convent taught in eight years. The hustler is in prison; Pearl is not.",
-        "voice": "Grandmotherly Appalachian accent that disarms people in seconds. Says 'darlin'' with at least three different meanings.",
-        "motivation": "Doesn't know. Hasn't asked herself in a decade. Tells the crew it's about a great-niece's tuition — and the great-niece is real, but the tuition is paid.",
-        "quirk": "Knits during planning sessions. Gives finished scarves to crew members at the end of jobs.",
-        "crew_dynamic": "Maternal in the same way a wolf is maternal — the protectiveness is real, but so are the teeth.",
-        "weakness": "Underestimates anyone under thirty until they've proven her wrong twice.",
+        "skills": "Inside Man 7, Muscle 4", "floor_cost": 275_000,
+        "backstory": "Twenty years in hospitality — banquet halls, hotel front-of-house, a stint running a hospital cafeteria — the kind of work where a woman with a lanyard and something in her hands is invisible. She figured out she could walk into any building that hires staff, and started getting paid far better to walk back out with something.",
+        "voice": "Friendly and fast, endlessly accommodating — the practiced warmth of someone who's de-escalated a thousand complaints. Drops it the instant the door closes.",
+        "motivation": "Put three foster kids through the same system she aged out of herself. Now she's saving for the day she never has to clock in for anyone again.",
+        "quirk": "Always carrying something — a tray, a clipboard, a stack of linens. Nobody stops a woman with her hands full.",
+        "crew_dynamic": "Mother-hen energy that's half real, half tool: mends the crew's nerves and their shirt buttons, and keeps a quiet tally of who owes her.",
+        "weakness": "Can't help fixing things — squares a crooked tray, straightens a stranger's collar — and the help who's too attentive is the help that gets noticed.",
         "look": (
-            "Bust shot, slight three-quarter angle. "
-            "A white woman in her early sixties — silver hair in a low bun, deeply "
-            "weathered face with crow's-feet, half-moon reading glasses perched on "
-            "the tip of her nose, a beaded chain looping behind her neck. She wears "
-            "a thick cable-knit cardigan over a high-collar blouse with a small "
-            "antique cameo brooch at the throat. In her hands: long wooden knitting "
-            "needles mid-stitch, a half-finished scarf trailing into her lap. A "
-            "gentle, slightly sly smile that doesn't quite reach her eyes."
+            "Three-quarter angle, caught mid-step carrying a loaded tray. A plain, sturdy "
+            "woman in her late forties: sandy hair in a practical ponytail, no jewelry, an "
+            "utterly unremarkable face you forget while you're still looking at it. Catering "
+            "blacks and a venue lanyard, a warm, busy half-smile — staff, not guest."
         ),
         "setting": (
-            "A cozy Victorian parlor — patterned floral wallpaper behind her with "
-            "cross-hatched depth, a small framed family photograph hung on the wall "
-            "above her shoulder, a doily-covered side table with a leather Bible "
-            "and a porcelain teacup, the edge of a wing-back armchair. The room "
-            "reads as lived-in but nothing competes with the figure for focus."
+            "A catering staging area behind a gala — stacked banquet chairs and chafing dishes "
+            "cross-hatched into shadow, a service door spilling warm light into a dark "
+            "back-of-house corridor. She's framed in the doorway between the bright event and "
+            "the shadows she actually works in."
         ),
-        "signature_line": '"Sit down, darlin\'. Tell me how I can help."',
+        "signature_line": '"You look like you could use a hand. Right this way."',
     },
     {
         "id": 10, "file": "c10_rook", "name": "Rook Ferreira",
