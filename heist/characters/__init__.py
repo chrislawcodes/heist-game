@@ -632,14 +632,15 @@ _RAW_ROSTER: list[Character] = [
     ),
     Character(
         id=18,
-        name='Nadia "Relay" Sokolov',
+        name='Nadia "Relay" Santos',
         skills={},
         skill_scores={"hacker": 8, "driver": 6},
         floor_cost=0,
         backstory=(
-            "Estonian e-residency fraudster who learned to drive the hard way — running her "
-            "own exfil when a job soured and the wheelman never showed. Decided she'd rather "
-            "be the one who can do both than trust a stranger with the last ten seconds."
+            "Manila-raised, she ran traffic-cam and toll-system intrusions for a rideshare "
+            "syndicate before going independent — and learned to drive in EDSA gridlock, which "
+            "she swears is harder than any chase. She'd rather own the last ten seconds than "
+            "trust a stranger with them."
         ),
         voice=(
             "Clipped and technical. Narrates latency and ETAs in the same breath. "
@@ -655,21 +656,22 @@ _RAW_ROSTER: list[Character] = [
         ),
         weakness="On a comms blackout she freezes for a beat — she can't act on a network she can't see.",
         look=(
-            "Wiry woman in her early thirties: shaved-side undercut, fingerless gloves, an "
-            "earpiece always in. Restless eyes that track exits and signal bars at once."
+            "Filipina woman in her early thirties: warm brown skin, a shaved-side undercut, an "
+            "earpiece always in, fingerless gloves. Restless eyes that track exits and signal "
+            "bars at once."
         ),
         signature_line='"Window\'s nine seconds. I\'m already in, and the car\'s already moving."',
     ),
     Character(
         id=19,
-        name='Marko "Crowbar" Dvořák',
+        name='Tavita "Crowbar" Faleolo',
         skills={},
         skill_scores={"safecracker": 8, "muscle": 6},
         floor_cost=0,
         backstory=(
-            "Czech demolition foreman who learned the fastest way through a wall is knowing "
-            "exactly where it's weak. Did a stretch for an 'industrial accident' that the "
-            "insurers, and only the insurers, believed was an accident."
+            "Samoan-New Zealander who ran demolition crews in Auckland and learned the fastest "
+            "way through a wall is knowing exactly where it's weak. Did a stretch for an "
+            "'industrial accident' that the insurers, and only the insurers, believed was an accident."
         ),
         voice="Low and unhurried. Fond of construction metaphors. Rarely finishes a coffee.",
         motivation=(
@@ -681,8 +683,9 @@ _RAW_ROSTER: list[Character] = [
         ),
         weakness="Too patient — keeps working a lock well past the smart moment to walk away.",
         look=(
-            "Broad Czech man in his fifties: grey stubble, scarred knuckles, a contractor's "
-            "pencil tucked behind one ear. Moves slowly, like the floor might give."
+            "Big Samoan man in his fifties: broad and greying, a traditional pe'a tattoo just "
+            "showing below one rolled sleeve, scarred knuckles, a contractor's pencil behind one "
+            "ear. Moves slowly, like the floor might give."
         ),
         signature_line='"Everything\'s got a seam. Give me a minute to find it."',
     ),
