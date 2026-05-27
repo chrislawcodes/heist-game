@@ -1,5 +1,6 @@
 """Location/job content. The job slate lives here; content.py re-exports for back-compat."""
 
+from heist.locations._extra_jobs import NEW_JOBS
 from heist.state import ChallengeLevel, HiddenDepthElement, Job
 
 MUSEUM = Job(
@@ -810,5 +811,9 @@ JOBS: list[Job] = [
     FEDERAL_RESERVE_BRANCH,
     BILLIONAIRES_COMPOUND,
     MINT,
+    # Contested job board (spec 002, US5): the expanded pool so a 4-team,
+    # 10-round campaign never runs dry. Defined in _extra_jobs to keep the
+    # bulk content out of this file.
+    *NEW_JOBS,
 ]
 JOBS_BY_NAME: dict[str, Job] = {j.name: j for j in JOBS}

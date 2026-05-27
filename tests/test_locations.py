@@ -62,6 +62,20 @@ def test_scene_loot_pays_into_active_challenges():
             )
 
 
+def test_pool_depth_and_category_coverage():
+    """US5: ~50-job pool, and every active challenge category gates (appears at
+    HARD on) at least one job, so scouting matters across all skills."""
+    assert len(JOBS) >= 45
+    gated = {
+        cat
+        for j in JOBS
+        for cat, lvl in j.profile.items()
+        if lvl == ChallengeLevel.HARD
+    }
+    for cat in ("electronic", "physical", "confrontation", "social"):
+        assert cat in gated, f"no job gates on a Hard {cat} challenge"
+
+
 def test_edges_exist():
     """The difficulty→reward bands overlap (the scoutable mispriced jobs): at
     least one 1-Hard job out-earns the weakest 2-Hard (a bargain), and at least

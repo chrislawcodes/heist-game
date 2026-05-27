@@ -93,9 +93,9 @@
 
 **Independent Test:** pool ~50; all categories represented as gating challenges; all content tests pass; 4-team 10-round stub never exhausts the board.
 
-- [ ] T018 [heist/locations/__init__.py] Author ~35 new jobs (full content: name, flavor, profile, tier, `scene_loot`, `reward_range`, `reward_amounts`, `hidden_depth`), weighted to easy/medium, rewards on the Decision-6 curve, unique names, floor ≥ $1M. (Conflict-prone — serial; same file as T005, after it.)
-- [ ] T019 [P: heist/locations/locations_art.csv] Add an art row per new job matching the existing pipeline format.
-- [ ] T020 [tests/test_content.py + tests/test_locations.py] Update: assert pool size ~50, category coverage, all invariants + reward shape hold across the expanded pool; bump any hard-coded job-count assertions. (Serial — after T018.)
+- [x] T018 [heist/locations/__init__.py] Author ~35 new jobs (full content: name, flavor, profile, tier, `scene_loot`, `reward_range`, `reward_amounts`, `hidden_depth`), weighted to easy/medium, rewards on the Decision-6 curve, unique names, floor ≥ $1M. (Conflict-prone — serial; same file as T005, after it.)
+- [x] T019 [P: heist/locations/locations_art.csv] Add an art row per new job matching the existing pipeline format.
+- [x] T020 [tests/test_content.py + tests/test_locations.py] Update: assert pool size ~50, category coverage, all invariants + reward shape hold across the expanded pool; bump any hard-coded job-count assertions. (Serial — after T018.)
 
 **Checkpoint:** ~50-job pool passes all invariants; 4-team 10-round stub stays full; preflight green.
 

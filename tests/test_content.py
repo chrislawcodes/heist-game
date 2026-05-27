@@ -82,10 +82,14 @@ def test_each_primary_skill_has_at_least_three_specialists():
         assert primaries.get(skill, 0) >= 3, f"{skill}: {primaries.get(skill, 0)} primaries"
 
 
-def test_fifteen_jobs_present():
-    assert len(JOBS) == 15
+def test_job_pool_is_deep_and_unique():
+    """Contested job board (spec 002, US5): the pool grew to ~50 so a 4-team,
+    10-round campaign (~40 jobs consumed) never runs dry. Names stay unique and
+    the 15 core jobs are still present."""
+    assert len(JOBS) >= 45, f"pool only {len(JOBS)} jobs — too thin for 4 teams"
     names = {j.name for j in JOBS}
-    assert names == {
+    assert len(names) == len(JOBS), "duplicate job names in the pool"
+    core = {
         "The Museum Gala",
         "The Armored Car",
         "The Cargo Yard",
@@ -102,6 +106,7 @@ def test_fifteen_jobs_present():
         "Billionaire's Compound",
         "The Mint",
     }
+    assert core <= names, f"missing core jobs: {core - names}"
 
 
 def test_each_job_has_hidden_depth_and_rewards():
