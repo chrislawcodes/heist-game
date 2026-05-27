@@ -106,7 +106,8 @@ def effective_skill(members: list[Character], skill: str) -> SkillLevel:
 
 SEAT_COST = 100_000
 SKILL_PREMIUM = {
-    1: 0, 2: 0, 3: 0,
+    # Low skills cost a little now (kept under the Med-4 rung to stay monotonic).
+    1: 10_000, 2: 15_000, 3: 20_000,
     4: 25_000, 5: 50_000, 6: 100_000, 7: 175_000,
     8: 325_000, 9: 600_000, 10: 1_100_000,
 }

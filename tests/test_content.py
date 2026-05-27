@@ -25,11 +25,12 @@ def test_every_job_can_pay_out_on_a_clean_run():
 
 
 def test_roster_size_and_uniqueness():
-    assert len(ROSTER) == 17  # 16 original + Phase 4's 2nd Medium Hacker (Priya "Patch" Iyer)
+    # Phase 4 roster v2: 16 original + Priya, Nadia, and 3 elites (Marko, Renata, Tunde).
+    assert len(ROSTER) == 21
     ids = [c.id for c in ROSTER]
-    assert len(set(ids)) == 17
+    assert len(set(ids)) == 21
     names = [c.name for c in ROSTER]
-    assert len(set(names)) == 17
+    assert len(set(names)) == 21
 
 
 def test_electronic_has_a_two_medium_collab_path():
@@ -61,10 +62,10 @@ def test_no_character_is_single_low_skill():
             raise AssertionError(f"{c.name} is a forbidden 1-point single-Low character")
 
 
-def test_total_skill_points_in_range():
-    for c in ROSTER:
-        total = sum(int(lvl) for lvl in c.skills.values())
-        assert 2 <= total <= 4, f"{c.name} has {total} skill points"
+# NOTE: the old "2-4 total skill points" rule was a Phase 1-3 pricing artifact
+# (cost was a function of bucket-point totals). Phase 4 prices each skill by its
+# 1-10 score via the convex curve, so stacking is priced directly and the cap is
+# obsolete — e.g. the versatile elites (High + Medium) intentionally exceed it.
 
 
 def test_each_primary_skill_has_at_least_three_specialists():
@@ -131,10 +132,11 @@ def test_job_slate_has_difficulty_spread():
 # contradicts the roster table itself, which lists Low Inside Man on several characters
 # as a secondary skill. We preserve the table as authoritative; this test pins the
 # current set so it surfaces if membership changes unexpectedly.
-# Current LOW inside_man holders: Eli (3), Big Mike (6), Margot (14), Val Cruz (16).
+# After the Phase 4 v2 re-score, Eli/Margot/Val all moved to Medium inside_man;
+# Big Mike (6) is the only remaining LOW inside_man holder.
 def test_low_inside_man_holders():
     low_inside_ids = sorted(
         c.id for c in ROSTER
         if c.skills.get("inside_man", SkillLevel.NONE) == SkillLevel.LOW
     )
-    assert low_inside_ids == [3, 6, 14, 16]
+    assert low_inside_ids == [6]

@@ -91,9 +91,18 @@ def test_every_roster_member_matches_pricing_curve():
 
 def test_pricing_curve_examples():
     assert score_floor_cost(_char("rook", {"safecracker": 9})) == 700_000
-    assert score_floor_cost(_char("marcus", {"hacker": 10, "driver": 2})) == 1_200_000
+    # Low skills now cost $10/$15/$20k for scores 1/2/3 (Marcus' driver-2 adds $15k).
+    assert score_floor_cost(_char("marcus", {"hacker": 10, "driver": 2})) == 1_215_000
     assert score_floor_cost(_char("vance", {"muscle": 8})) == 425_000
-    assert score_floor_cost(_char("eli", {"hacker": 2, "inside_man": 3})) == 100_000
+    assert score_floor_cost(_char("eli", {"hacker": 2, "inside_man": 3})) == 135_000
+
+
+def test_low_skill_premiums():
+    # $100k seat + Low premiums (1->10k, 2->15k, 3->20k), kept under the Med-4 rung.
+    assert score_floor_cost(_char("a", {"hacker": 1})) == 110_000
+    assert score_floor_cost(_char("b", {"hacker": 2})) == 115_000
+    assert score_floor_cost(_char("c", {"hacker": 3})) == 120_000
+    assert score_floor_cost(_char("d", {"hacker": 4})) == 125_000  # Med-4 still > Low-3
 
 
 # ── rolled challenge scores stay in tier band ───────────────────────────────
