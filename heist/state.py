@@ -215,6 +215,13 @@ class Campaign:
     round_results: list[RoundResult] = field(default_factory=list)
     num_ais: int = 1
     between_round_log: list[dict] = field(default_factory=list)
+    # Phase 4 (persistent scouting): hidden 1-10 challenge scores, rolled ONCE per
+    # campaign and reused every round. Campaign-global (identical for all teams).
+    # Empty ⇒ "not yet rolled" — roll on first use.
+    slate_scores: dict[str, dict[str, int]] = field(default_factory=dict)
+    # Per-team scouting memory that carries across rounds: only `reveals` and
+    # `exact_scores` persist; the free-probe budget is granted fresh each round.
+    scout_state: ScoutState = field(default_factory=ScoutState)
 
     @property
     def round_idx(self) -> int:

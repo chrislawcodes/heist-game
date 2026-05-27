@@ -412,6 +412,11 @@ def campaign_to_dict(campaign: Campaign) -> dict:
         "standing_crew": [character_to_dict(c) for c in campaign.standing_crew],
         "round_results": [_round_result_to_dict(r) for r in campaign.round_results],
         "between_round_log": [dict(entry) for entry in campaign.between_round_log],
+        "slate_scores": {
+            j: {c: int(s) for c, s in cats.items()}
+            for j, cats in campaign.slate_scores.items()
+        },
+        "scout_state": scout_state_to_dict(campaign.scout_state),
     }
 
 
@@ -423,6 +428,11 @@ def campaign_from_dict(d: dict) -> Campaign:
         standing_crew=[character_from_dict(c) for c in d.get("standing_crew", [])],
         round_results=[_round_result_from_any(r) for r in d.get("round_results", [])],
         between_round_log=[dict(entry) for entry in d.get("between_round_log", [])],
+        slate_scores={
+            j: {c: int(s) for c, s in cats.items()}
+            for j, cats in d.get("slate_scores", {}).items()
+        },
+        scout_state=scout_state_from_dict(d.get("scout_state")),
     )
     game_id = d.get("game_id")
     if game_id is not None:
