@@ -52,10 +52,10 @@
 
 **Independent Test**: scout a cell in round 0; in round 1 it is known with no new probe and its badge shows in the replay; a second team that didn't scout it does not know it.
 
-- [ ] T008 [US2] In `heist/runner.py` `run_one_job`: build the round's working `ScoutState` pre-loaded from `campaign.scout_state` (`reveals` + `exact_scores`) but with a **fresh** `free_probes = free_probe_budget(crew.members)`; after the scout turn, merge newly revealed cells back into `campaign.scout_state`. (Same file as T004 — serial after it.)
-- [ ] T009 [US2] In `heist/runner.py` `run_one_job`: at round start, after pre-loading and before the scout turn, emit one `scouted` event per already-known cell (job, category, score, bucket) so the replay renders cumulative intel (FR-007). (Same file as T008 — serial.)
-- [ ] T010 [US2] In `heist/prompts.py`: verify `_scout_prompt`/`_job_prompt` show already-known cells (they read `scout_state`; pre-loading in T008 should suffice). Adjust only if known cells aren't surfaced so the AI doesn't re-scout.
-- [ ] T011 [P: tests/test_scout_persistence.py] [US2] Tests: a cell scouted in round 0 is known in round 1 with zero probes spent (SC-002, SC-004); re-issuing a probe for a known cell is a no-op; per-team isolation (SC-005); carried-forward `scouted` events are emitted at round start.
+- [X] T008 [US2] In `heist/runner.py` `run_one_job`: build the round's working `ScoutState` pre-loaded from `campaign.scout_state` (`reveals` + `exact_scores`) but with a **fresh** `free_probes = free_probe_budget(crew.members)`; after the scout turn, merge newly revealed cells back into `campaign.scout_state`. (Same file as T004 — serial after it.)
+- [X] T009 [US2] In `heist/runner.py` `run_one_job`: at round start, after pre-loading and before the scout turn, emit one `scouted` event per already-known cell (job, category, score, bucket) so the replay renders cumulative intel (FR-007). (Same file as T008 — serial.)
+- [X] T010 [US2] In `heist/prompts.py`: verify `_scout_prompt`/`_job_prompt` show already-known cells (they read `scout_state`; pre-loading in T008 should suffice). Adjust only if known cells aren't surfaced so the AI doesn't re-scout.
+- [X] T011 [P: tests/test_scout_persistence.py] [US2] Tests: a cell scouted in round 0 is known in round 1 with zero probes spent (SC-002, SC-004); re-issuing a probe for a known cell is a no-op; per-team isolation (SC-005); carried-forward `scouted` events are emitted at round start.
 
 **Checkpoint (MVP)**: 🚩 **Staging review** — restart the 8001 server, run a multi-round stub campaign, confirm a team's scouted badges accumulate across rounds and scores are stable. Get the user's eyes on it before US3.
 

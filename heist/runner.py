@@ -373,6 +373,34 @@ def _run_scene_loop(
         )
 
 
+def _emit_carried_scout(carried: ScoutState, emit: EmitFn) -> None:
+    """Re-emit the cells this team already knew from prior rounds so the per-round
+    replay shows cumulative intel (the engine owns the event stream — the UI never
+    reconstructs prior rounds)."""
+    if not emit:
+        return
+    from heist.mechanics import score_to_bucket
+    for job, cats in carried.exact_scores.items():
+        for category, score in cats.items():
+            emit({
+                "type": "scouted",
+                "job": job,
+                "category": category,
+                "reveal_level": "EXACT",
+                "bucket": score_to_bucket(score).name,
+                "score": score,
+                "carried": True,
+            })
+
+
+def _merge_scout_reveals(dest: ScoutState, src: ScoutState) -> None:
+    """Fold a round's working reveals back into the persistent per-team memory."""
+    for job, levels in src.reveals.items():
+        dest.reveals.setdefault(job, {}).update(levels)
+    for job, scores in src.exact_scores.items():
+        dest.exact_scores.setdefault(job, {}).update(scores)
+
+
 def _run_scout_turn(
     crew: Crew,
     available_jobs: list,
@@ -380,11 +408,20 @@ def _run_scout_turn(
     ai: HeistAI,
     logs: list[TurnLog],
     emit: EmitFn,
+    carried: ScoutState | None = None,
 ) -> ScoutState:
     """Pre-commit scouting: the AI probes the slate to reveal exact 1-10 challenge
     scores within its free budget (crew size + best-driver bonus). Emits a
-    `scouted` event per applied probe so the viewer can reveal incrementally."""
+    `scouted` event per applied probe so the viewer can reveal incrementally.
+
+    `carried` pre-loads prior-round reveals so the crew keeps what it already knows
+    (re-probing a known cell is a free no-op); the probe budget is still per-round."""
     scout_state = ScoutState(free_probes=free_probe_budget(crew.members))
+    if carried is not None:
+        scout_state.reveals = {j: dict(cats) for j, cats in carried.reveals.items()}
+        scout_state.exact_scores = {
+            j: dict(cats) for j, cats in carried.exact_scores.items()
+        }
     if scout_state.free_probes <= 0:
         return scout_state
     try:
@@ -440,7 +477,16 @@ def run_one_job(
     if not campaign.slate_scores:
         campaign.slate_scores = roll_slate_scores(available_jobs, rng)
     slate_scores = campaign.slate_scores
-    scout_state = _run_scout_turn(crew, available_jobs, slate_scores, ai, logs, emit)
+
+    # Persistent scouting: first re-emit what this team already knew (cumulative
+    # intel in the replay), then scout for MORE this round on a fresh probe budget,
+    # then fold the new reveals back into the campaign's per-team memory.
+    _emit_carried_scout(campaign.scout_state, emit)
+    scout_state = _run_scout_turn(
+        crew, available_jobs, slate_scores, ai, logs, emit,
+        carried=campaign.scout_state,
+    )
+    _merge_scout_reveals(campaign.scout_state, scout_state)
 
     # Job pick with campaign context prepended (slate shows any scouted exacts).
     ctx = _campaign_context(campaign)
