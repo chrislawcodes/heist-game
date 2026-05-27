@@ -312,30 +312,32 @@ _RAW_ROSTER: list[Character] = [
         skill_scores={"inside_man": 7, "muscle": 4},
         floor_cost=275_000,
         backstory=(
-            "Twenty years in hospitality — banquet halls, hotel front-of-house, a stint "
-            "running a hospital cafeteria — the kind of work where a woman with a lanyard and "
-            "something in her hands is invisible. She figured out she could walk into any "
-            "building that hires staff, and started getting paid far better to walk back out "
-            "with something."
+            "Decades in event hospitality — hotel banquets, conference catering, and lately the "
+            "volunteer refreshment table at galas, fundraisers, and receptions. Every room "
+            "taught her the same thing: an older woman with a coffee urn and a tray of pastries "
+            "is the one person nobody watches, questions, or remembers. A VISITOR badge and full "
+            "hands get her anywhere — and she walks back out with more than the empties."
         ),
         voice=(
-            "Friendly and fast, endlessly accommodating — the practiced warmth of someone "
-            "who's de-escalated a thousand complaints. Drops it the instant the door closes."
+            "Warm and unhurried, grandmotherly — the easy kindness of someone who's poured ten "
+            "thousand cups of coffee and remembered every name. Goes flat and precise the "
+            "instant the door closes."
         ),
         motivation=(
             "Put three foster kids through the same system she aged out of herself. Now she's "
             "saving for the day she never has to clock in for anyone again."
         ),
-        quirk="Always carrying something — a tray, a clipboard, a stack of linens. Nobody stops a woman with her hands full.",
+        quirk="Always carrying something — a tray, a coffee pot, a stack of folding chairs. Nobody stops an older woman with her hands full.",
         crew_dynamic=(
             "Mother-hen energy that's half real, half tool: mends the crew's nerves and their "
             "shirt buttons, and keeps a quiet tally of who owes her."
         ),
         weakness="Can't help fixing things — squares a crooked tray, straightens a stranger's collar — and the help who's too attentive is the help that gets noticed.",
         look=(
-            "A plain, sturdy woman in her late forties: sandy hair in a practical ponytail, no "
-            "jewelry, the kind of face you forget while you're still looking at it. Catering "
-            "blacks and a venue lanyard, at ease behind a loaded tray."
+            "A composed older woman in her sixties: silver hair neatly styled to the shoulder, a "
+            "kind, lined face you forget the moment she turns away. A plain blazer over a "
+            "collared shirt and a VISITOR badge on a lanyard, at ease behind a tray of "
+            "refreshments — staff, not guest."
         ),
         signature_line='"You look like you could use a hand. Right this way."',
     ),
