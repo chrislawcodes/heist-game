@@ -107,12 +107,12 @@
 
 **Independent Test:** replay shows each round's 8-job board and claims; consumed jobs gone; resume restores the in-flight board/pick-order/consumed; serialize round-trips.
 
-- [ ] T021 [heist/serialize.py] Round-trip `Campaign.consumed_jobs`, `BoardRound`, and `RoundResult.board/contested` in `campaign_to_dict`/`campaign_from_dict` and round serialization; tolerant legacy load (missing → empty). (Conflict-prone — serial.)
-- [ ] T022 [heist/persist.py] Persist `consumed_jobs` + per-round `BoardRound` in the campaign-level record and `board` in the per-AI round snapshot; bump `schema_version` tolerant load. (Conflict-prone — serial.)
-- [ ] T023 [heist/orchestration.py + heist/server.py] Emit `job_board` and `job_claimed` events (contracts/board-events.md) from the board stage; ensure `server` broadcasts them on `/stream` and appends to the persisted events buffer (no new route). (Serial — orchestration.py after T013/T014; server.py conflict-prone.)
-- [ ] T024 [P: heist/web/shell.js] Consume `job_board`/`job_claimed`; track per-round board + claims in the replay model (no client-side board reconstruction). (Conflict-prone — only this task touches shell.js this phase.)
-- [ ] T025 [P: heist/web/tabs/job.html] Render the round's board (≤8) and the claiming team per job (and contested losses); reflect consumed jobs leaving the board.
-- [ ] T026 [tests/test_serialize_board.py] New: campaign with consumed_jobs + BoardRound round-trips; a resume restores identical board/pick-order/consumed for the in-flight round (SC-005). (Depends on T021, T022.)
+- [x] T021 [heist/serialize.py] Round-trip `Campaign.consumed_jobs`, `BoardRound`, and `RoundResult.board/contested` in `campaign_to_dict`/`campaign_from_dict` and round serialization; tolerant legacy load (missing → empty). (Conflict-prone — serial.)
+- [x] T022 [heist/persist.py] Persist `consumed_jobs` + per-round `BoardRound` in the campaign-level record and `board` in the per-AI round snapshot; bump `schema_version` tolerant load. (Conflict-prone — serial.)
+- [x] T023 [heist/orchestration.py + heist/server.py] Emit `job_board` and `job_claimed` events (contracts/board-events.md) from the board stage; ensure `server` broadcasts them on `/stream` and appends to the persisted events buffer (no new route). (Serial — orchestration.py after T013/T014; server.py conflict-prone.)
+- [x] T024 [P: heist/web/shell.js] Consume `job_board`/`job_claimed`; track per-round board + claims in the replay model (no client-side board reconstruction). (Conflict-prone — only this task touches shell.js this phase.)
+- [~] T025 (DEFERRED — needs browser verification; events emitted+persisted, rail shows claims) [P: heist/web/tabs/job.html] Render the round's board (≤8) and the claiming team per job (and contested losses); reflect consumed jobs leaving the board.
+- [x] T026 [tests/test_serialize_board.py] New: campaign with consumed_jobs + BoardRound round-trips; a resume restores identical board/pick-order/consumed for the in-flight round (SC-005). (Depends on T021, T022.)
 
 **Checkpoint:** events emitted + persisted + rendered; resume fidelity verified; preflight green.
 

@@ -576,6 +576,9 @@ function _isVisibleEvent(e) {
   // The hire/heist replay has no renderer for them, so they would otherwise
   // surface as blank, dead stop-points. Never treat them as visible stages.
   if (typeof e.type === 'string' && e.type.startsWith('campaign_')) return false;
+  // Contested-board data events (the round's board + each team's claim) carry
+  // state for the job tab; they are not their own replay stop-points.
+  if (e.type === 'job_board' || e.type === 'job_claimed') return false;
   if (e.type === 'turn_start') {
     // Auction bid starts are visible: they show the strategy card before chips
     // land, so the user sees intent before the bids are revealed.
@@ -1166,6 +1169,13 @@ function _processEvent(e, onEvent) {
     _setStatus('s-error', 'ERROR');
   } else if (e.type === 'crew_known') {
     _markCrewHired(aiIdx, e.crew);
+  } else if (e.type === 'job_claimed' && aiIdx === Shell.currentAI) {
+    // Contested board: surface which job this team grabbed (and whether it had
+    // to fight a richer rival for it) in the replay rail.
+    const note = e.contested
+      ? `Claimed “${e.job}” off a contested board.`
+      : `Claimed “${e.job}”.`;
+    _addThought(aiIdx, 'job', 'Job board', Shell.helpers.escapeHtml(note));
   }
 
   // Fan to the page's onEvent callback

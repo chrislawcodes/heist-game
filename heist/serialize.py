@@ -365,6 +365,8 @@ def _round_result_to_dict(r: RoundResult) -> dict:
         "caught_member_ids": list(r.caught_member_ids),
         "crew_ids": list(r.crew_ids),
         "scouted": [dict(s) for s in r.scouted],
+        "board": list(r.board),
+        "contested": r.contested,
     }
 
 
@@ -386,6 +388,8 @@ def _round_result_from_any(item: Any) -> RoundResult:
             caught_member_ids=_coerce_int_list(item.get("caught_member_ids", [])),
             crew_ids=_coerce_int_list(item.get("crew_ids", [])),
             scouted=[dict(s) for s in item.get("scouted", []) if isinstance(s, dict)],
+            board=[str(n) for n in item.get("board", []) if isinstance(n, str)],
+            contested=bool(item.get("contested", False)),
         )
     raw_escape = getattr(item, "escape_success", getattr(item, "escape", None))
     if isinstance(raw_escape, str) and raw_escape in {"clean", "failed", "caught"}:
@@ -412,6 +416,7 @@ def campaign_to_dict(campaign: Campaign) -> dict:
         "standing_crew": [character_to_dict(c) for c in campaign.standing_crew],
         "round_results": [_round_result_to_dict(r) for r in campaign.round_results],
         "between_round_log": [dict(entry) for entry in campaign.between_round_log],
+        "consumed_jobs": sorted(campaign.consumed_jobs),
     }
 
 
@@ -423,6 +428,7 @@ def campaign_from_dict(d: dict) -> Campaign:
         standing_crew=[character_from_dict(c) for c in d.get("standing_crew", [])],
         round_results=[_round_result_from_any(r) for r in d.get("round_results", [])],
         between_round_log=[dict(entry) for entry in d.get("between_round_log", [])],
+        consumed_jobs={str(n) for n in d.get("consumed_jobs", []) if isinstance(n, str)},
     )
     game_id = d.get("game_id")
     if game_id is not None:
