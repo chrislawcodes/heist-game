@@ -116,6 +116,25 @@ body {
   opacity: 0.35;
   cursor: default;
 }
+.round-nav[hidden] { display: none; }
+.campaign-empty-notice {
+  margin: 0 0 14px;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel2);
+}
+.campaign-empty-notice .cen-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+.campaign-empty-notice .cen-body {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+}
 .strip-ticker {
   display: inline-flex;
   align-items: center;
@@ -779,6 +798,10 @@ body {
           <div class="panel-title">Leaderboard</div>
         </div>
         <div class="scroll standings-scroll" id="standings-scroll">
+          <div class="campaign-empty-notice" id="campaign-empty-notice" hidden>
+            <div class="cen-title">Campaign complete</div>
+            <div class="cen-body">No round-by-round results were recorded for this game, so there's nothing to step through. Start a new game to see the full war room.</div>
+          </div>
           <div class="round-card" id="round-card" aria-hidden="true">
             <div class="round-card-inner">
               <div class="round-card-title" id="round-card-title">ROUND 1 · RESULTS</div>
@@ -835,6 +858,8 @@ body {
   const railEl = document.getElementById('rail');
   const metaEl = document.getElementById('meta');
   const activityTickerEl = document.getElementById('activity-ticker');
+  const emptyNoticeEl = document.getElementById('campaign-empty-notice');
+  const roundNavEl = document.querySelector('.round-nav');
 
   let previousState = null;
   let selectedAiIdx = null;
@@ -1190,6 +1215,11 @@ body {
       return;
     }
 
+    if (campaignHasNoRoundData(state)) {
+      railEl.innerHTML = `<div class="thinking-empty">No round data was recorded for this campaign.</div>`;
+      return;
+    }
+
     if (viewedRound === 0) {
       railEl.innerHTML = `<div class="thinking-empty">No learnings yet — step to Round 1.</div>`;
       return;
@@ -1254,6 +1284,10 @@ body {
     const total = progressInfo.totalRounds || state.total_rounds || 0;
 
     viewedRound = Math.max(0, Math.min(viewedRound, maxRound));
+
+    const noRoundData = campaignHasNoRoundData(state);
+    if (roundNavEl) roundNavEl.hidden = noRoundData;
+    if (emptyNoticeEl) emptyNoticeEl.hidden = !noRoundData;
 
     document.getElementById('pacing-pos').textContent = `ROUND ${viewedRound} / ${total}`;
 
@@ -1671,6 +1705,14 @@ body {
   // use the result count instead so the final round is reachable.
   function playedRounds(state) {
     return Math.max(0, ...((state && state.standings) || []).map(s => (s.round_results || []).length));
+  }
+
+  // A finished campaign with no saved round results has nothing to step
+  // through — the round nav would dead-end at Round 0. Detect that so the UI
+  // can explain it instead of showing disabled arrows with no reason.
+  function campaignHasNoRoundData(state) {
+    const done = state && (state.status === 'done' || state.current_stage === 'done');
+    return !!done && playedRounds(state) === 0;
   }
 
   function navigateRound(targetRound, opts = {}) {
