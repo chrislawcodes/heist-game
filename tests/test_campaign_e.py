@@ -238,8 +238,10 @@ def test_campaign_round_heist_emits_crew_known_and_links_metadata(fake_handler, 
             bankrolls_spent={i: 0 for i in range(len(ais))},
         )
 
-    def fake_run_one_job(strategy, ai, campaign, *, rng, emit=None, snapshot_fn=None):
-        job = JOBS[0]
+    def fake_run_one_job(strategy, ai, campaign, *, rng, emit=None, snapshot_fn=None,
+                         board=None, assigned_job=None, slate_scores=None,
+                         scout_state=None):
+        job = assigned_job or JOBS[0]
         if emit is not None:
             emit({"type": "turn_start", "label": "job_pick", "prompt": "pick"})
             emit({"type": "job_known", "job": {"name": job.name}})
@@ -345,8 +347,10 @@ def test_campaign_journey_endpoint_returns_round_links_and_team_names(fake_handl
             bankrolls_spent={0: 0, 1: 0},
         )
 
-    def fake_run_one_job(strategy, ai, campaign, *, rng, emit=None, snapshot_fn=None):
-        job = JOBS[0]
+    def fake_run_one_job(strategy, ai, campaign, *, rng, emit=None, snapshot_fn=None,
+                         board=None, assigned_job=None, slate_scores=None,
+                         scout_state=None):
+        job = assigned_job or JOBS[0]
         if emit is not None:
             emit({"type": "turn_start", "label": "job_pick", "prompt": "pick"})
             emit({"type": "job_known", "job": {"name": job.name}})

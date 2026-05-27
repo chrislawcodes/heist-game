@@ -67,6 +67,39 @@ def pick_order(standings: list[tuple[int, int]]) -> list[int]:
     return [ai for ai, _ in sorted(standings, key=lambda t: (t[1], t[0]))]
 
 
+def resolve_contention(
+    order: list[int],
+    board_names: list[str],
+    pick_fn,
+) -> tuple[dict[int, str], dict[int, bool]]:
+    """Walk teams in ``order`` (trailing-team-first) and let each claim one job
+    from the *remaining* board. A job claimed by an earlier (lower-banked) team
+    is gone for later pickers — so two teams that want the same job resolve in
+    favour of the lower-banked one, and every team gets a distinct job.
+
+    ``pick_fn(ai_idx, remaining_names) -> chosen_name`` makes the AI choice
+    (or a stub in tests); if it returns an unavailable name, the system falls
+    back to the first remaining job (mirrors the live incomplete-pick fallback).
+
+    Returns ``(assigned, contested)``: ai_idx → claimed job name, and ai_idx →
+    whether jobs had already been claimed before this team's turn.
+    """
+    remaining = list(board_names)
+    full = len(board_names)
+    assigned: dict[int, str] = {}
+    contested: dict[int, bool] = {}
+    for ai in order:
+        if not remaining:
+            break
+        contested[ai] = len(remaining) < full
+        choice = pick_fn(ai, list(remaining))
+        if choice not in remaining:
+            choice = remaining[0]
+        assigned[ai] = choice
+        remaining.remove(choice)
+    return assigned, contested
+
+
 def unlocked_max_rank(round_idx: int, rounds_total: int, total_banked: int) -> int:
     """Highest ``tier_rank`` allowed in the *gated* slots this round. Rises with
     campaign progress and with how much loot has been banked across all teams,

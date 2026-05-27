@@ -1031,10 +1031,110 @@ def run_campaign_conductor(
             if rs <= _STAGE_ORDER["heist"]:
                 set_stage("heist", round_idx)
 
-                def _run_heist(i: int, round_idx: int = round_idx) -> None:
+                # ── Contested job board (runs before the parallel heists) ──
+                # Build one shared board from the pool minus globally-consumed
+                # jobs, order teams trailing-first (lowest banked picks first),
+                # and walk them through scout+pick so a lower-banked team claims
+                # a contested job before a richer rival ever sees it. Attempted
+                # jobs are consumed globally. Two-lane: board + claims are emitted.
+                import random as _random
+
+                from heist.board import (
+                    build_board,
+                    pick_order,
+                    resolve_contention,
+                )
+                from heist.content import JOBS as _JOBS
+                from heist.content import JOBS_BY_NAME as _JBN
+                from heist.runner import (
+                    _run_scout_turn,
+                    pick_job_from_board,
+                    roll_slate_scores,
+                )
+                from heist.serialize import job_to_dict as _job_to_dict
+                from heist.state import Crew as _Crew
+
+                _active_camps: dict[int, CampaignType] = {}
+                for _i in range(num_ais):
+                    _c = campaigns[_i]
+                    if _c is not None and not _campaign_ended(_c) and _c.standing_crew:
+                        _active_camps[_i] = _c
+                board_assignments: dict[int, Any] = {}
+                board_slate_scores: dict[str, dict[str, int]] = {}
+                board_scout_states: dict[int, Any] = {}
+                board_objs_round: list[Any] = []
+                board_payload_round: list[dict] = []
+                pick_order_round: list[int] = []
+                contested_round: dict[int, bool] = {}
+                consumed_count_round: int = 0
+                if _active_camps:
+                    _shared_consumed: set[str] = set().union(
+                        *(c.consumed_jobs for c in _active_camps.values())
+                    )
+                    _total_banked = sum(c.banked_loot for c in _active_camps.values())
+                    _trailing = min(c.banked_loot for c in _active_camps.values())
+                    _brng = _random.Random(hash((campaign_id, round_idx)) & 0xFFFFFFFF)
+                    _board_names = build_board(
+                        _JOBS, _shared_consumed, round_idx, num_rounds,
+                        _total_banked, trailing_bankroll=_trailing, rng=_brng,
+                    )
+                    board_objs_round = [_JBN[n] for n in _board_names]
+                    board_slate_scores = roll_slate_scores(board_objs_round, _brng)
+                    _order = pick_order(
+                        [(i, c.banked_loot) for i, c in _active_camps.items()]
+                    )
+
+                    def _pick_for(
+                        ai_idx: int, remaining: list[str],
+                        _active_camps: dict = _active_camps,
+                        board_slate_scores: dict = board_slate_scores,
+                        board_scout_states: dict = board_scout_states,
+                    ) -> str:
+                        camp = _active_camps[ai_idx]
+                        crew = _Crew(members=list(camp.standing_crew))
+                        rem_objs = [_JBN[n] for n in remaining]
+                        ss = _run_scout_turn(
+                            crew, rem_objs, board_slate_scores, ais[ai_idx],
+                            logs_per_ai[ai_idx], make_emit_fn(ai_idx),
+                        )
+                        board_scout_states[ai_idx] = ss
+                        chosen = pick_job_from_board(
+                            ais[ai_idx], crew, rem_objs, ss, camp,
+                            logs_per_ai[ai_idx], make_emit_fn(ai_idx),
+                        )
+                        return chosen.name
+
+                    _assigned, _contested = resolve_contention(
+                        _order, _board_names, _pick_for,
+                    )
+                    board_assignments = {i: _JBN[_assigned[i]] for i in _assigned}
+                    board_payload_round = [_job_to_dict(o) for o in board_objs_round]
+                    pick_order_round = _order
+                    contested_round = _contested
+                    consumed_count_round = len(_shared_consumed)
+                    # Consume globally: mirror the shared set + this round's
+                    # claims into every active team's campaign.
+                    _new_shared = _shared_consumed | set(_assigned.values())
+                    for c in _active_camps.values():
+                        c.consumed_jobs |= _new_shared
+                    snapshot_all()
+
+                def _run_heist(
+                    i: int, round_idx: int = round_idx,
+                    board_assignments: dict = board_assignments,
+                    board_objs_round: list = board_objs_round,
+                    board_slate_scores: dict = board_slate_scores,
+                    board_scout_states: dict = board_scout_states,
+                    board_payload_round: list = board_payload_round,
+                    pick_order_round: list = pick_order_round,
+                    contested_round: dict = contested_round,
+                    consumed_count_round: int = consumed_count_round,
+                ) -> None:
                     camp = campaigns[i]
                     if camp is None or _campaign_ended(camp) or not camp.standing_crew:
                         return
+                    if i not in board_assignments:
+                        return  # board ran dry — no job for this team this round
                     # Resume idempotency: if this team's heist already completed
                     # and was checkpointed before a crash, don't re-run it —
                     # reflection will settle from the persisted pending_heist. In
@@ -1053,9 +1153,27 @@ def run_campaign_conductor(
                         "ai_idx": i,
                     }
                     gamestate.broadcast(crew_evt)
+                    # Two-lane: emit this team's view of the round's board + its
+                    # claim into its now-open round sub-game.
+                    emit_fn({
+                        "type": "job_board", "campaign_id": campaign_id,
+                        "round_idx": round_idx, "board": board_payload_round,
+                        "pick_order": pick_order_round,
+                        "consumed_count": consumed_count_round,
+                    })
+                    emit_fn({
+                        "type": "job_claimed", "campaign_id": campaign_id,
+                        "round_idx": round_idx, "ai_idx": i,
+                        "job": board_assignments[i].name,
+                        "contested": contested_round.get(i, False),
+                    })
                     try:
                         result = run_one_job(
                             strategies[i], ais[i], camp, rng=rng, emit=emit_fn,
+                            board=board_objs_round or None,
+                            assigned_job=board_assignments.get(i),
+                            slate_scores=board_slate_scores or None,
+                            scout_state=board_scout_states.get(i),
                         )
                     except Exception as exc:
                         log.error(

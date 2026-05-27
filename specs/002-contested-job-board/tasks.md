@@ -66,9 +66,9 @@
 
 **Independent Test:** a 4-team conductor harness over 10 rounds: pick order ascending banked each round; same-job collisions resolved lower-banked-first; every attempted job consumed globally; no repeats (SC-001, SC-002, SC-004).
 
-- [ ] T013 [heist/orchestration.py] Add a **job-board stage** to `run_campaign_conductor`, sequenced before the parallel heist stage: build the shared board once (seeded by campaign+round), compute `pick_order` from per-AI banked standings, then for each ai_idx in order run its scout + job-pick over the *remaining* board, resolve the claim (reuse the incomplete-pick fallback if its choice was taken), record the claim, remove the job from the remaining board, and add it to the shared consumed set. Store a `BoardRound` on the campaign-level record. (Conflict-prone — serial; highest-risk task.)
-- [ ] T014 [heist/orchestration.py] Mirror the shared consumed set into each per-AI `Campaign.consumed_jobs` and pass each team its claimed job into `run_one_job(assigned_job=...)` in the heist stage (under `gamestate.lock`). Handle the "board ran dry / no job for a team" edge (emit a skip, no crash). (Serial — same file as T013, after it.)
-- [ ] T015 [tests/test_contention.py] New conductor-level harness test with 4 stub AIs over 10 rounds: asserts pick order ascending banked (trailing first, ai_idx tiebreak), same-job collision → lower-banked claims it and the rival gets a fallback board job, global consumption (no attempted job reappears), and the campaign completes (SC-001). (Depends on T013, T014.)
+- [x] T013 [heist/orchestration.py] Add a **job-board stage** to `run_campaign_conductor`, sequenced before the parallel heist stage: build the shared board once (seeded by campaign+round), compute `pick_order` from per-AI banked standings, then for each ai_idx in order run its scout + job-pick over the *remaining* board, resolve the claim (reuse the incomplete-pick fallback if its choice was taken), record the claim, remove the job from the remaining board, and add it to the shared consumed set. Store a `BoardRound` on the campaign-level record. (Conflict-prone — serial; highest-risk task.)
+- [x] T014 [heist/orchestration.py] Mirror the shared consumed set into each per-AI `Campaign.consumed_jobs` and pass each team its claimed job into `run_one_job(assigned_job=...)` in the heist stage (under `gamestate.lock`). Handle the "board ran dry / no job for a team" edge (emit a skip, no crash). (Serial — same file as T013, after it.)
+- [x] T015 [tests/test_contention.py] New conductor-level harness test with 4 stub AIs over 10 rounds: asserts pick order ascending banked (trailing first, ai_idx tiebreak), same-job collision → lower-banked claims it and the rival gets a fallback board job, global consumption (no attempted job reappears), and the campaign completes (SC-001). (Depends on T013, T014.)
 
 **Checkpoint:** 4-team stub completes via the harness; pick order + contention + global consumption verified; preflight green. **Fought-over board functional.**
 
@@ -80,8 +80,8 @@
 
 **Independent Test:** round 1 gated slots are low tier (no elite in gated slots); late rounds unlock elite; ≥2 affordable each round; same seed → identical board.
 
-- [ ] T016 [heist/board.py] Implement `unlocked_max_rank(round_idx, rounds_total, total_banked)` and wire it into `build_board`: gated slots draw only ≤ the rank ceiling; reserve `wild_slots` (e.g. 2) drawn from all unconsumed; enforce `min_affordable` against `trailing_bankroll`. Keep deterministic. (Serial — same file as T003; after Phase 4 so the simple version shipped first.)
-- [ ] T017 [tests/test_board.py] Extend: round-1 board excludes elite from gated slots; late/high-banked board admits elite; affordable-minimum always met; wild slot can surface an off-ceiling job; determinism for fixed seed. (Depends on T016.)
+- [x] T016 [heist/board.py] Implement `unlocked_max_rank(round_idx, rounds_total, total_banked)` and wire it into `build_board`: gated slots draw only ≤ the rank ceiling; reserve `wild_slots` (e.g. 2) drawn from all unconsumed; enforce `min_affordable` against `trailing_bankroll`. Keep deterministic. (Serial — same file as T003; after Phase 4 so the simple version shipped first.)
+- [x] T017 [tests/test_board.py] Extend: round-1 board excludes elite from gated slots; late/high-banked board admits elite; affordable-minimum always met; wild slot can surface an off-ceiling job; determinism for fixed seed. (Depends on T016.)
 
 **Checkpoint:** gating + wilds verified; preflight green.
 

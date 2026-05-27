@@ -516,8 +516,10 @@ def _proceed_fakes(monkeypatch, *, take=1000):
             bankrolls_spent={i: 0 for i in range(len(ais))},
         )
 
-    def fake_run_one_job(strategy, ai, campaign, *, rng, emit=None, snapshot_fn=None):
-        job = JOBS[0]
+    def fake_run_one_job(strategy, ai, campaign, *, rng, emit=None, snapshot_fn=None,
+                         board=None, assigned_job=None, slate_scores=None,
+                         scout_state=None):
+        job = assigned_job or JOBS[0]
         state = HeistState(
             crew=Crew(list(campaign.standing_crew)),
             job=job,
