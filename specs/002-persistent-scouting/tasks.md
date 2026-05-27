@@ -37,10 +37,10 @@
 
 **Independent Test**: 2-round stub campaign — a job's `challenge_scores` match between round 0 and round 1.
 
-- [ ] T004 [US1] In `heist/runner.py` `run_one_job`: replace the per-round `slate_scores = roll_slate_scores(available_jobs, rng)` with: use `campaign.slate_scores` when non-empty; otherwise roll once via `roll_slate_scores` and store the result on `campaign.slate_scores`. The round uses these locked scores for the picked job (`challenge_scores=dict(slate_scores.get(job.name, {}))`).
-- [ ] T005 [US1] In `heist/orchestration.py` `run_campaign_conductor`: roll the locked slate scores **once** at campaign start (when team Campaigns are created in `run_initial_auction`, or just before the round loop), store the dict on the campaign game record (`game["slate_scores"]`), and inject the **same** dict into every team's `Campaign.slate_scores`. (Depends on T002, T004.)
-- [ ] T006 [US1] In `heist/campaign.py` `run_campaign` (CLI loop): confirm the single `Campaign` carries `slate_scores` across the round loop via T004's roll-once-store; add an explicit one-time roll only if the loop bypasses it. (Depends on T004.)
-- [ ] T007 [P: tests/test_scout_persistence.py] [US1] Tests: a job's challenge scores are identical across ≥2 rounds (SC-001); a scouted value equals the locked value; all teams in a conductor campaign see identical locked scores.
+- [X] T004 [US1] In `heist/runner.py` `run_one_job`: replace the per-round `slate_scores = roll_slate_scores(available_jobs, rng)` with: use `campaign.slate_scores` when non-empty; otherwise roll once via `roll_slate_scores` and store the result on `campaign.slate_scores`. The round uses these locked scores for the picked job (`challenge_scores=dict(slate_scores.get(job.name, {}))`).
+- [X] T005 [US1] In `heist/orchestration.py` `run_campaign_conductor`: roll the locked slate scores **once** at campaign start (when team Campaigns are created in `run_initial_auction`, or just before the round loop), store the dict on the campaign game record (`game["slate_scores"]`), and inject the **same** dict into every team's `Campaign.slate_scores`. (Depends on T002, T004.)
+- [X] T006 [US1] In `heist/campaign.py` `run_campaign` (CLI loop): confirm the single `Campaign` carries `slate_scores` across the round loop via T004's roll-once-store; add an explicit one-time roll only if the loop bypasses it. (Depends on T004.)
+- [X] T007 [P: tests/test_scout_persistence.py] [US1] Tests: a job's challenge scores are identical across ≥2 rounds (SC-001); a scouted value equals the locked value; all teams in a conductor campaign see identical locked scores.
 
 **Checkpoint**: Scores no longer re-roll round-to-round.
 

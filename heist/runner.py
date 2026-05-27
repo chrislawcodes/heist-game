@@ -433,9 +433,13 @@ def run_one_job(
         "campaign_round": campaign.round_idx,
     }
 
-    # Roll this round's hidden challenge scores for the whole slate, then let the
-    # crew scout before committing. The picked job reuses its rolled scores.
-    slate_scores = roll_slate_scores(available_jobs, rng)
+    # Locked scores: a job's hidden challenge scores are rolled ONCE per campaign
+    # and reused every round. campaign.slate_scores is the source of truth; an empty
+    # map means "not yet rolled" (first round, or a legacy campaign), so roll once
+    # here and store it back on the campaign.
+    if not campaign.slate_scores:
+        campaign.slate_scores = roll_slate_scores(available_jobs, rng)
+    slate_scores = campaign.slate_scores
     scout_state = _run_scout_turn(crew, available_jobs, slate_scores, ai, logs, emit)
 
     # Job pick with campaign context prepended (slate shows any scouted exacts).

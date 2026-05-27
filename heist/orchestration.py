@@ -839,6 +839,16 @@ def run_campaign_conductor(
                 if crew is not None:
                     game["game_states"][i]["crew"] = crew_to_dict(crew)
                     game["game_states"][i]["standing_crew"] = [m.id for m in crew.members]
+        # Lock the slate's hidden scores ONCE for the whole campaign — campaign-global,
+        # identical for every team. Stored on the game record so a resume can re-inject
+        # them, and shared into each team's Campaign (read-only after rolling).
+        from heist.content import JOBS
+        from heist.scouting import roll_slate_scores
+        locked_scores = roll_slate_scores(list(JOBS), random.Random())
+        with gamestate.lock:
+            g = gamestate.games.get(campaign_id)
+            if g is not None:
+                g["slate_scores"] = {j: dict(cats) for j, cats in locked_scores.items()}
         # Initialize Campaign objects from hired crews
         for i in range(num_ais):
             with gamestate.lock:
@@ -852,6 +862,7 @@ def run_campaign_conductor(
                 banked_loot=0,
                 standing_crew=list(crew_members),
                 round_results=[],
+                slate_scores=locked_scores,
             )
 
     def run_rehire_auction() -> None:
