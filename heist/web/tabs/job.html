@@ -220,7 +220,8 @@
    the bucket is known, then fill; the exact 1-10 shows to the right once known. */
 .job-root .jt-scout-num {
   font-family: monospace; font-size: 11px; font-weight: 700;
-  color: var(--accent); white-space: nowrap; margin-left: 6px;
+  color: var(--accent); white-space: nowrap;
+  display: inline-block; min-width: 22px; text-align: right; margin-left: 6px;
 }
 /* Row scouted THIS round gets a low-level highlight; carried-over reveals do not. */
 .job-root .jt-scouted-now {
@@ -450,7 +451,9 @@
         const rev = scoutedCells[key];
         const filled = rev ? bucketToCount(rev.bucket) : 0;
         const hasNum = rev && rev.level === 'EXACT' && typeof rev.score === 'number';
-        const num = hasNum ? `<span class="jt-scout-num">${rev.score}</span>` : '';
+        // Always render the number slot (empty when unknown) so the bars don't
+        // shift left/right as numbers appear.
+        const num = `<span class="jt-scout-num">${hasNum ? rev.score : ''}</span>`;
         const fresh = (rev && !rev.carried) ? ' jt-scouted-now' : '';
         return `<div class="jt-slate-row${fresh}">
           <span class="jt-slate-row-label">${key.charAt(0).toUpperCase()}${key.slice(1)}</span>
@@ -514,12 +517,12 @@
       if (oldNum) oldNum.remove();
       rowEl.classList.remove('jt-scouted-now');
       if (rev && !rev.carried) rowEl.classList.add('jt-scouted-now');
-      if (rev && rev.level === 'EXACT' && typeof rev.score === 'number') {
-        const num = document.createElement('span');
-        num.className = 'jt-scout-num';
-        num.textContent = rev.score;
-        rowEl.appendChild(num);
-      }
+      // Always render the number slot (empty when unknown) to reserve its width.
+      const num = document.createElement('span');
+      num.className = 'jt-scout-num';
+      num.textContent = (rev && rev.level === 'EXACT' && typeof rev.score === 'number')
+        ? rev.score : '';
+      rowEl.appendChild(num);
     }
 
     // ── escape row ────────────────────────────────────────────────────────────
