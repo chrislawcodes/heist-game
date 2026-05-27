@@ -220,23 +220,23 @@ CHARACTERS: list[dict] = [
     {
         "id": 9, "file": "c09_pearl", "name": "Pearl Sutton",
         "skills": "Inside Man 7, Muscle 4", "floor_cost": 275_000,
-        "backstory": "Twenty years in hospitality — banquet halls, hotel front-of-house, a stint running a hospital cafeteria — the kind of work where a woman with a lanyard and something in her hands is invisible. She figured out she could walk into any building that hires staff, and started getting paid far better to walk back out with something.",
-        "voice": "Friendly and fast, endlessly accommodating — the practiced warmth of someone who's de-escalated a thousand complaints. Drops it the instant the door closes.",
+        "backstory": "Decades in event hospitality — hotel banquets, conference catering, and lately the volunteer refreshment table at galas, fundraisers, and receptions. Every room taught her the same thing: an older woman with a coffee urn and a tray of pastries is the one person nobody watches, questions, or remembers. A VISITOR badge and full hands get her anywhere — and she walks back out with more than the empties.",
+        "voice": "Warm and unhurried, grandmotherly — the easy kindness of someone who's poured ten thousand cups of coffee and remembered every name. Goes flat and precise the instant the door closes.",
         "motivation": "Put three foster kids through the same system she aged out of herself. Now she's saving for the day she never has to clock in for anyone again.",
-        "quirk": "Always carrying something — a tray, a clipboard, a stack of linens. Nobody stops a woman with her hands full.",
+        "quirk": "Always carrying something — a tray, a coffee pot, a stack of folding chairs. Nobody stops an older woman with her hands full.",
         "crew_dynamic": "Mother-hen energy that's half real, half tool: mends the crew's nerves and their shirt buttons, and keeps a quiet tally of who owes her.",
         "weakness": "Can't help fixing things — squares a crooked tray, straightens a stranger's collar — and the help who's too attentive is the help that gets noticed.",
         "look": (
-            "Three-quarter angle, caught mid-step carrying a loaded tray. A plain, sturdy "
-            "woman in her late forties: sandy hair in a practical ponytail, no jewelry, an "
-            "utterly unremarkable face you forget while you're still looking at it. Catering "
-            "blacks and a venue lanyard, a warm, busy half-smile — staff, not guest."
+            "Front-on, holding a tray of refreshments under a single hanging lamp. A composed "
+            "older woman in her sixties: silver hair neatly styled to the shoulder, a kind, "
+            "lined face you forget the moment she turns away. A plain blazer over a collared "
+            "shirt and a VISITOR badge on a lanyard, a warm, busy half-smile — staff, not guest."
         ),
         "setting": (
-            "A catering staging area behind a gala — stacked banquet chairs and chafing dishes "
-            "cross-hatched into shadow, a service door spilling warm light into a dark "
-            "back-of-house corridor. She's framed in the doorway between the bright event and "
-            "the shadows she actually works in."
+            "A refreshments station at the back of a community hall — a steel coffee urn and a "
+            "bowl of food on a draped table, a stack of folding chairs cross-hatched into the "
+            "shadow of a side room, a doorway spilling dim light. She's framed between the "
+            "event she serves and the back rooms she actually works."
         ),
         "signature_line": '"You look like you could use a hand. Right this way."',
     },
