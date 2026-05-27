@@ -516,24 +516,23 @@ CHARACTERS: list[dict] = [
         "signature_line": '"...by design? Tell me more about \'by design.\'"',
     },
     {
-        "id": 21, "file": "c21_bruna", "name": 'Bruna "Anvil" Costa',
+        "id": 21, "file": "c21_soojin", "name": 'Soo-jin "Anvil" Han',
         "skills": "Muscle 9, Driver 6", "floor_cost": 800_000,
-        "backstory": "Afro-Brazilian former competitive strongwoman who ran the door at São Paulo's roughest clubs and drove armored cash transport on the side — until she realized she understood the trucks, and the people loading them, better than her bosses did.",
-        "voice": "Calm and dry, with a wrestler's economy of words. Lets a long silence do the work a threat would. When she finally jokes, it lands hard.",
-        "motivation": "Putting her two nephews through school back home, and buying back the gym her old coach lost to the bank.",
+        "backstory": "Korean former Olympic weightlifter who lost her medal and her funding to a doping test she still swears was sabotage. Spent two angry years driving forklifts and box trucks in a Busan port before someone offered her work where the strength and the steering both mattered.",
+        "voice": "Spare and even — answers in as few words as the question allows. Lets a long silence do the work a threat would; when she finally jokes, it lands hard.",
+        "motivation": "Clearing her name is impossible, so she'll settle for never needing anyone's permission again — and a gym of her own.",
         "quirk": "Chalks her hands before anything physical, even when there's nothing to grip.",
         "crew_dynamic": "The steady center of the crew — says little, but the room organizes around where she stands.",
-        "weakness": "An old competition knee that buckles without warning on stairs and long sprints.",
+        "weakness": "The shoulder that ended her career still gives out under a sudden full load.",
         "look": (
-            "Low-angle bust shot looking up, emphasizing her power. A powerfully built "
-            "Afro-Brazilian woman in her late thirties: close-cropped hair, broad shoulders, a "
-            "faint scar through one eyebrow, calm steady eyes. Chalked forearms, sleeves pushed "
-            "up, arms crossed."
+            "Low-angle bust shot looking up, emphasizing her power. A powerfully built Korean "
+            "woman in her late thirties: close-cropped hair, broad shoulders, a lifter's thick "
+            "wrists and forearms, a calm flat gaze. Chalked hands, sleeves pushed up, arms crossed."
         ),
         "setting": (
             "A freight loading bay at night — a roll-up door half-raised behind her, stacked "
             "pallets and chain-link cross-hatched into deep shadow, a single overhead lamp hard "
-            "on her shoulders. A hand truck and cargo strapping nearby."
+            "on her shoulders. A worn weight plate props a side door open; a hand truck nearby."
         ),
         "signature_line": '"Stay behind me. It\'s simpler for everyone."',
     },
