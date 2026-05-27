@@ -36,9 +36,9 @@
 
 **Independent Test:** band-median take ascends by Hard-count; min take ≥ $1M; the two 4-Hard jobs are the top two; every job still pays into an active challenge.
 
-- [ ] T005 [P: heist/locations/__init__.py] Retune every existing job's `scene_loot` (real take) and `reward_range` per Decision 6: floor ≥ $1M; take trends up with Hard-count then tier; Billionaire's Compound & The Mint ≥ $15M (Mint highest); designate ≥1 bargain edge (Corporate Server Farm) and ≥1 trap edge (City Hall Records); `reward_range ≈ [0.55× take .. clean take + best hidden-depth bonus]`; scale `reward_amounts` so the range top is reachable; keep per-category `scene_loot` split.
-- [ ] T006 [P: tests/test_locations.py] Shape tests: pool min take ≥ $1,000,000; band-median take strictly ascending across Hard-counts {0,1,2,4}; the two 4-Hard jobs are the two highest takes; each `reward_range` top reachable from `scene_loot + max(reward_amounts)`; every job's `scene_loot` pays into an active (non-NONE) challenge. (Depends on T005.)
-- [ ] T007 [heist/content.py + tests] Update any existing tests that assert old reward numbers (test_content.py "every job can pay out", any take/auction figures that reference job rewards). (Serial — touches shared expectations; run after T005.)
+- [x] T005 [P: heist/locations/__init__.py] Retune every existing job's `scene_loot` (real take) and `reward_range` per Decision 6: floor ≥ $1M; take trends up with Hard-count then tier; Billionaire's Compound & The Mint ≥ $15M (Mint highest); designate ≥1 bargain edge (Corporate Server Farm) and ≥1 trap edge (City Hall Records); `reward_range ≈ [0.55× take .. clean take + best hidden-depth bonus]`; scale `reward_amounts` so the range top is reachable; keep per-category `scene_loot` split.
+- [x] T006 [P: tests/test_locations.py] Shape tests: pool min take ≥ $1,000,000; band-median take strictly ascending across Hard-counts {0,1,2,4}; the two 4-Hard jobs are the two highest takes; each `reward_range` top reachable from `scene_loot + max(reward_amounts)`; every job's `scene_loot` pays into an active (non-NONE) challenge. (Depends on T005.)
+- [x] T007 [heist/content.py + tests] Update any existing tests that assert old reward numbers (test_content.py "every job can pay out", any take/auction figures that reference job rewards). (Serial — touches shared expectations; run after T005.)
 
 **Checkpoint:** preflight green; reward shape verified.
 
