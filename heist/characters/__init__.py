@@ -312,31 +312,32 @@ _RAW_ROSTER: list[Character] = [
         skill_scores={"inside_man": 7, "muscle": 4},
         floor_cost=275_000,
         backstory=(
-            "Catholic boarding-school girl who ran away at sixteen, joined a small-town "
-            "hustler's two-person grift in West Virginia, and learned more in eighteen months "
-            "than the convent taught in eight years. The hustler is in prison; Pearl is not."
+            "Twenty years in hospitality — banquet halls, hotel front-of-house, a stint "
+            "running a hospital cafeteria — the kind of work where a woman with a lanyard and "
+            "something in her hands is invisible. She figured out she could walk into any "
+            "building that hires staff, and started getting paid far better to walk back out "
+            "with something."
         ),
         voice=(
-            "Grandmotherly Appalachian accent that disarms people in seconds. "
-            "Says 'darlin'' with at least three different meanings."
+            "Friendly and fast, endlessly accommodating — the practiced warmth of someone "
+            "who's de-escalated a thousand complaints. Drops it the instant the door closes."
         ),
         motivation=(
-            "Doesn't know. Hasn't asked herself in a decade. Tells the crew it's about a "
-            "great-niece's tuition — and the great-niece is real, but the tuition is paid."
+            "Put three foster kids through the same system she aged out of herself. Now she's "
+            "saving for the day she never has to clock in for anyone again."
         ),
-        quirk="Knits during planning sessions. Gives finished scarves to crew members at the end of jobs.",
+        quirk="Always carrying something — a tray, a clipboard, a stack of linens. Nobody stops a woman with her hands full.",
         crew_dynamic=(
-            "Maternal in the same way a wolf is maternal — the protectiveness is real, "
-            "but so are the teeth."
+            "Mother-hen energy that's half real, half tool: mends the crew's nerves and their "
+            "shirt buttons, and keeps a quiet tally of who owes her."
         ),
-        weakness="Underestimates anyone under thirty until they've proven her wrong twice.",
+        weakness="Can't help fixing things — squares a crooked tray, straightens a stranger's collar — and the help who's too attentive is the help that gets noticed.",
         look=(
-            "White woman in her early sixties: silver hair in a low bun, weathered face with "
-            "crow's-feet, half-moon reading glasses on a beaded chain. Cable-knit cardigan "
-            "over a high-collar blouse, antique cameo brooch at the throat. Knitting needles "
-            "in her hands. Gentle smile that doesn't quite reach her eyes."
+            "A plain, sturdy woman in her late forties: sandy hair in a practical ponytail, no "
+            "jewelry, the kind of face you forget while you're still looking at it. Catering "
+            "blacks and a venue lanyard, at ease behind a loaded tray."
         ),
-        signature_line='"Sit down, darlin\'. Tell me how I can help."',
+        signature_line='"You look like you could use a hand. Right this way."',
     ),
     Character(
         id=10,
