@@ -216,14 +216,18 @@
   flex: 1; min-width: 0;
 }
 
-/* Scouted-cell intel: exact 1-10 revealed by a probe. Unscouted cells show
-   only the estimate bars; a scouted cell lights up with its true score. */
-.job-root .jt-scout-score {
+/* Scouting (two-stage): difficulty is hidden until scouted. Bars stay empty until
+   the bucket is known, then fill; the exact 1-10 shows to the right once known. */
+.job-root .jt-scout-num {
   font-family: monospace; font-size: 11px; font-weight: 700;
   color: var(--accent); white-space: nowrap; margin-left: 6px;
 }
-.job-root .jt-scouted .jt-slate-row-label,
-.job-root .jt-scouted .jt-row-label { color: var(--text); }
+/* Row scouted THIS round gets a low-level highlight; carried-over reveals do not. */
+.job-root .jt-scouted-now {
+  background: rgba(232,160,48,0.12);
+  outline: 1px solid rgba(232,160,48,0.35);
+  border-radius: 4px;
+}
 </style>
 
 <template id="job-template">
@@ -343,7 +347,7 @@
   const jobByAI       = {};   // ai_idx → job object
   const hdByAI        = {};   // ai_idx → hidden_depth_rolled event
   const crewByAI      = {};   // ai_idx → array of crew members
-  const scoutedByAI   = {};   // ai_idx → { jobName → { category → exact 1-10 score } }
+  const scoutedByAI   = {};   // ai_idx → { jobName → { category → {level,bucket,score,carried} } }
   // job_pick reasoning is rendered in the shell rail's Play-by-Play stream, not here.
 
   function $$(name) { return root && root.querySelector(`[data-jt="${name}"]`); }
@@ -363,6 +367,15 @@
     if (s === 'MEDIUM' || s === 'MED') return 2;
     if (s === 'LOW')    return 1;
     return 0;
+  }
+
+  // Scouted bucket (from score_to_bucket: NONE/LOW/MEDIUM/HIGH) → bar segments.
+  function bucketToCount(str) {
+    const s = (str || '').toUpperCase();
+    if (s === 'HIGH' || s === 'HARD')  return 3;
+    if (s === 'MEDIUM' || s === 'MED') return 2;
+    if (s === 'LOW')    return 1;
+    return 0;  // NONE / unknown
   }
 
   function photoClassForJob(name) {
@@ -430,18 +443,19 @@
       const reward = rr
         ? `<strong>$${(rr[0]/1e6).toFixed(1)}m – $${(rr[1]/1e6).toFixed(1)}m</strong>`
         : '—';
-      const profile = j.profile || {};
       const scoutedCells = (scoutedByAI[Shell.currentAI] || {})[j.name] || {};
       const rows = ['social','physical','electronic','confrontation'].map(key => {
-        const level = profile[key];
         const skillCls = challengeSkill[key];
-        const scouted = scoutedCells[key];
-        const isScouted = typeof scouted === 'number';
-        const badge = isScouted ? `<span class="jt-scout-score">🔍 ${scouted}/10</span>` : '';
-        return `<div class="jt-slate-row${isScouted ? ' jt-scouted' : ''}">
+        // Draw from what this team KNOWS, not the (now-hidden) public profile.
+        const rev = scoutedCells[key];
+        const filled = rev ? bucketToCount(rev.bucket) : 0;
+        const hasNum = rev && rev.level === 'EXACT' && typeof rev.score === 'number';
+        const num = hasNum ? `<span class="jt-scout-num">${rev.score}</span>` : '';
+        const fresh = (rev && !rev.carried) ? ' jt-scouted-now' : '';
+        return `<div class="jt-slate-row${fresh}">
           <span class="jt-slate-row-label">${key.charAt(0).toUpperCase()}${key.slice(1)}</span>
-          <div class="cs-bars">${segs(levelToCount(level), skillCls)}</div>
-          ${badge}
+          <div class="cs-bars">${segs(filled, skillCls)}</div>
+          ${num}
         </div>`;
       }).join('');
       return `<div class="jt-slate-card">
@@ -480,32 +494,31 @@
       ? '$' + (rr[0] / 1e6).toFixed(1) + 'm – $' + (rr[1] / 1e6).toFixed(1) + 'm'
       : '';
 
-    // ── difficulty bars ───────────────────────────────────────────────────────
-    const p = job.profile || {};
+    // ── difficulty bars ── drawn from what the team KNOWS, not the public profile.
     const diffMap = {
-      'bars-social':        { level: p.social,        cls: 'soc'  },
-      'bars-physical':      { level: p.physical,      cls: 'safe' },
-      'bars-electronic':    { level: p.electronic,    cls: 'hack' },
-      'bars-confrontation': { level: p.confrontation, cls: 'musc' },
+      'bars-social':        { cat: 'social',        cls: 'soc'  },
+      'bars-physical':      { cat: 'physical',      cls: 'safe' },
+      'bars-electronic':    { cat: 'electronic',    cls: 'hack' },
+      'bars-confrontation': { cat: 'confrontation', cls: 'musc' },
     };
     const scoutedPicked = (scoutedByAI[aiIdx] || {})[job.name] || {};
-    for (const [slot, { level, cls }] of Object.entries(diffMap)) {
+    for (const [slot, { cat, cls }] of Object.entries(diffMap)) {
       const barsEl = $$(slot);
       if (!barsEl) continue;
-      barsEl.innerHTML = segs(levelToCount(level), cls);
+      const rev = scoutedPicked[cat];
+      barsEl.innerHTML = segs(rev ? bucketToCount(rev.bucket) : 0, cls);
       const rowEl = barsEl.closest('.jt-row');
       if (!rowEl) continue;
-      // Re-render safety: clear any stale scouted badge before re-adding.
-      const oldBadge = rowEl.querySelector('.jt-scout-score');
-      if (oldBadge) oldBadge.remove();
-      rowEl.classList.remove('jt-scouted');
-      const scouted = scoutedPicked[slot.replace('bars-', '')];
-      if (typeof scouted === 'number') {
-        rowEl.classList.add('jt-scouted');
-        const badge = document.createElement('span');
-        badge.className = 'jt-scout-score';
-        badge.textContent = `🔍 ${scouted}/10`;
-        rowEl.appendChild(badge);
+      // Re-render safety: clear any stale scouted number/highlight before re-adding.
+      const oldNum = rowEl.querySelector('.jt-scout-num');
+      if (oldNum) oldNum.remove();
+      rowEl.classList.remove('jt-scouted-now');
+      if (rev && !rev.carried) rowEl.classList.add('jt-scouted-now');
+      if (rev && rev.level === 'EXACT' && typeof rev.score === 'number') {
+        const num = document.createElement('span');
+        num.className = 'jt-scout-num';
+        num.textContent = rev.score;
+        rowEl.appendChild(num);
       }
     }
 
@@ -593,7 +606,12 @@
       const ai = e.ai_idx ?? 0;
       (scoutedByAI[ai] ||= {});
       (scoutedByAI[ai][e.job] ||= {});
-      scoutedByAI[ai][e.job][e.category] = e.score;
+      scoutedByAI[ai][e.job][e.category] = {
+        level: e.reveal_level || 'BUCKET',
+        bucket: e.bucket,
+        score: e.score,            // present only at EXACT
+        carried: !!e.carried,
+      };
       if (ai === Shell.currentAI) render();
 
     } else if (e.type === 'game_done') {

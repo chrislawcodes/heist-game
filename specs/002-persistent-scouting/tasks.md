@@ -53,9 +53,9 @@
 
 **Goal**: cards show hidden/bucket/exact from reveal state, this-turn highlight, number right, no 🔍.
 
-- [ ] T024 [US4] In `heist/web/tabs/job.html`: store per-cell reveal state from `scouted` events as `{ level, bucket, score, carried }` (extend `scoutedByAI`). In `renderSlate` and the picked-job `render`, draw each challenge row from that state — NOT `j.profile`: HIDDEN → empty bars + no number; BUCKET → bars filled to bucket + no number; EXACT → bars filled to bucket + exact number to the **right of the bars**. Remove the `🔍` badge.
-- [ ] T025 [US4] In `heist/web/tabs/job.html`: add a subtle highlight class on rows whose reveal is **not** `carried` (revealed this round); style it (thin outline or low-opacity tint). Add/adjust CSS; remove the old magnifying-glass styling.
-- [ ] T026 [US4] In `heist/web/shell.js` if needed: ensure `bucket`/`reveal_level` ride through to JobTab (they already flow via the event); no reconstruction in the browser.
+- [X] T024 [US4] In `heist/web/tabs/job.html`: store per-cell reveal state from `scouted` events as `{ level, bucket, score, carried }` (extend `scoutedByAI`). In `renderSlate` and the picked-job `render`, draw each challenge row from that state — NOT `j.profile`: HIDDEN → empty bars + no number; BUCKET → bars filled to bucket + no number; EXACT → bars filled to bucket + exact number to the **right of the bars**. Remove the `🔍` badge.
+- [X] T025 [US4] In `heist/web/tabs/job.html`: add a subtle highlight class on rows whose reveal is **not** `carried` (revealed this round); style it (thin outline or low-opacity tint). Add/adjust CSS; remove the old magnifying-glass styling.
+- [X] T026 [US4] In `heist/web/shell.js` if needed: ensure `bucket`/`reveal_level` ride through to JobTab (they already flow via the event); no reconstruction in the browser.
 
 **Checkpoint (MVP)**: 🚩 **Staging review** — restart 8001, run a multi-round stub campaign, confirm the three card states, the this-turn highlight, hidden-until-probed difficulty, and accumulation across rounds. Get the user's eyes on it before US5.
 
