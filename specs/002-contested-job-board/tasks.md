@@ -131,9 +131,9 @@
 
 ## Phase 10: Polish & Cross-Cutting
 
-- [ ] T029 Full preflight green: `python3 -m ruff check . && mypy heist/ agents.py demo.py && pytest -q`.
-- [ ] T030 Run quickstart.md US1–US6 verifications (single-AI stub, 4-team harness, reward shape, gating, resume).
-- [ ] T031 Commit, push, run `.claude/scripts/refresh-staging.sh`, then `/ship` as one PR.
+- [x] T029 Full preflight green: `python3 -m ruff check . && mypy heist/ agents.py demo.py && pytest -q`.
+- [x] T030 Run quickstart.md US1–US6 verifications (single-AI stub, 4-team harness, reward shape, gating, resume).
+- [x] T031 Commit, push, run `.claude/scripts/refresh-staging.sh`, then `/ship` as one PR.
 
 ---
 
