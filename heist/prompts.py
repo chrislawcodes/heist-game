@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from heist.content import BANKROLL, JOBS, ROSTER
-from heist.state import Campaign, Character, Crew, HeistState, Scene
+from heist.state import Campaign, Character, Crew, HeistState, Scene, ScoutState
 
 
 def _skill_str(c: Character) -> str:
@@ -23,14 +23,22 @@ def _roster_summary() -> str:
     return "\n".join(lines)
 
 
-def _job_slate_summary(available_jobs: list | None = None) -> str:
+def _job_slate_summary(
+    available_jobs: list | None = None, scout_state: ScoutState | None = None
+) -> str:
     jobs = available_jobs if available_jobs is not None else JOBS
     lines = []
     for j in jobs:
-        prof = " | ".join(f"{k} {v.name}" for k, v in j.profile.items())
+        cells = []
+        for k, v in j.profile.items():
+            cell = f"{k} {v.name}"
+            scouted = scout_state.scouted_score(j.name, k) if scout_state else None
+            if scouted is not None:
+                cell += f" (scouted: {scouted}/10)"
+            cells.append(cell)
         lines.append(
             f"  - {j.name!r}: reward ${j.reward_range[0]:,}-${j.reward_range[1]:,}, "
-            f"profile [{prof}]"
+            f"profile [{' | '.join(cells)}]"
         )
     return "\n".join(lines)
 
@@ -104,7 +112,7 @@ def _bid_prompt(strategy: str) -> str:
         "decision points, and narrating each scene in character. Stay in this role.\n\n"
         f"{_TRADECRAFT}\n\n"
         f"Player's strategy prompt:\n---\n{strategy}\n---\n\n"
-        f"Bankroll: ${BANKROLL}. Roster (16 characters):\n{_roster_summary()}\n\n"
+        f"Bankroll: ${BANKROLL}. Roster ({len(ROSTER)} characters):\n{_roster_summary()}\n\n"
         "Draft your crew. Reply with ONLY a JSON object (no prose around it) of shape:\n"
         '{\n'
         '  "casting_strategy": "one-sentence strategy in your own words",\n'
@@ -131,14 +139,46 @@ def _fill_prompt(crew_so_far: list[Character], remaining: int) -> str:
     )
 
 
-def _job_prompt(crew: Crew, available_jobs: list | None = None) -> str:
+def _scout_prompt(
+    crew: Crew, available_jobs: list, scout_state: ScoutState
+) -> str:
+    """Pre-commit scouting turn: the crew can learn the EXACT 1-10 difficulty of
+    specific (job, challenge) cells before picking. Buckets are already public;
+    scouting buys down the within-bucket uncertainty so you can right-size and
+    spot underdefended jobs (high reward range over soft true scores)."""
+    budget = scout_state.budget_remaining()
+    return (
+        "SCOUTING — before you pick a job, you may case the slate.\n\n"
+        "Your crew:\n" + "\n".join(f"  - {c.name}: {_skill_str(c)}" for c in crew.members)
+        + f"\n\nSlate (buckets are estimates; a probe reveals the exact 1-10):\n"
+        f"{_job_slate_summary(available_jobs, scout_state)}\n\n"
+        f"You have {budget} free scouting probe(s) this round (crew size + your best "
+        "driver's bonus). Each probe reveals the EXACT difficulty of one job's one "
+        "challenge category (electronic / physical / confrontation / social). Spend "
+        "them where the buckets leave you most uncertain — especially Hard cells you "
+        "plan to attempt, or a high-reward job you suspect might be softer than it "
+        "looks. Probing the same cell twice is wasted.\n\n"
+        "Reply with ONLY JSON:\n"
+        '{\n'
+        '  "probes": [ {"job": "<exact name>", "category": "<electronic|physical|'
+        'confrontation|social>"}, ... ],\n'
+        '  "rationale": "<one sentence: what you are trying to learn>"\n'
+        "}\n"
+        "Use at most your free probe count; extra probes are ignored. An empty list "
+        "is fine if you would rather commit blind."
+    )
+
+
+def _job_prompt(
+    crew: Crew, available_jobs: list | None = None, scout_state: ScoutState | None = None
+) -> str:
     crew_lines = []
     for c in crew.members:
         crew_lines.append(f"  - {c.name}: {_skill_str(c)}")
     return (
         f"Crew assembled (spent ${crew.total_cost}/{BANKROLL}):\n"
         + "\n".join(crew_lines)
-        + f"\n\nJob slate:\n{_job_slate_summary(available_jobs)}\n\n"
+        + f"\n\nJob slate:\n{_job_slate_summary(available_jobs, scout_state)}\n\n"
         "Pick the job this crew should attempt. Before you commit: for every Hard "
         "challenge, make sure the crew's effective score in that area lands solidly "
         "in High (8+) — remember teamwork only adds +1 point, so two Mediums usually "
@@ -147,8 +187,10 @@ def _job_prompt(crew: Crew, available_jobs: list | None = None) -> str:
         '{\n'
         '  "job_name": "<exact name>",\n'
         '  "why_this": "<why this job fits — crew skills, budget, risk>",\n'
-        '  "why_not":  "<for each of the other jobs on the slate, one sentence on '
-        'why it was a worse pick>"\n'
+        '  "why_not":  "<Group the jobs you passed on by the reason you passed — '
+        "two or three short lines, each line one reason followed by the jobs it "
+        "covers, e.g. 'Too defended for this crew: Museum Gala, Server Farm.' Put "
+        'each group on its own line. Do NOT write one sentence per job>"\n'
         "}"
     )
 

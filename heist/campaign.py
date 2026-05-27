@@ -7,7 +7,8 @@ from collections.abc import Callable
 from typing import Any
 
 from heist.ai import HeistAI
-from heist.content import BANKROLL, ROSTER_BY_ID
+from heist.board import build_board
+from heist.content import BANKROLL, JOBS, JOBS_BY_NAME, ROSTER_BY_ID
 from heist.logs import log
 from heist.prompts import _summary_prompt
 from heist.runner import (
@@ -97,8 +98,16 @@ def _active_crew_from_entry(entry: Any, roster_lookup: dict[int, Character]) -> 
 def settle_round(
     campaign: Campaign,
     state: HeistState,
+    *,
+    board: list[str] | None = None,
+    contested: bool = False,
 ) -> bool:
     """Update campaign in-place after one round. Returns True = end campaign."""
+    scouted = [
+        {"job": job, "category": cat, "score": score}
+        for job, cats in state.scout_state.exact_scores.items()
+        for cat, score in cats.items()
+    ]
     return _settle_round_core(
         campaign,
         final_take=state.final_take,
@@ -107,6 +116,9 @@ def settle_round(
         job_name=state.job.name,
         aborted=state.aborted,
         escape_success=state.escape_success,
+        scouted=scouted,
+        board=board,
+        contested=contested,
     )
 
 
@@ -119,6 +131,9 @@ def _settle_round_core(
     job_name: str,
     aborted: bool,
     escape_success: bool | None,
+    scouted: list[dict] | None = None,
+    board: list[str] | None = None,
+    contested: bool = False,
 ) -> bool:
     """Bank one round's outcome from primitive fields — no ``HeistState`` needed.
 
@@ -127,6 +142,8 @@ def _settle_round_core(
     Returns True if the campaign should end (crew wiped).
     """
     campaign.banked_loot += final_take
+    # CONTESTED BOARD — the attempted job is consumed globally (never re-offered).
+    campaign.consumed_jobs.add(job_name)
     crew_ids_snapshot = [c.id for c in campaign.standing_crew]
 
     # Remove only the captured members from standing crew.
@@ -153,6 +170,9 @@ def _settle_round_core(
         banked_after=campaign.banked_loot,
         caught_member_ids=list(caught_member_ids),
         crew_ids=crew_ids_snapshot,
+        scouted=list(scouted or []),
+        board=list(board or []),
+        contested=contested,
     ))
 
     crew_wiped = len(campaign.standing_crew) == 0
@@ -637,14 +657,25 @@ def run_campaign(
             break
         if before_round is not None:
             before_round(campaign.round_idx)
-        result = run_one_job(strategy, ai, campaign, rng=rng, emit=emit)
+        # Build this round's board (subset of the pool minus globally-consumed
+        # jobs); the AI sees only the board. Seeded per round for determinism.
+        board_names = build_board(
+            JOBS, campaign.consumed_jobs, campaign.round_idx, rounds,
+            campaign.banked_loot, trailing_bankroll=campaign.banked_loot,
+            rng=random.Random(1000 + campaign.round_idx),
+        )
+        if not board_names:
+            log.info("campaign_loop_jobs_exhausted", round=_n)
+            break
+        board_objs = [JOBS_BY_NAME[n] for n in board_names]
+        result = run_one_job(strategy, ai, campaign, rng=rng, emit=emit, board=board_objs)
         if result is None:
             log.info("campaign_loop_jobs_exhausted", round=_n)
             break
         state, extras = result
         extras["casting_summary"] = casting_summary
         round_extras_list.append(extras)
-        ended = settle_round(campaign, state)
+        ended = settle_round(campaign, state, board=board_names)
         if on_round:
             on_round(campaign, state, extras)
         if ended:

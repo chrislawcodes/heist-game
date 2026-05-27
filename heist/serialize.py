@@ -21,9 +21,11 @@ from heist.state import (
     HiddenDepthElement,
     HiddenDepthRoll,
     Job,
+    RevealLevel,
     RoundResult,
     Scene,
     SceneResult,
+    ScoutState,
     SkillLevel,
 )
 
@@ -266,6 +268,37 @@ def hidden_depth_from_dict(d: dict, job: Job) -> HiddenDepthRoll:
     )
 
 
+def scout_state_to_dict(ss: ScoutState) -> dict:
+    return {
+        "reveals": {
+            j: {c: lvl.name for c, lvl in cats.items()} for j, cats in ss.reveals.items()
+        },
+        "exact_scores": {j: dict(cats) for j, cats in ss.exact_scores.items()},
+        "reward_reveal": dict(ss.reward_reveal),
+        "free_probes": ss.free_probes,
+        "probes_spent_free": ss.probes_spent_free,
+        "probes_paid": ss.probes_paid,
+    }
+
+
+def scout_state_from_dict(d: dict | None) -> ScoutState:
+    d = d or {}
+    return ScoutState(
+        reveals={
+            j: {c: RevealLevel[n] for c, n in cats.items()}
+            for j, cats in d.get("reveals", {}).items()
+        },
+        exact_scores={
+            j: {c: int(s) for c, s in cats.items()}
+            for j, cats in d.get("exact_scores", {}).items()
+        },
+        reward_reveal={k: int(v) for k, v in d.get("reward_reveal", {}).items()},
+        free_probes=int(d.get("free_probes", 0)),
+        probes_spent_free=int(d.get("probes_spent_free", 0)),
+        probes_paid=int(d.get("probes_paid", 0)),
+    )
+
+
 def state_from_dict(d: dict) -> HeistState:
     job = job_from_dict(d["job"])
     crew = crew_from_dict(d["crew"])
@@ -275,6 +308,7 @@ def state_from_dict(d: dict) -> HeistState:
         job=job,
         hidden_depth=hidden,
         challenge_scores={k: int(v) for k, v in d.get("challenge_scores", {}).items()},
+        scout_state=scout_state_from_dict(d.get("scout_state")),
         scene_results=[scene_result_from_dict(r) for r in d.get("scene_results", [])],
         caught_member_ids=[int(i) for i in d.get("caught_member_ids", [])],
         secured_take=int(d.get("secured_take", 0)),
@@ -295,6 +329,7 @@ def state_to_dict(state: HeistState) -> dict:
         "crew": crew_to_dict(state.crew),
         "job": job_to_dict(state.job),
         "challenge_scores": dict(state.challenge_scores),
+        "scout_state": scout_state_to_dict(state.scout_state),
         "caught_member_ids": list(state.caught_member_ids),
         "secured_take": state.secured_take,
         "heat": state.heat,
@@ -329,6 +364,9 @@ def _round_result_to_dict(r: RoundResult) -> dict:
         "banked_after": r.banked_after,
         "caught_member_ids": list(r.caught_member_ids),
         "crew_ids": list(r.crew_ids),
+        "scouted": [dict(s) for s in r.scouted],
+        "board": list(r.board),
+        "contested": r.contested,
     }
 
 
@@ -349,6 +387,9 @@ def _round_result_from_any(item: Any) -> RoundResult:
             banked_after=_coerce_int(item.get("banked_after", 0)),
             caught_member_ids=_coerce_int_list(item.get("caught_member_ids", [])),
             crew_ids=_coerce_int_list(item.get("crew_ids", [])),
+            scouted=[dict(s) for s in item.get("scouted", []) if isinstance(s, dict)],
+            board=[str(n) for n in item.get("board", []) if isinstance(n, str)],
+            contested=bool(item.get("contested", False)),
         )
     raw_escape = getattr(item, "escape_success", getattr(item, "escape", None))
     if isinstance(raw_escape, str) and raw_escape in {"clean", "failed", "caught"}:
@@ -375,6 +416,7 @@ def campaign_to_dict(campaign: Campaign) -> dict:
         "standing_crew": [character_to_dict(c) for c in campaign.standing_crew],
         "round_results": [_round_result_to_dict(r) for r in campaign.round_results],
         "between_round_log": [dict(entry) for entry in campaign.between_round_log],
+        "consumed_jobs": sorted(campaign.consumed_jobs),
     }
 
 
@@ -386,6 +428,7 @@ def campaign_from_dict(d: dict) -> Campaign:
         standing_crew=[character_from_dict(c) for c in d.get("standing_crew", [])],
         round_results=[_round_result_from_any(r) for r in d.get("round_results", [])],
         between_round_log=[dict(entry) for entry in d.get("between_round_log", [])],
+        consumed_jobs={str(n) for n in d.get("consumed_jobs", []) if isinstance(n, str)},
     )
     game_id = d.get("game_id")
     if game_id is not None:
@@ -567,6 +610,9 @@ def campaign_state_to_dict(
             aborted = bool(
                 r.get("aborted", False) if isinstance(r, dict) else getattr(r, "aborted", False)
             )
+            scouted_raw = (
+                r.get("scouted", []) if isinstance(r, dict) else getattr(r, "scouted", [])
+            ) or []
             round_caught = set(caught_member_ids)
             round_crew = []
             for cid in round_crew_ids:
@@ -586,6 +632,7 @@ def campaign_state_to_dict(
                 "banked_after": banked_after,
                 "caught_member_ids": caught_member_ids,
                 "crew": round_crew,
+                "scouted": [dict(s) for s in scouted_raw if isinstance(s, dict)],
                 "game_id": round_game_ids[rr_idx] if rr_idx < len(round_game_ids) else None,
             })
         hiring_game_ids_list: list = _state_value(entry, "hiring_game_ids", []) or []

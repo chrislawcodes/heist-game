@@ -1,5 +1,6 @@
 """Location/job content. The job slate lives here; content.py re-exports for back-compat."""
 
+from heist.locations._extra_jobs import NEW_JOBS
 from heist.state import ChallengeLevel, HiddenDepthElement, Job
 
 MUSEUM = Job(
@@ -11,7 +12,7 @@ MUSEUM = Job(
         "guests, photographers, and event security. Blending in is the whole challenge — "
         "and prying the stone out from behind that vault wall is the other half."
     ),
-    reward_range=(1_500_000, 4_000_000),
+    reward_range=(2_750_000, 5_000_000),
     profile={
         "electronic": ChallengeLevel.MEDIUM,
         "physical": ChallengeLevel.HARD,
@@ -61,11 +62,11 @@ MUSEUM = Job(
         ),
     ],
     reward_amounts=[
-        ("Standard valuation", 2_500_000),
-        ("Minor piece", 1_800_000),
-        ("Top-of-market centerpiece", 3_800_000),
+        ("Standard valuation", 4_000_000),
+        ("Minor piece", 3_000_000),
+        ("Top-of-market centerpiece", 5_000_000),
     ],
-    scene_loot={"social": 500_000, "physical": 2_000_000},
+    scene_loot={"social": 1_000_000, "physical": 4_000_000},
 )
 
 ARMORED_CAR = Job(
@@ -77,7 +78,7 @@ ARMORED_CAR = Job(
         "guards are trained, armed, and expecting trouble, so whoever takes them had better "
         "be ready to bring it."
     ),
-    reward_range=(800_000, 2_000_000),
+    reward_range=(1_200_000, 2_200_000),
     profile={
         "electronic": ChallengeLevel.LOW,
         "physical": ChallengeLevel.MEDIUM,
@@ -126,11 +127,11 @@ ARMORED_CAR = Job(
         ),
     ],
     reward_amounts=[
-        ("Standard load", 1_400_000),
-        ("Light load", 900_000),
-        ("Heavy day", 1_900_000),
+        ("Standard load", 1_750_000),
+        ("Light load", 1_300_000),
+        ("Heavy day", 2_200_000),
     ],
-    scene_loot={"physical": 300_000, "confrontation": 1_100_000},
+    scene_loot={"physical": 500_000, "confrontation": 1_700_000},
 )
 
 SERVER_FARM = Job(
@@ -142,7 +143,7 @@ SERVER_FARM = Job(
         "itself sits behind a serious physical lock, with two guards working the perimeter. "
         "Getting in is a hacker’s problem; getting out clean is everyone’s."
     ),
-    reward_range=(3_000_000, 8_000_000),
+    reward_range=(3_000_000, 5_500_000),
     profile={
         "electronic": ChallengeLevel.HARD,
         "physical": ChallengeLevel.MEDIUM,
@@ -192,11 +193,11 @@ SERVER_FARM = Job(
         ),
     ],
     reward_amounts=[
-        ("Standard formula", 6_000_000),
-        ("Early-stage research", 3_500_000),
-        ("Late-stage with patents", 7_800_000),
+        ("Standard formula", 4_400_000),
+        ("Early-stage research", 3_300_000),
+        ("Late-stage with patents", 5_500_000),
     ],
-    scene_loot={"physical": 1_000_000, "electronic": 5_000_000},
+    scene_loot={"physical": 900_000, "electronic": 4_600_000},
 )
 
 PENTHOUSE = Job(
@@ -208,7 +209,7 @@ PENTHOUSE = Job(
         "lock, a building full of cameras, and the quiet problem of getting in and back out "
         "without anyone knowing you were there. This one rewards a light touch, not a heavy hand."
     ),
-    reward_range=(400_000, 1_200_000),
+    reward_range=(700_000, 1_300_000),
     profile={
         "electronic": ChallengeLevel.MEDIUM,
         "physical": ChallengeLevel.MEDIUM,
@@ -252,11 +253,11 @@ PENTHOUSE = Job(
         ),
     ],
     reward_amounts=[
-        ("Cash + watches", 450_000),
-        ("Art + safe", 850_000),
-        ("Everything incl. crypto wallet", 1_150_000),
+        ("Cash + watches", 800_000),
+        ("Art + safe", 1_050_000),
+        ("Everything incl. crypto wallet", 1_300_000),
     ],
-    scene_loot={"electronic": 200_000, "physical": 450_000},
+    scene_loot={"electronic": 400_000, "physical": 900_000},
 )
 
 CARGO_YARD = Job(
@@ -269,7 +270,7 @@ CARGO_YARD = Job(
         "do real rounds. This is a job of muscle, machinery, and timing, with nobody to talk "
         "your way past."
     ),
-    reward_range=(1_200_000, 3_000_000),
+    reward_range=(1_450_000, 2_600_000),
     profile={
         "electronic": ChallengeLevel.LOW,
         "physical": ChallengeLevel.HARD,
@@ -313,11 +314,11 @@ CARGO_YARD = Job(
         ),
     ],
     reward_amounts=[
-        ("Authenticated icons", 1_800_000),
-        ("Counterfeits + small score", 1_300_000),
-        ("Hidden jewels", 2_800_000),
+        ("Authenticated icons", 2_100_000),
+        ("Counterfeits + small score", 1_550_000),
+        ("Hidden jewels", 2_600_000),
     ],
-    scene_loot={"confrontation": 300_000, "physical": 1_500_000},
+    scene_loot={"confrontation": 500_000, "physical": 2_100_000},
 )
 
 DIPLOMATIC_RECEPTION = Job(
@@ -330,7 +331,7 @@ DIPLOMATIC_RECEPTION = Job(
         "holding cell. You don’t break into this one; you get invited, and you behave "
         "until you don’t."
     ),
-    reward_range=(1_500_000, 4_000_000),
+    reward_range=(1_650_000, 3_000_000),
     profile={
         "electronic": ChallengeLevel.LOW,
         "physical": ChallengeLevel.MEDIUM,
@@ -374,11 +375,11 @@ DIPLOMATIC_RECEPTION = Job(
         ),
     ],
     reward_amounts=[
-        ("Public-diamond replica", 1_700_000),
-        ("Authentic Romanov", 3_200_000),
-        ("Romanov + classified docs", 3_800_000),
+        ("Public-diamond replica", 1_800_000),
+        ("Authentic Romanov", 2_400_000),
+        ("Romanov + classified docs", 3_000_000),
     ],
-    scene_loot={"social": 700_000, "physical": 1_700_000},
+    scene_loot={"social": 900_000, "physical": 2_100_000},
 )
 
 CASINO_VAULT = Job(
@@ -391,7 +392,7 @@ CASINO_VAULT = Job(
         "once, with a casino’s whole security apparatus a button-press away. This is the "
         "score a crew retires on, or the one they vanish over."
     ),
-    reward_range=(5_000_000, 12_000_000),
+    reward_range=(4_700_000, 8_500_000),
     profile={
         "electronic": ChallengeLevel.HARD,
         "physical": ChallengeLevel.HARD,
@@ -436,11 +437,11 @@ CASINO_VAULT = Job(
         ),
     ],
     reward_amounts=[
-        ("Standard float", 7_000_000),
-        ("High-roller weekend take", 10_500_000),
-        ("Float + chip reserves", 12_000_000),
+        ("Standard float", 5_100_000),
+        ("High-roller weekend take", 6_800_000),
+        ("Float + chip reserves", 8_500_000),
     ],
-    scene_loot={"electronic": 3_000_000, "physical": 4_000_000},
+    scene_loot={"electronic": 3_500_000, "physical": 5_000_000},
 )
 
 CORNER_PHARMACY = Job(
@@ -449,7 +450,7 @@ CORNER_PHARMACY = Job(
         "A pill mill's back office is flush with cash and nobody's watching the door. "
         "Low stakes, low heat - a good warmup."
     ),
-    reward_range=(150_000, 350_000),
+    reward_range=(550_000, 1_000_000),
     profile={
         "physical": ChallengeLevel.LOW,
         "confrontation": ChallengeLevel.NONE,
@@ -480,11 +481,11 @@ CORNER_PHARMACY = Job(
         ),
     ],
     reward_amounts=[
-        ("Cash drawer", 180_000),
-        ("Inventory safe", 280_000),
-        ("Back-room stash", 330_000),
+        ("Cash drawer", 600_000),
+        ("Inventory safe", 800_000),
+        ("Back-room stash", 1_000_000),
     ],
-    scene_loot={"physical": 280_000},
+    scene_loot={"physical": 1_000_000},
 )
 
 ART_FORGERY_RING = Job(
@@ -493,7 +494,7 @@ ART_FORGERY_RING = Job(
         "A fence hired you to swap real paintings for fakes before the auction house notices. "
         "You have one evening."
     ),
-    reward_range=(450_000, 750_000),
+    reward_range=(600_000, 1_100_000),
     profile={
         "social": ChallengeLevel.MEDIUM,
         "electronic": ChallengeLevel.MEDIUM,
@@ -524,11 +525,11 @@ ART_FORGERY_RING = Job(
         ),
     ],
     reward_amounts=[
-        ("Single swap", 500_000),
-        ("Full wall exchange", 680_000),
-        ("Wall plus archive", 740_000),
+        ("Single swap", 650_000),
+        ("Full wall exchange", 900_000),
+        ("Wall plus archive", 1_100_000),
     ],
-    scene_loot={"social": 300_000, "electronic": 200_000},
+    scene_loot={"social": 700_000, "electronic": 400_000},
 )
 
 PRIVATE_AIRFIELD = Job(
@@ -537,7 +538,7 @@ PRIVATE_AIRFIELD = Job(
         "A shipment is wheels-up in four hours. Intercept it on the tarmac before it "
         "disappears into the night."
     ),
-    reward_range=(400_000, 700_000),
+    reward_range=(650_000, 1_200_000),
     profile={
         "confrontation": ChallengeLevel.MEDIUM,
         "physical": ChallengeLevel.MEDIUM,
@@ -568,11 +569,11 @@ PRIVATE_AIRFIELD = Job(
         ),
     ],
     reward_amounts=[
-        ("Tarmac pickup", 450_000),
-        ("Full shipment", 620_000),
-        ("Shipment plus pallet", 690_000),
+        ("Tarmac pickup", 700_000),
+        ("Full shipment", 950_000),
+        ("Shipment plus pallet", 1_200_000),
     ],
-    scene_loot={"physical": 250_000, "confrontation": 200_000},
+    scene_loot={"physical": 700_000, "confrontation": 500_000},
 )
 
 CITY_HALL_RECORDS = Job(
@@ -581,7 +582,7 @@ CITY_HALL_RECORDS = Job(
         "Evidence against your employer sits in a secured vault inside an active government "
         "building. Extract it cleanly - no one can know you were here."
     ),
-    reward_range=(900_000, 1_400_000),
+    reward_range=(3_000_000, 5_500_000),
     profile={
         "electronic": ChallengeLevel.HARD,
         "social": ChallengeLevel.HARD,
@@ -612,11 +613,11 @@ CITY_HALL_RECORDS = Job(
         ),
     ],
     reward_amounts=[
-        ("Target file only", 950_000),
-        ("File and attachments", 1_200_000),
-        ("Archive plus evidence", 1_360_000),
+        ("Target file only", 3_300_000),
+        ("File and attachments", 4_400_000),
+        ("Archive plus evidence", 5_500_000),
     ],
-    scene_loot={"electronic": 550_000, "social": 400_000},
+    scene_loot={"electronic": 3_000_000, "social": 2_500_000},
 )
 
 HARBOR_CONTAINER_SWAP = Job(
@@ -625,7 +626,7 @@ HARBOR_CONTAINER_SWAP = Job(
         "Switch a sealed container at a busy port before customs scans it. Tight window. "
         "Wrong move and the whole yard lights up."
     ),
-    reward_range=(850_000, 1_300_000),
+    reward_range=(1_850_000, 3_400_000),
     profile={
         "physical": ChallengeLevel.HARD,
         "confrontation": ChallengeLevel.MEDIUM,
@@ -656,11 +657,11 @@ HARBOR_CONTAINER_SWAP = Job(
         ),
     ],
     reward_amounts=[
-        ("Single swap", 900_000),
-        ("Stacked pallet", 1_150_000),
-        ("Dockside double", 1_280_000),
+        ("Single swap", 2_050_000),
+        ("Stacked pallet", 2_700_000),
+        ("Dockside double", 3_400_000),
     ],
-    scene_loot={"physical": 550_000, "confrontation": 350_000},
+    scene_loot={"physical": 2_400_000, "confrontation": 1_000_000},
 )
 
 FEDERAL_RESERVE_BRANCH = Job(
@@ -669,7 +670,7 @@ FEDERAL_RESERVE_BRANCH = Job(
         "An old regional vault, decommissioned but not emptied. The security is dated but "
         "deep. The escape is anything but."
     ),
-    reward_range=(1_600_000, 2_500_000),
+    reward_range=(3_850_000, 7_000_000),
     profile={
         "electronic": ChallengeLevel.HARD,
         "physical": ChallengeLevel.HARD,
@@ -700,11 +701,11 @@ FEDERAL_RESERVE_BRANCH = Job(
         ),
     ],
     reward_amounts=[
-        ("Regional vault", 1_700_000),
-        ("Vault plus cash trays", 2_150_000),
-        ("Vault and archive", 2_450_000),
+        ("Regional vault", 4_200_000),
+        ("Vault plus cash trays", 5_600_000),
+        ("Vault and archive", 7_000_000),
     ],
-    scene_loot={"electronic": 900_000, "physical": 800_000},
+    scene_loot={"electronic": 3_800_000, "physical": 3_200_000},
 )
 
 BILLIONAIRES_COMPOUND = Job(
@@ -713,7 +714,7 @@ BILLIONAIRES_COMPOUND = Job(
         "Private island, biometric locks, rotating guards. Every skill on your roster gets "
         "tested tonight."
     ),
-    reward_range=(2_000_000, 3_000_000),
+    reward_range=(8_250_000, 15_000_000),
     profile={
         "electronic": ChallengeLevel.HARD,
         "social": ChallengeLevel.HARD,
@@ -744,11 +745,11 @@ BILLIONAIRES_COMPOUND = Job(
         ),
     ],
     reward_amounts=[
-        ("Private vault", 2_100_000),
-        ("Compound safehouse", 2_600_000),
-        ("Island treasury", 2_950_000),
+        ("Private vault", 9_000_000),
+        ("Compound safehouse", 12_000_000),
+        ("Island treasury", 15_000_000),
     ],
-    scene_loot={"physical": 1_100_000, "electronic": 1_000_000},
+    scene_loot={"physical": 8_000_000, "electronic": 7_000_000},
 )
 
 MINT = Job(
@@ -756,7 +757,7 @@ MINT = Job(
     flavor=(
         "The crown jewel. No crew has ever walked out clean. You think yours is different."
     ),
-    reward_range=(2_500_000, 3_000_000),
+    reward_range=(9_900_000, 18_000_000),
     profile={
         "electronic": ChallengeLevel.HARD,
         "physical": ChallengeLevel.HARD,
@@ -787,11 +788,11 @@ MINT = Job(
         ),
     ],
     reward_amounts=[
-        ("Coin plates", 2_550_000),
-        ("Bullion run", 2_850_000),
-        ("Bullion plus archive", 3_000_000),
+        ("Coin plates", 10_800_000),
+        ("Bullion run", 14_400_000),
+        ("Bullion plus archive", 18_000_000),
     ],
-    scene_loot={"physical": 1_300_000, "electronic": 1_250_000},
+    scene_loot={"physical": 9_500_000, "electronic": 8_500_000},
 )
 
 JOBS: list[Job] = [
@@ -810,5 +811,9 @@ JOBS: list[Job] = [
     FEDERAL_RESERVE_BRANCH,
     BILLIONAIRES_COMPOUND,
     MINT,
+    # Contested job board (spec 002, US5): the expanded pool so a 4-team,
+    # 10-round campaign never runs dry. Defined in _extra_jobs to keep the
+    # bulk content out of this file.
+    *NEW_JOBS,
 ]
 JOBS_BY_NAME: dict[str, Job] = {j.name: j for j in JOBS}

@@ -106,7 +106,8 @@ def effective_skill(members: list[Character], skill: str) -> SkillLevel:
 
 SEAT_COST = 100_000
 SKILL_PREMIUM = {
-    1: 0, 2: 0, 3: 0,
+    # Low skills cost a little now (kept under the Med-4 rung to stay monotonic).
+    1: 10_000, 2: 15_000, 3: 20_000,
     4: 25_000, 5: 50_000, 6: 100_000, 7: 175_000,
     8: 325_000, 9: 600_000, 10: 1_100_000,
 }
@@ -143,8 +144,16 @@ _FULL_BAND = {
 }
 
 
+# Map the authored tier names to fog-band tiers (1 = easiest end of each bucket,
+# 3 = hardest). A Tier-1 "Hard" reliably rolls an 8; a Tier-3 "Hard" rolls 9-10.
+_TIER_ALIASES = {
+    "easy": "1", "medium": "2", "hard": "3", "elite": "3",
+    "1": "1", "2": "2", "3": "3",
+}
+
+
 def _norm_tier(tier: str) -> str:
-    return tier if tier in ("1", "2", "3") else "2"
+    return _TIER_ALIASES.get(tier, "2")
 
 
 def roll_one_score(level: ChallengeLevel, tier: str, rng: random.Random) -> int:

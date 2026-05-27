@@ -10,16 +10,32 @@ ROSTER_BY_ID dict[int, Character]
 """
 from __future__ import annotations
 
+from dataclasses import replace
+
+from heist.mechanics import score_floor_cost, score_to_bucket
 from heist.state import Character, SkillLevel
 
 H = SkillLevel.HIGH
 M = SkillLevel.MEDIUM
 L = SkillLevel.LOW
 
-ROSTER: list[Character] = [
+
+def _with_derived(c: Character) -> Character:
+    """skill_scores is the single source of truth: derive the public bucket map
+    and the floor cost from the 1-10 scores so they can never drift."""
+    return replace(
+        c,
+        skills={sk: score_to_bucket(v) for sk, v in c.skill_scores.items()},
+        floor_cost=score_floor_cost(c),
+    )
+
+
+# Raw definitions carry skill_scores + personality; `skills`/`floor_cost` literals
+# below are placeholders — _with_derived recomputes both from the scores.
+_RAW_ROSTER: list[Character] = [
     Character(
         id=1,
-        name='Marcus "Prodigy" Renault',
+        name='Marcus "Prodigy"',
         skills={"hacker": H, "driver": L},
         skill_scores={"hacker": 10, "driver": 2},
         floor_cost=1_200_000,
@@ -85,7 +101,7 @@ ROSTER: list[Character] = [
         id=3,
         name='Eli "Owl" Park',
         skills={"hacker": L, "inside_man": L},
-        skill_scores={"hacker": 2, "inside_man": 3},
+        skill_scores={"hacker": 3, "inside_man": 5},
         floor_cost=100_000,
         backstory=(
             "Bartended in Koreatown LA for a decade and watched every kind of grift come "
@@ -118,7 +134,7 @@ ROSTER: list[Character] = [
     ),
     Character(
         id=4,
-        name='Vance "The Wall" Tobin',
+        name='Vance "The Wall"',
         skills={"muscle": H},
         skill_scores={"muscle": 8},
         floor_cost=425_000,
@@ -152,7 +168,7 @@ ROSTER: list[Character] = [
         id=5,
         name="Carla Reyes",
         skills={"muscle": M, "driver": L},
-        skill_scores={"muscle": 6, "driver": 3},
+        skill_scores={"muscle": 6, "driver": 5},
         floor_cost=200_000,
         backstory=(
             "Two tours as a Marine MP in Iraq, came home and couldn't sleep. Joined a private "
@@ -184,7 +200,7 @@ ROSTER: list[Character] = [
         id=6,
         name="Big Mike Donato",
         skills={"muscle": L, "driver": L, "inside_man": L},
-        skill_scores={"muscle": 2, "driver": 3, "inside_man": 2},
+        skill_scores={"driver": 5, "muscle": 3, "inside_man": 2},
         floor_cost=100_000,
         backstory=(
             "Worked the Newark docks for twenty years until the longshoremen's union got "
@@ -217,7 +233,7 @@ ROSTER: list[Character] = [
     ),
     Character(
         id=7,
-        name='Lin "Closer" Chen',
+        name='Lin "Closer"',
         skills={"inside_man": H, "safecracker": L},
         skill_scores={"inside_man": 9, "safecracker": 2},
         floor_cost=700_000,
@@ -255,7 +271,7 @@ ROSTER: list[Character] = [
         id=8,
         name="Theo Kapoor",
         skills={"inside_man": M},
-        skill_scores={"inside_man": 6},
+        skill_scores={"inside_man": 8},
         floor_cost=200_000,
         backstory=(
             "Second-generation Indian-American from New Jersey, trained at Juilliard on a "
@@ -283,44 +299,48 @@ ROSTER: list[Character] = [
             "Which is most people."
         ),
         look=(
-            "Indian-American man in his early forties: dark brown hair pushed back, small "
-            "earring in the left ear, close-trimmed beard going grey at the chin. "
-            "Open-collar shirt under a cardigan. Soft confident smile mid-sentence."
+            "Indian-American man in his early forties: dark hair swept back, a small left "
+            "earring, close-trimmed beard going grey at the chin. A sharp jacket half-on over "
+            "an open collar. A practiced, magnetic half-smile that's quietly selling you something."
         ),
         signature_line='"Well, well, well — you must be the host."',
     ),
     Character(
         id=9,
         name="Pearl Sutton",
-        skills={"inside_man": M, "muscle": L},
-        skill_scores={"inside_man": 7, "muscle": 2},
-        floor_cost=275_000,
+        skills={"inside_man": M, "safecracker": L},
+        skill_scores={"inside_man": 7, "safecracker": 3},
+        floor_cost=295_000,
         backstory=(
-            "Catholic boarding-school girl who ran away at sixteen, joined a small-town "
-            "hustler's two-person grift in West Virginia, and learned more in eighteen months "
-            "than the convent taught in eight years. The hustler is in prison; Pearl is not."
+            "Decades in event hospitality — hotel banquets, conference catering, and lately the "
+            "volunteer refreshment table at galas, fundraisers, and receptions. Every room "
+            "taught her the same thing: an older woman with a coffee urn and a tray of pastries "
+            "is the one person nobody watches, questions, or remembers. A VISITOR badge and full "
+            "hands get her anywhere — and she leaves with more than the empties: the petty cash, "
+            "the loose jewelry, whatever a desk drawer or display case was hiding."
         ),
         voice=(
-            "Grandmotherly Appalachian accent that disarms people in seconds. "
-            "Says 'darlin'' with at least three different meanings."
+            "Warm and unhurried, grandmotherly — the easy kindness of someone who's poured ten "
+            "thousand cups of coffee and remembered every name. Goes flat and precise the "
+            "instant the door closes."
         ),
         motivation=(
-            "Doesn't know. Hasn't asked herself in a decade. Tells the crew it's about a "
-            "great-niece's tuition — and the great-niece is real, but the tuition is paid."
+            "Put three foster kids through the same system she aged out of herself. Now she's "
+            "saving for the day she never has to clock in for anyone again."
         ),
-        quirk="Knits during planning sessions. Gives finished scarves to crew members at the end of jobs.",
+        quirk="Quick, quiet hands — pours your coffee with one and has the desk drawer open with the other. A hairpin handles most small locks, and nobody ever stops an older woman whose hands are full.",
         crew_dynamic=(
-            "Maternal in the same way a wolf is maternal — the protectiveness is real, "
-            "but so are the teeth."
+            "Mother-hen energy that's half real, half tool: mends the crew's nerves and their "
+            "shirt buttons, and keeps a quiet tally of who owes her."
         ),
-        weakness="Underestimates anyone under thirty until they've proven her wrong twice.",
+        weakness="Can't help fixing things — squares a crooked tray, straightens a stranger's collar — and the help who's too attentive is the help that gets noticed.",
         look=(
-            "White woman in her early sixties: silver hair in a low bun, weathered face with "
-            "crow's-feet, half-moon reading glasses on a beaded chain. Cable-knit cardigan "
-            "over a high-collar blouse, antique cameo brooch at the throat. Knitting needles "
-            "in her hands. Gentle smile that doesn't quite reach her eyes."
+            "A composed older woman in her sixties: silver hair neatly styled to the shoulder, a "
+            "kind, lined face you forget the moment she turns away. A plain blazer over a "
+            "collared shirt and a VISITOR badge on a lanyard, at ease behind a tray of "
+            "refreshments — staff, not guest."
         ),
-        signature_line='"Sit down, darlin\'. Tell me how I can help."',
+        signature_line='"You look like you could use a hand. Right this way."',
     ),
     Character(
         id=10,
@@ -363,9 +383,9 @@ ROSTER: list[Character] = [
     ),
     Character(
         id=11,
-        name='Jolene "Jo" Hayes',
+        name='Jolene "Jo"',
         skills={"safecracker": M, "hacker": L},
-        skill_scores={"safecracker": 6, "hacker": 3},
+        skill_scores={"safecracker": 6, "hacker": 4},
         floor_cost=200_000,
         backstory=(
             "Grew up in Tulsa's Greenwood District, granddaughter of a man who rebuilt his "
@@ -402,7 +422,7 @@ ROSTER: list[Character] = [
         id=12,
         name="Nestor Bly",
         skills={"safecracker": M, "hacker": L},
-        skill_scores={"safecracker": 5, "hacker": 2},
+        skill_scores={"safecracker": 5, "hacker": 4},
         floor_cost=150_000,
         backstory=(
             "Career safecracker out of Philadelphia who never quite made it to first chair, "
@@ -472,7 +492,7 @@ ROSTER: list[Character] = [
         id=14,
         name="Margot Vinter",
         skills={"driver": M, "inside_man": L},
-        skill_scores={"driver": 6, "inside_man": 2},
+        skill_scores={"driver": 6, "inside_man": 4},
         floor_cost=200_000,
         backstory=(
             "Daughter of an East German rally driver who defected with her in 1988. Grew up "
@@ -508,7 +528,7 @@ ROSTER: list[Character] = [
         id=15,
         name="Dex Owusu",
         skills={"driver": M, "muscle": L},
-        skill_scores={"driver": 4, "muscle": 2},
+        skill_scores={"driver": 5, "muscle": 4},
         floor_cost=125_000,
         backstory=(
             "Grew up in the Bronx, son of Ghanaian immigrants. Worked maintenance at a city "
@@ -539,9 +559,9 @@ ROSTER: list[Character] = [
     ),
     Character(
         id=16,
-        name='Valentina "Val" Cruz',
+        name='Valentina "Val"',
         skills={"muscle": M, "inside_man": L},
-        skill_scores={"muscle": 6, "inside_man": 3},
+        skill_scores={"muscle": 5, "inside_man": 5},
         floor_cost=200_000,
         backstory=(
             "Eight years as a Cook County corrections officer in Chicago — knew every shift "
@@ -578,6 +598,159 @@ ROSTER: list[Character] = [
         ),
         signature_line='"I\'ve been on the other side of this door. Trust me."',
     ),
+    Character(
+        id=17,
+        name='Priya "Patch"',
+        skills={"hacker": M},
+        skill_scores={"hacker": 7, "inside_man": 5},
+        floor_cost=275_000,
+        backstory=(
+            "Ran security for a regional hospital network for nine years until she "
+            "flagged a breach the board wanted buried. They fired her for 'policy "
+            "violations' the week before her options vested. She's been freelancing "
+            "ever since, and she keeps the termination letter laminated in her bag."
+        ),
+        voice=(
+            "Precise and deadpan. Over-explains the thing she's about to do, then does "
+            "it faster than anyone expects. Says 'noted' instead of 'okay.'"
+        ),
+        motivation=(
+            "Paying for her father's memory-care facility, month to month. She prices "
+            "every job against how many weeks it buys him."
+        ),
+        quirk="Labels everything — cables, drives, people. Narrates her keystrokes under her breath.",
+        crew_dynamic=(
+            "Reliable and a little preachy about opsec. Will redo a sloppy crew "
+            "member's work without being asked and mention it exactly once."
+        ),
+        weakness=(
+            "Rigid. Brilliant on a plan she's prepped; rattled when the job deviates "
+            "and she has to improvise off-script."
+        ),
+        look=(
+            "South Asian woman in her late thirties: dark hair in a practical bun, "
+            "rectangular glasses, a worn field jacket over a hospital-lanyard habit of "
+            "clipping things to her collar. Calm, slightly impatient expression."
+        ),
+        signature_line='"Give me four minutes and a clean port. Noted."',
+    ),
+    Character(
+        id=18,
+        name='Nadia "Relay"',
+        skills={},
+        skill_scores={"hacker": 8, "driver": 6},
+        floor_cost=0,
+        backstory=(
+            "Manila-raised, she ran traffic-cam and toll-system intrusions for a rideshare "
+            "syndicate before going independent — and learned to drive in EDSA gridlock, which "
+            "she swears is harder than any chase. She'd rather own the last ten seconds than "
+            "trust a stranger with them."
+        ),
+        voice=(
+            "Clipped and technical. Narrates latency and ETAs in the same breath. "
+            "Calls every plan 'the relay.'"
+        ),
+        motivation=(
+            "Building an off-grid cabin with a server rack she'll never have to leave. "
+            "Counts jobs in months of solitude bought."
+        ),
+        quirk="Keeps a stopwatch running on every job and checks it mid-sentence.",
+        crew_dynamic=(
+            "Trusts the plan over the people. Cold until you hit your marks, then loyal."
+        ),
+        weakness="On a comms blackout she freezes for a beat — she can't act on a network she can't see.",
+        look=(
+            "Filipina woman in her early thirties: warm brown skin, a shaved-side undercut, an "
+            "earpiece always in, fingerless gloves. Restless eyes that track exits and signal "
+            "bars at once."
+        ),
+        signature_line='"Window\'s nine seconds. I\'m already in, and the car\'s already moving."',
+    ),
+    Character(
+        id=19,
+        name='Tavita "Crowbar"',
+        skills={},
+        skill_scores={"safecracker": 8, "muscle": 6},
+        floor_cost=0,
+        backstory=(
+            "Samoan-New Zealander who ran demolition crews in Auckland and learned the fastest "
+            "way through a wall is knowing exactly where it's weak. Did a stretch for an "
+            "'industrial accident' that the insurers, and only the insurers, believed was an accident."
+        ),
+        voice="Low and unhurried. Fond of construction metaphors. Rarely finishes a coffee.",
+        motivation=(
+            "A quiet retirement and a workshop. Resents that he's best known for the loud part."
+        ),
+        quirk="Taps a wall three times and listens before he ever touches a vault.",
+        crew_dynamic=(
+            "Gentle giant. Moves people out of the danger zone without being asked or thanked."
+        ),
+        weakness="Too patient — keeps working a lock well past the smart moment to walk away.",
+        look=(
+            "Big Samoan man in his fifties: broad and greying, a traditional pe'a tattoo just "
+            "showing below one rolled sleeve, scarred knuckles, a contractor's pencil behind one "
+            "ear. Moves slowly, like the floor might give."
+        ),
+        signature_line='"Everything\'s got a seam. Give me a minute to find it."',
+    ),
+    Character(
+        id=20,
+        name='Rafael "Echo"',
+        skills={},
+        skill_scores={"inside_man": 9, "hacker": 5},
+        floor_cost=0,
+        backstory=(
+            "Former corporate-intelligence interrogator who realized a forged badge and a warm "
+            "smile got him more than any subpoena. Left the firm the day they tried to make "
+            "him testify against the wrong people."
+        ),
+        voice=(
+            "Warm and precise. Mirrors your cadence back at you within a sentence so you feel "
+            "understood. Never raises his voice."
+        ),
+        motivation=(
+            "Proving he was always the smartest person in rooms that were built to overlook him."
+        ),
+        quirk="Repeats your last two words back as a question to keep you talking.",
+        crew_dynamic="Runs the human layer like a switchboard. The crew's default face.",
+        weakness="Can't resist a genuinely clever mark — slows down to enjoy the duel.",
+        look=(
+            "Latino man in his forties, impeccably ordinary — the most forgettable person in "
+            "any lobby, entirely by design. Soft eyes that miss nothing."
+        ),
+        signature_line='"...by design? Tell me more about \'by design.\'"',
+    ),
+    Character(
+        id=21,
+        name='Soo-jin "Anvil"',
+        skills={},
+        skill_scores={"muscle": 9, "driver": 6},
+        floor_cost=0,
+        backstory=(
+            "Korean former Olympic weightlifter who lost her medal and her funding to a doping "
+            "test she still swears was sabotage. Spent two angry years driving forklifts and box "
+            "trucks in a Busan port before someone offered her work where the strength and the "
+            "steering both mattered."
+        ),
+        voice=(
+            "Spare and even — answers in as few words as the question allows. Lets a long "
+            "silence do the work a threat would; when she finally jokes, it lands hard."
+        ),
+        motivation=(
+            "Clearing her name is impossible, so she'll settle for never needing anyone's "
+            "permission again — and a gym of her own."
+        ),
+        quirk="Chalks her hands before anything physical, even when there's nothing to grip.",
+        crew_dynamic="The steady center of the crew — says little, but the room organizes around where she stands.",
+        weakness="The shoulder that ended her career still gives out under a sudden full load.",
+        look=(
+            "Powerfully built Korean woman in her late thirties: close-cropped hair, broad "
+            "shoulders, a lifter's thick wrists and forearms, a calm flat gaze. Chalked hands, "
+            "sleeves pushed up."
+        ),
+        signature_line='"Stay behind me. It\'s simpler for everyone."',
+    ),
 ]
 
+ROSTER: list[Character] = [_with_derived(c) for c in _RAW_ROSTER]
 ROSTER_BY_ID: dict[int, Character] = {c.id: c for c in ROSTER}

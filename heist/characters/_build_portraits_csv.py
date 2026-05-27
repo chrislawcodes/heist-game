@@ -17,7 +17,7 @@ from pathlib import Path
 
 CHARACTERS: list[dict] = [
     {
-        "id": 1, "file": "c01_marcus", "name": 'Marcus "Prodigy" Renault',
+        "id": 1, "file": "c01_marcus", "name": 'Marcus "Prodigy"',
         "skills": "Hacker H, Driver L", "floor_cost": 1_100_000,
         "backstory": "Got caught running a botnet at seventeen in Lyon, did three years in a French juvenile facility, came out at twenty already too well-known for legitimate work, fell into corporate espionage by twenty-two.",
         "voice": "Switches between rapid French-accented English and dead silence. Doesn't joke, doesn't notice when other people do. Uses 'obviously' too much.",
@@ -96,7 +96,7 @@ CHARACTERS: list[dict] = [
         "signature_line": '"Sweetheart, count again. There\'s eleven."',
     },
     {
-        "id": 4, "file": "c04_vance", "name": 'Vance "The Wall" Tobin',
+        "id": 4, "file": "c04_vance", "name": 'Vance "The Wall"',
         "skills": "Muscle H", "floor_cost": 700_000,
         "backstory": "Heavyweight boxer out of Detroit, ranked top twenty in the late 2000s. Got knocked out by a southpaw he should have beaten, took a head injury, never fought again. The pension stopped at $1,200 a month.",
         "voice": "Slow and deliberate, like every word costs him a thought. Pronounces every consonant. Calls everyone 'boss' — even people he doesn't respect.",
@@ -170,7 +170,7 @@ CHARACTERS: list[dict] = [
         "signature_line": '"Hey hey, what\'re we doin\'? Talk to me here."',
     },
     {
-        "id": 7, "file": "c07_lin", "name": 'Lin "Closer" Chen',
+        "id": 7, "file": "c07_lin", "name": 'Lin "Closer"',
         "skills": "Inside Man H, Safecracker L", "floor_cost": 1_100_000,
         "backstory": "Stanford MBA, recruited into McKinsey out of school, washed out after refusing to falsify a client's quarterly report. The career was over either way; she chose the version that paid more.",
         "voice": "Crystal-clear, mid-tempo, never raised. Uses business-school vocabulary on purpose — 'stakeholder alignment,' 'downside scenario.'",
@@ -196,56 +196,49 @@ CHARACTERS: list[dict] = [
     },
     {
         "id": 8, "file": "c08_theo", "name": "Theo Kapoor",
-        "skills": "Inside Man M", "floor_cost": 200_000,
-        "backstory": "Failed actor — three years off-Broadway, then a long slide into voiceover work and stand-in gigs. A director he respected once told him he was 'always lying about the wrong thing.' He took it badly, then he took it as a job description.",
+        "skills": "Inside Man 8", "floor_cost": 425_000,
+        "backstory": "Second-generation Indian-American from New Jersey, trained at Juilliard, then three years off-Broadway cast as 'terrorist #2' and 'exotic friend.' A director he respected told him he was 'always lying about the wrong thing.' He took it badly, then took it as a job description.",
         "voice": "Smooth and adaptable. Has a default voice for the road and an actor's range underneath. Hums between sentences.",
         "motivation": "Still wants to be on a stage. Tells himself the work funds the gap until his next callback, even though it has been the work for nine years now.",
         "quirk": "Says 'well, well, well' before lying. Has not noticed this tell yet.",
         "crew_dynamic": "Charming, slightly performative. Reads the room well, gets a little resentful when the room reads him back.",
         "weakness": "Can't take direction from people he thinks are less talented than he is. Which is most people.",
         "look": (
-            "Three-quarter angle, soft confident smile mid-sentence. "
-            "An Indian-American man in his early forties — dark brown hair pushed back, a small "
-            "earring in the left ear, a close-trimmed beard going grey at the chin. Open-collar "
-            "shirt under a cardigan. One hand gesturing slightly. Light hatching, expressive "
-            "eyes that are performing sincerity and doing a good job of it."
+            "Three-quarter angle, half his attention on you and half on the mirror. An "
+            "Indian-American man in his early forties: dark hair swept back, a small left "
+            "earring, a close-trimmed greying beard. A sharp jacket half-on over an open "
+            "collar. A practiced, magnetic half-smile that's quietly selling you something."
         ),
         "setting": (
-            "A theater dressing room — a mirror ringed with bare bulbs behind him (rendered "
-            "as bright hatched circles), a counter scattered with makeup, rolled scripts, and "
-            "a half-empty coffee cup. A costume rack at the edge of frame shows suit jackets "
-            "on hangers. His own headshot photograph is tucked in the corner of the mirror, "
-            "slightly curled at the edges. The room smells like ambition and cold coffee."
+            "A theater dressing room — a mirror ringed with bare bulbs throwing hard "
+            "cross-hatched light, costume pieces and a wig block in the shadows behind him, a "
+            "scatter of fake IDs and event lanyards among the greasepaint on the counter. The "
+            "bright mirror and the black room read like two of him."
         ),
         "signature_line": '"Well, well, well — you must be the host."',
     },
     {
         "id": 9, "file": "c09_pearl", "name": "Pearl Sutton",
-        "skills": "Inside Man M, Muscle L", "floor_cost": 400_000,
-        "backstory": "Catholic boarding-school girl who ran away at sixteen, joined a small-town hustler's two-person grift in West Virginia, and learned more in eighteen months than the convent taught in eight years. The hustler is in prison; Pearl is not.",
-        "voice": "Grandmotherly Appalachian accent that disarms people in seconds. Says 'darlin'' with at least three different meanings.",
-        "motivation": "Doesn't know. Hasn't asked herself in a decade. Tells the crew it's about a great-niece's tuition — and the great-niece is real, but the tuition is paid.",
-        "quirk": "Knits during planning sessions. Gives finished scarves to crew members at the end of jobs.",
-        "crew_dynamic": "Maternal in the same way a wolf is maternal — the protectiveness is real, but so are the teeth.",
-        "weakness": "Underestimates anyone under thirty until they've proven her wrong twice.",
+        "skills": "Inside Man 7, Safecracker 3", "floor_cost": 295_000,
+        "backstory": "Decades in event hospitality — hotel banquets, conference catering, and lately the volunteer refreshment table at galas, fundraisers, and receptions. Every room taught her the same thing: an older woman with a coffee urn and a tray of pastries is the one person nobody watches, questions, or remembers. A VISITOR badge and full hands get her anywhere — and she leaves with more than the empties: the petty cash, the loose jewelry, whatever a desk drawer or display case was hiding.",
+        "voice": "Warm and unhurried, grandmotherly — the easy kindness of someone who's poured ten thousand cups of coffee and remembered every name. Goes flat and precise the instant the door closes.",
+        "motivation": "Put three foster kids through the same system she aged out of herself. Now she's saving for the day she never has to clock in for anyone again.",
+        "quirk": "Quick, quiet hands — pours your coffee with one and has the desk drawer open with the other. A hairpin handles most small locks, and nobody ever stops an older woman whose hands are full.",
+        "crew_dynamic": "Mother-hen energy that's half real, half tool: mends the crew's nerves and their shirt buttons, and keeps a quiet tally of who owes her.",
+        "weakness": "Can't help fixing things — squares a crooked tray, straightens a stranger's collar — and the help who's too attentive is the help that gets noticed.",
         "look": (
-            "Bust shot, slight three-quarter angle. "
-            "A white woman in her early sixties — silver hair in a low bun, deeply "
-            "weathered face with crow's-feet, half-moon reading glasses perched on "
-            "the tip of her nose, a beaded chain looping behind her neck. She wears "
-            "a thick cable-knit cardigan over a high-collar blouse with a small "
-            "antique cameo brooch at the throat. In her hands: long wooden knitting "
-            "needles mid-stitch, a half-finished scarf trailing into her lap. A "
-            "gentle, slightly sly smile that doesn't quite reach her eyes."
+            "Front-on, holding a tray of refreshments under a single hanging lamp. A composed "
+            "older woman in her sixties: silver hair neatly styled to the shoulder, a kind, "
+            "lined face you forget the moment she turns away. A plain blazer over a collared "
+            "shirt and a VISITOR badge on a lanyard, a warm, busy half-smile — staff, not guest."
         ),
         "setting": (
-            "A cozy Victorian parlor — patterned floral wallpaper behind her with "
-            "cross-hatched depth, a small framed family photograph hung on the wall "
-            "above her shoulder, a doily-covered side table with a leather Bible "
-            "and a porcelain teacup, the edge of a wing-back armchair. The room "
-            "reads as lived-in but nothing competes with the figure for focus."
+            "A refreshments station at the back of a community hall — a steel coffee urn and a "
+            "bowl of food on a draped table, a stack of folding chairs cross-hatched into the "
+            "shadow of a side room, a doorway spilling dim light. She's framed between the "
+            "event she serves and the back rooms she actually works."
         ),
-        "signature_line": '"Sit down, darlin\'. Tell me how I can help."',
+        "signature_line": '"You look like you could use a hand. Right this way."',
     },
     {
         "id": 10, "file": "c10_rook", "name": "Rook Ferreira",
@@ -274,7 +267,7 @@ CHARACTERS: list[dict] = [
         "signature_line": '"Quiet, please. I need to listen."',
     },
     {
-        "id": 11, "file": "c11_jolene", "name": 'Jolene "Jo" Hayes',
+        "id": 11, "file": "c11_jolene", "name": 'Jolene "Jo"',
         "skills": "Safecracker M, Hacker L", "floor_cost": 400_000,
         "backstory": "Grew up in Tulsa, daughter of a competitive locksmith champion who never paid for a hotel because he could open the door of the room next to his. Picked up some computer security in community college because the local jobs all wanted both.",
         "voice": "Easy Oklahoma drawl, says 'y'all' without irony. Talks through her work out loud — sometimes to the lock, sometimes to no one.",
@@ -402,7 +395,7 @@ CHARACTERS: list[dict] = [
         "signature_line": '"Lord have mercy. Where do you want it?"',
     },
     {
-        "id": 16, "file": "c16_val", "name": 'Valentina "Val" Cruz',
+        "id": 16, "file": "c16_val", "name": 'Valentina "Val"',
         "skills": "Muscle M, Inside Man L", "floor_cost": 400_000,
         "backstory": "Eight years as a Cook County corrections officer in Chicago — knew every shift pattern, every blind spot, every guard who'd look the other way for the right story. Left after a use-of-force review that went nowhere. Does asset recovery now.",
         "voice": "Flat Chicago working-class. Short sentences. Doesn't explain herself twice. When she laughs it surprises people — loud and genuine, gone in a second.",
@@ -425,6 +418,117 @@ CHARACTERS: list[dict] = [
         ),
         "signature_line": '"I\'ve been on the other side of this door. Trust me."',
     },
+    {
+        "id": 17, "file": "c17_priya", "name": 'Priya "Patch"',
+        "skills": "Hacker 7, Inside 5", "floor_cost": 325_000,
+        "backstory": "Ran security for a regional hospital network until she flagged a breach the board wanted buried; fired the week before her options vested. Freelances now, and keeps the termination letter laminated in her bag.",
+        "voice": "Precise and deadpan. Over-explains the thing she's about to do, then does it faster than anyone expects. Says 'noted' instead of 'okay.'",
+        "motivation": "Paying for her father's memory-care facility, month to month. Prices every job in weeks of care bought.",
+        "quirk": "Labels everything — cables, drives, people. Narrates her keystrokes under her breath.",
+        "crew_dynamic": "Reliable and a little preachy about opsec. Redoes sloppy work without being asked and mentions it exactly once.",
+        "weakness": "Rigid — brilliant on a prepped plan, rattled when the job goes off-script.",
+        "look": (
+            "Close crop, slight high angle looking down at her hands over a keyboard. "
+            "A South Asian woman in her late thirties: dark hair in a tight practical bun, "
+            "rectangular glasses catching the light, a faint permanent line between her brows. "
+            "Deadpan and precise, lips just parted mid-explanation."
+        ),
+        "setting": (
+            "A tidy server closet lit by a single warm task lamp, the rest of the room "
+            "swallowed in black. Every cable and drive neatly labeled with a handwritten strip; "
+            "a label-maker in frame. Pinned to the dark wall: a laminated letter and a small "
+            "creased photo of an older man."
+        ),
+        "signature_line": '"Give me four minutes and a clean port. Noted."',
+    },
+    {
+        "id": 18, "file": "c18_nadia", "name": 'Nadia "Relay"',
+        "skills": "Hacker 8, Driver 6", "floor_cost": 525_000,
+        "backstory": "Manila-raised; ran traffic-cam and toll-system intrusions for a rideshare syndicate before going independent, and learned to drive in EDSA gridlock. She'd rather own the last ten seconds than trust a stranger with them.",
+        "voice": "Clipped and technical. Narrates latency and ETAs in the same breath. Calls every plan 'the relay.'",
+        "motivation": "Building an off-grid cabin with a server rack she'll never have to leave. Counts jobs in months of solitude bought.",
+        "quirk": "Keeps a stopwatch running on every job and checks it mid-sentence.",
+        "crew_dynamic": "Trusts the plan over the people. Cold until you hit your marks, then loyal.",
+        "weakness": "On a comms blackout she freezes for a beat — can't act on a network she can't see.",
+        "look": (
+            "Three-quarter angle, hands poised over a keyboard. A Filipina woman in her early "
+            "thirties: warm brown skin, a shaved-side undercut, an earpiece always in, "
+            "fingerless gloves. Restless, alert eyes and a faint focused half-smile."
+        ),
+        "setting": (
+            "A dim loft lit warm from a side window, the far side sinking into deep shadow. "
+            "Behind her, a wall of city maps with escape routes traced in marker; a police "
+            "scanner and a set of car keys on the desk, a stopwatch beside the keyboard."
+        ),
+        "signature_line": '"Window\'s nine seconds. I\'m already in, and the car\'s already moving."',
+    },
+    {
+        "id": 19, "file": "c19_tavita", "name": 'Tavita "Crowbar"',
+        "skills": "Safecracker 8, Muscle 6", "floor_cost": 525_000,
+        "backstory": "Samoan-New Zealander who ran demolition crews in Auckland and learned the fastest way through a wall is knowing where it's weak. Did a stretch for an 'industrial accident' that only the insurers believed was an accident.",
+        "voice": "Low and unhurried. Fond of construction metaphors. Rarely finishes a coffee.",
+        "motivation": "A quiet retirement and a workshop. Resents that he's best known for the loud part.",
+        "quirk": "Taps a wall three times and listens before he ever touches a vault.",
+        "crew_dynamic": "Gentle giant. Moves people out of the danger zone without being asked or thanked.",
+        "weakness": "Too patient — keeps working a lock well past the smart moment to walk away.",
+        "look": (
+            "Broad bust shot from a slightly low angle, looming. A big Samoan man in his fifties: "
+            "broad-shouldered, greying hair, a traditional pe'a tattoo just visible below one "
+            "rolled sleeve, scarred knuckles, a contractor's pencil behind one ear. Calm and "
+            "patient, one large hand raised flat as if listening to a wall."
+        ),
+        "setting": (
+            "A stripped utility room in front of a heavy vault door, its hinges and seams "
+            "catching a hard work-lamp beam; everything else cross-hatched into black. "
+            "Demolition tools and a contractor's level lean against exposed concrete, fine dust "
+            "hanging in the light."
+        ),
+        "signature_line": '"Everything\'s got a seam. Give me a minute to find it."',
+    },
+    {
+        "id": 20, "file": "c20_rafael", "name": 'Rafael "Echo"',
+        "skills": "Inside Man 9, Hacker 5", "floor_cost": 750_000,
+        "backstory": "Former corporate-intelligence interrogator who realized a forged badge and a warm smile got him more than any subpoena. Left the firm the day they tried to make him testify against the wrong people.",
+        "voice": "Warm and precise. Mirrors your cadence back within a sentence so you feel understood. Never raises his voice.",
+        "motivation": "Proving he was always the smartest person in rooms built to overlook him.",
+        "quirk": "Repeats your last two words back as a question to keep you talking.",
+        "crew_dynamic": "Runs the human layer like a switchboard. The crew's default face.",
+        "weakness": "Can't resist a genuinely clever mark — slows down to enjoy the duel.",
+        "look": (
+            "Straight-on, eye-level, composed. A Latino man in his forties, deliberately "
+            "ordinary — neat blazer, simple haircut, the most forgettable person in any room by "
+            "design. Soft, attentive eyes that miss nothing and a warm, disarming half-smile. "
+            "A visitor badge clipped to his lapel."
+        ),
+        "setting": (
+            "A polished public lobby at night, mostly dark: a reception desk and turnstiles "
+            "softly cross-hatched behind him, a wall clock, a potted plant. A single overhead "
+            "light pools on him; he holds a phone loosely, mid-conversation with someone just "
+            "out of frame."
+        ),
+        "signature_line": '"...by design? Tell me more about \'by design.\'"',
+    },
+    {
+        "id": 21, "file": "c21_soojin", "name": 'Soo-jin "Anvil"',
+        "skills": "Muscle 9, Driver 6", "floor_cost": 800_000,
+        "backstory": "Korean former Olympic weightlifter who lost her medal and her funding to a doping test she still swears was sabotage. Spent two angry years driving forklifts and box trucks in a Busan port before someone offered her work where the strength and the steering both mattered.",
+        "voice": "Spare and even — answers in as few words as the question allows. Lets a long silence do the work a threat would; when she finally jokes, it lands hard.",
+        "motivation": "Clearing her name is impossible, so she'll settle for never needing anyone's permission again — and a gym of her own.",
+        "quirk": "Chalks her hands before anything physical, even when there's nothing to grip.",
+        "crew_dynamic": "The steady center of the crew — says little, but the room organizes around where she stands.",
+        "weakness": "The shoulder that ended her career still gives out under a sudden full load.",
+        "look": (
+            "Low-angle bust shot looking up, emphasizing her power. A powerfully built Korean "
+            "woman in her late thirties: close-cropped hair, broad shoulders, a lifter's thick "
+            "wrists and forearms, a calm flat gaze. Chalked hands, sleeves pushed up, arms crossed."
+        ),
+        "setting": (
+            "A freight loading bay at night — a roll-up door half-raised behind her, stacked "
+            "pallets and chain-link cross-hatched into deep shadow, a single overhead lamp hard "
+            "on her shoulders. A worn weight plate props a side door open; a hand truck nearby."
+        ),
+        "signature_line": '"Stay behind me. It\'s simpler for everyone."',
+    },
 ]
 
 
@@ -434,9 +538,10 @@ CHARACTERS: list[dict] = [
 
 STYLE_BLOCK = """\
 STYLE & FORMAT
-Codenames-style black-and-white pen-and-ink illustration. Square 1:1 \
-aspect ratio. High-contrast cross-hatched shading throughout. Single \
-figure dominant in frame. No text, no watermark.\
+Codenames-style black-and-white pen-and-ink illustration, low-key and \
+shadow-heavy. Square 1:1 aspect ratio. Dense cross-hatching with deep blacks \
+and dramatic single-source lighting (chiaroscuro) — the figure emerges from a \
+near-black background. Single figure dominant in frame. No text, no watermark.\
 """
 
 

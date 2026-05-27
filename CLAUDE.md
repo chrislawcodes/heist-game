@@ -13,18 +13,18 @@ A single-player (Phase 1) → multiplayer (Phase 2+) AI heist game. The player w
 
 ## Locked Design Decisions — Do Not Change Without Explicit Instruction
 
-- Skill levels: Low / Medium / High only
-- Collaboration rule: two same-skill crew act one level higher, capped at High
-- Hard challenges require High skill (Medium + Medium collaboration counts)
-- Challenge resolution is graded: clean / squeak (pass, +1 heat) / fail / caught (skill 2+ levels short → a crew member is caught). Take = per-scene loot secured during the run, kept only if at least one crew member escapes
-- Bankroll: $2,000,000
-- Roster: 16 characters, locked
-- Job slate is not locked — add/remove freely in `heist/content.py` (`JOBS` list). Current slate: Museum Gala, Armored Car, Corporate Server Farm, Penthouse Caper, Cargo Yard, Diplomatic Reception, Casino Vault
-- System owns all deterministic mechanics; Heist AI owns all creative/interpretive decisions
+- **Skills are a hidden 1–10 score** per character/challenge. The public **bucket** is derived from the score: 1–3 Low / 4–7 Medium / 8–10 High (0 = none). Character scores are **public**; only **location** challenge scores are fogged (scouting reveals them).
+- Collaboration rule: two+ same-skill crew act at **best score + 1 point**, capped at 10 (not +1 bucket).
+- Challenge resolution is by **score margin** (`effective_skill_score` vs the challenge's hidden score): margin ≥2 clean / 0–1 squeak (+1 heat) / −1…−3 fail (+1 heat) / ≤−4 caught (+1 heat, a crew member is caught). A tier-3 Hard rolls 9–10, so it can only ever be *squeaked* (always ≥ +1 heat). Take = per-scene loot secured during the run, kept only if at least one crew member escapes.
+- Pricing: convex per-score curve — `$100k seat + Σ premium(score)`, premium rising steeply at the top (an 8 ≈ $325k, a 10 ≈ $1.1M).
+- Bankroll: $2,000,000 (per team; banked loot carries forward as the next round's bankroll).
+- Roster: **21 characters**.
+- **Job slate = a contested board.** A pool of ~50 jobs lives in `heist/locations/__init__.py` (`JOBS`; extra content in `_extra_jobs.py`). Each campaign round shows a shared **board of 8** drawn from the pool minus globally-consumed jobs; teams pick **trailing-team-first** (lowest banked first) and a job is consumed for everyone once attempted. Board composition is gated by campaign progress + random wilds. Reward **climbs with difficulty** (floor ~$1M, elite 4-Hard jobs are the $15–18M jackpots), decoupled-with-slack so a few "edge" jobs are mispriced.
+- System owns all deterministic mechanics; Heist AI owns all creative/interpretive decisions.
 
 ## Current Phase
 
-**Phase 1** — single player, single job. See `heist_game_design.md` § "Phase 1" for full spec.
+**Phase 4** — hidden location info, scouting, score-based resolution, and the contested job board. (Phases 1–3 shipped.) See `heist_game_design.md` § "Phase 4" for the full spec.
 
 ## Production vs Staging Servers
 

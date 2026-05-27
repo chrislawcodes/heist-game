@@ -25,11 +25,28 @@ def test_every_job_can_pay_out_on_a_clean_run():
 
 
 def test_roster_size_and_uniqueness():
-    assert len(ROSTER) == 16
+    # Phase 4 roster v2: 16 original + Priya, Nadia, and 3 elites (Marko, Renata, Tunde).
+    assert len(ROSTER) == 21
     ids = [c.id for c in ROSTER]
-    assert len(set(ids)) == 16
+    assert len(set(ids)) == 21
     names = [c.name for c in ROSTER]
-    assert len(set(names)) == 16
+    assert len(set(names)) == 21
+
+
+def test_electronic_has_a_two_medium_collab_path():
+    """Phase 4 added a 2nd Medium Hacker so electronic isn't Marcus-or-bust:
+    two medium hackers must reach an effective High (8+)."""
+    from heist.mechanics import effective_skill_score, score_to_bucket
+    from heist.state import SkillLevel
+    med_hackers = [
+        c for c in ROSTER
+        if score_to_bucket(c.skill_scores.get("hacker", 0)) == SkillLevel.MEDIUM
+    ]
+    assert len(med_hackers) >= 2
+    best_two = sorted((c.skill_scores["hacker"] for c in med_hackers), reverse=True)[:2]
+    # Build throwaway crew from the two best medium hackers and check collaboration.
+    pair = [c for c in ROSTER if c.skill_scores.get("hacker") in best_two][:2]
+    assert effective_skill_score(pair, "hacker") >= 8
 
 
 def test_roster_by_id_matches():
@@ -45,10 +62,10 @@ def test_no_character_is_single_low_skill():
             raise AssertionError(f"{c.name} is a forbidden 1-point single-Low character")
 
 
-def test_total_skill_points_in_range():
-    for c in ROSTER:
-        total = sum(int(lvl) for lvl in c.skills.values())
-        assert 2 <= total <= 4, f"{c.name} has {total} skill points"
+# NOTE: the old "2-4 total skill points" rule was a Phase 1-3 pricing artifact
+# (cost was a function of bucket-point totals). Phase 4 prices each skill by its
+# 1-10 score via the convex curve, so stacking is priced directly and the cap is
+# obsolete — e.g. the versatile elites (High + Medium) intentionally exceed it.
 
 
 def test_each_primary_skill_has_at_least_three_specialists():
@@ -65,10 +82,14 @@ def test_each_primary_skill_has_at_least_three_specialists():
         assert primaries.get(skill, 0) >= 3, f"{skill}: {primaries.get(skill, 0)} primaries"
 
 
-def test_fifteen_jobs_present():
-    assert len(JOBS) == 15
+def test_job_pool_is_deep_and_unique():
+    """Contested job board (spec 002, US5): the pool grew to ~50 so a 4-team,
+    10-round campaign (~40 jobs consumed) never runs dry. Names stay unique and
+    the 15 core jobs are still present."""
+    assert len(JOBS) >= 45, f"pool only {len(JOBS)} jobs — too thin for 4 teams"
     names = {j.name for j in JOBS}
-    assert names == {
+    assert len(names) == len(JOBS), "duplicate job names in the pool"
+    core = {
         "The Museum Gala",
         "The Armored Car",
         "The Cargo Yard",
@@ -85,6 +106,7 @@ def test_fifteen_jobs_present():
         "Billionaire's Compound",
         "The Mint",
     }
+    assert core <= names, f"missing core jobs: {core - names}"
 
 
 def test_each_job_has_hidden_depth_and_rewards():
@@ -115,10 +137,11 @@ def test_job_slate_has_difficulty_spread():
 # contradicts the roster table itself, which lists Low Inside Man on several characters
 # as a secondary skill. We preserve the table as authoritative; this test pins the
 # current set so it surfaces if membership changes unexpectedly.
-# Current LOW inside_man holders: Eli (3), Big Mike (6), Margot (14), Val Cruz (16).
+# After the Phase 4 v2 re-score, Eli/Margot/Val all moved to Medium inside_man;
+# Big Mike (6) is the only remaining LOW inside_man holder.
 def test_low_inside_man_holders():
     low_inside_ids = sorted(
         c.id for c in ROSTER
         if c.skills.get("inside_man", SkillLevel.NONE) == SkillLevel.LOW
     )
-    assert low_inside_ids == [3, 6, 14, 16]
+    assert low_inside_ids == [6]

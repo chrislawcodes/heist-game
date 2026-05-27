@@ -52,43 +52,51 @@ Five skills, each matched to a challenge category:
 
 Hacker, Safecracker, Muscle, and Inside Man are "active" skills exercised during the body of the heist. Driver determines the escape's outcome.
 
-### Skill levels
+### Skill levels (1–10 scores under public buckets) — Phase 4+
 
-Each character has one or more skills at **Low (1 point), Medium (2 points), or High (3 points)**. No primary/secondary distinction.
+Every skill and every challenge has a hidden **1–10 score**. The familiar
+**bucket** is just a label derived from the score:
+
+`0 = None, 1–3 = Low, 4–7 = Medium, 8–10 = High`.
+
+**Character scores are public** (you see "Safecracker 9"). **Location challenge
+scores are fogged** — you see the bucket as an estimate and scout to learn the
+exact number (see Phase 4). *(Phases 1–3 used bare buckets; the 1–10 model
+shipped in Phase 4 and supersedes them.)*
 
 ### Challenge levels
 
-Each active challenge at a location: **None / Low / Medium / Hard**.
+Each active challenge at a location has a hidden 1–10 score whose bucket is
+**None / Low / Medium / Hard**. How high within the bucket it rolls depends on
+the job's **tier** (tier-1 Hards roll ~8; tier-3 Hards roll 9–10).
 
 ### Skill vs. challenge interaction (computed by the system)
 
-The crew's effective level in a category is the highest skill level any assigned crew member has in it (collaboration can raise it — see below). The system **grades** each challenge by how the crew's effective skill compares to the challenge level:
+The crew's **effective score** in a category is the highest score any assigned
+member has, **+1 if two or more members have the skill** (capped at 10). The
+system grades by the **margin** = effective score − challenge score:
 
-| Effective skill vs. challenge | Outcome |
-|-------------------------------|---------|
-| No challenge (None) | Pass — clean |
-| Skill **>** challenge | Pass — clean |
-| Skill **=** challenge | Pass — but **+1 heat** (a squeak-through) |
-| Skill **1 level below** | **Fail** — objective missed, **+1 heat** |
-| Skill **2+ levels below** | **Fail** — objective missed, **+1 heat**, and a crew member is **caught** |
+| Margin (eff − challenge) | Outcome |
+|--------------------------|---------|
+| No challenge (score 0) | Pass — clean |
+| **≥ +2** | Pass — clean |
+| **0 or +1** | Pass — but **+1 heat** (a squeak) |
+| **−1 to −3** | **Fail** — objective missed, **+1 heat** |
+| **≤ −4** | **Fail** — **+1 heat**, and a crew member is **caught** |
 
-Heat rises by 1 on anything that isn't a clean beat. **A Hard challenge (level 3) tops out at a squeak-through even with a High specialist**, so clearing a Hard always costs at least +1 heat. A 2+-level shortfall catches the member who led the attempt (the one whose skill matched the challenge; otherwise the lowest-cost assigned member), and they're out for the rest of the run.
+Heat rises by 1 on anything that isn't clean. Because effective score caps at
+10, a **tier-3 Hard (9–10) can only ever be squeaked**, so the hardest jobs
+always cost heat. A ≤−4 shortfall catches the member who led the attempt
+(otherwise the lowest-cost assigned member), out for the rest of the run.
 
-*(Phases 1-3. **Phase 4 replaces this bucketed comparison with a true-score
-contest under hidden information** — a published "High" can lose to a "Hard"
-depending on the fogged 1-10 scores. See Phase 4.)*
+So a published "High" (true 7) can *lose* to a "Hard" (true 9): the bucket is
+an estimate, not a contract — which is what makes scouting matter.
 
 ### Collaboration
 
-Two characters with skill in the same category act at one level higher than the higher of them, capped at High.
-
-- Low + Low = Medium
-- Low + Medium = High
-- Medium + Medium = High
-- Medium + High = High
-- High + High = High
-
-Two Medium specialists can beat a Hard challenge through collaboration.
+Two or more characters with the same skill act at **the best member's score + 1
+point**, capped at 10. (Two Medium specialists — say two 7s — reach an
+effective 8, enough to *squeak* an easier Hard; they can't manufacture a 10.)
 
 ### Failure consequences
 
@@ -103,28 +111,28 @@ Every heist ends with an escape scene. Escape difficulty = the job's escape modi
 Each character has:
 
 - Name (with optional nickname)
-- One or more skills, each at Low / Medium / High
-- Total skill points: 2-4 (pure Low single-skill characters at 1 point are not allowed)
-- Floor cost
+- One or more skills, each a **1–10 score** (public; bucket derived)
+- Floor cost (derived from the scores — see pricing)
 - Personality: a paragraph (80-150 words) describing voice, motivations, quirks, history
 
-Each character is a unique person. In multi-player phases, each character is on at most one crew per game.
+The roster is **21 characters**. Each is a unique person; in multi-player phases each character is on at most one crew per game.
 
-### Character pricing
+### Character pricing — Phase 4+ (convex per-score curve)
 
-| Total Points | Base Cost |
-|--------------|-----------|
-| 2 | $200,000 |
-| 3 | $400,000 |
-| 4 | $800,000 |
+A character's floor cost is derived from its scores, not a points bucket:
 
-**High skill premium:** +$300,000 for each High skill on the character.
+`floor_cost = $100,000 seat + Σ premium(score)`
 
-Examples:
-- 2-point character: $200,000
-- 3-point character without a High: $400,000
-- 3-point pure High specialist: $700,000
-- 4-point character with one High: $1,100,000
+The premium rises steeply at the top so buying a near-perfect specialist is a
+real sacrifice:
+
+| Score | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
+|-------|---|---|---|---|---|---|---|---|---|----|
+| Premium | $10k | $15k | $20k | $25k | $50k | $100k | $175k | $325k | $600k | $1.1M |
+
+So a lone Safecracker-8 ≈ $425k; a Safecracker-10 ≈ $1.2M; a Hacker-10 +
+Driver-2 ≈ $1.215M. *(Phases 1–3 used a flat 2/3/4-point table; the curve
+shipped in Phase 4.)*
 
 ### Locations (jobs)
 
@@ -576,8 +584,35 @@ range, hidden-depth pool. Phase 4 fogs the precise numbers and lets the player
 pay to learn them. This is the planned counterweight to the steep heat cascade
 (MEMORY): scouting is how a smart player de-risks before committing.
 
-**Status:** Designed, not built. Ships *after* Phase 3. Score-based resolution
-and scouting are a **single package** — see "Why they ship together."
+**Status: Built.** Score-based resolution, scouting, and the contested job
+board shipped in Phase 4. The notes below are the design rationale; where this
+section once said "to define," the **As built** subsection records what shipped.
+
+### As built (what actually shipped)
+
+- **1–10 scores under public buckets.** Boundaries `1–3/4–7/8–10`. Character
+  scores are public; only **location** challenge scores are fogged.
+- **Score-margin resolution** (clean ≥2 / squeak 0–1 / fail −1…−3 / caught ≤−4),
+  not a binary contest. Collaboration = best score **+1 point**, capped at 10.
+- **Convex pricing** (`$100k seat + Σ premium(score)`); see Character pricing.
+- **Scouting** is a free, per-round, pre-commit intel phase: each crew gets
+  `crew size + best-driver bonus` free probes; **one probe reveals a location
+  challenge's exact 1–10 score**. (The planned narrowed-range middle tier and a
+  $100k paid-overflow probe were *not* built — scouting is free-probes-only, and
+  the reward range is public, not scouted.)
+- **Tiered challenge bands.** Each job has a tier (easy/med/hard/elite → 1/2/3)
+  that sets how high its Hards roll; tier-3 Hards roll 9–10 (squeak-only).
+- **Contested job board.** A pool of ~50 jobs; each round shows a shared
+  **board of 8** drawn from the pool minus globally-consumed jobs. Up to 4 teams
+  pick **trailing-team-first** (lowest banked picks first — anti-snowball); a job
+  is **consumed for everyone** once attempted. Board composition is gated by
+  campaign progress (early boards skew cheap-to-mid, jackpots unlock late) plus
+  random wild slots, with an affordable-minimum so no team is starved.
+- **Reward climbs with difficulty,** decoupled-with-slack: floor ~$1M (every
+  board job worth contesting), take rises with Hard-count then tier, and the two
+  elite 4-Hard jobs are the **$15–18M jackpots** you bank across rounds to
+  afford. 1–2 deliberate "edge" jobs sit off-trend (a bargain, a trap) for a
+  scout to find.
 
 ### Hidden scores under public buckets
 
