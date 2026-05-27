@@ -38,36 +38,45 @@ def test_tier_alias_ladder_shifts_fog_band():
     assert elite_hard <= {9, 10}                # elite: Hards run 9-10
 
 
-def test_probe_reveals_exact_within_budget():
-    scores = {"J": {"physical": 9, "social": 5}}
-    ss = ScoutState(free_probes=2)
-    events = apply_probes(ss, scores, [
-        {"job": "J", "category": "physical"},
-        {"job": "J", "category": "social"},
-    ])
-    assert ss.scouted_score("J", "physical") == 9
-    assert ss.scouted_score("J", "social") == 5
+def test_two_step_reveal_bucket_then_exact():
+    """One probe advances one level: first scout → bucket (no number yet),
+    second scout on the same cell → exact 1-10."""
+    scores = {"J": {"physical": 9}}
+    ss = ScoutState(free_probes=3)
+    # 1st probe → BUCKET only.
+    e1 = apply_probes(ss, scores, [{"job": "J", "category": "physical"}])
+    assert ss.level("J", "physical") == RevealLevel.BUCKET
+    assert e1[0]["reveal_level"] == "BUCKET"
+    assert e1[0]["bucket"] == "HIGH"
+    assert "score" not in e1[0]
+    assert ss.scouted_score("J", "physical") is None
+    # 2nd probe on the same cell → EXACT.
+    e2 = apply_probes(ss, scores, [{"job": "J", "category": "physical"}])
     assert ss.level("J", "physical") == RevealLevel.EXACT
-    assert [e["score"] for e in events] == [9, 5]
-    assert events[0]["bucket"] == "HIGH" and events[1]["bucket"] == "MEDIUM"
+    assert e2[0]["reveal_level"] == "EXACT"
+    assert e2[0]["score"] == 9
+    assert ss.scouted_score("J", "physical") == 9
+    assert ss.probes_spent_free == 2
 
 
-def test_probe_budget_caps_and_repeat_is_free_noop():
+def test_probe_budget_caps_and_full_cell_is_free_noop():
     scores = {"J": {"physical": 9, "social": 5, "electronic": 8}}
     ss = ScoutState(free_probes=1)
-    # 1 free probe: first applies, the rest are dropped (paid overflow deferred).
+    # 1 free probe: first applies (→ bucket), the rest are dropped.
     events = apply_probes(ss, scores, [
         {"job": "J", "category": "physical"},
         {"job": "J", "category": "social"},
     ])
     assert len(events) == 1
     assert ss.budget_remaining() == 0
-    # Re-probing an already-known cell is a no-op and costs nothing.
-    ss2 = ScoutState(free_probes=2)
-    apply_probes(ss2, scores, [{"job": "J", "category": "physical"}])
+    # Take a cell all the way to EXACT (two probes), then a third is a no-op.
+    ss2 = ScoutState(free_probes=5)
+    apply_probes(ss2, scores, [{"job": "J", "category": "physical"}])   # → bucket
+    apply_probes(ss2, scores, [{"job": "J", "category": "physical"}])   # → exact
+    assert ss2.level("J", "physical") == RevealLevel.EXACT
     again = apply_probes(ss2, scores, [{"job": "J", "category": "physical"}])
     assert again == []
-    assert ss2.probes_spent_free == 1
+    assert ss2.probes_spent_free == 2
 
 
 def test_unknown_job_or_category_is_dropped():
@@ -96,10 +105,15 @@ def test_run_scout_turn_with_stub_emits_events_and_records_intel():
     ss = _run_scout_turn(crew, list(JOBS), slate, ai, [], emitted.append)
     scouted = [e for e in emitted if e.get("type") == "scouted"]
     assert scouted, "stub should have scouted at least one cell"
-    # every revealed cell is recorded with the matching slate score
+    # every revealed cell carries the matching bucket; EXACT cells also the score
     for e in scouted:
         true = slate[e["job"]][e["category"]]
-        assert ss.scouted_score(e["job"], e["category"]) == e["score"] == true
+        assert e["bucket"] == score_to_bucket(true).name
+        if e["reveal_level"] == "EXACT":
+            assert e["score"] == true
+            assert ss.scouted_score(e["job"], e["category"]) == true
+        else:
+            assert e["reveal_level"] == "BUCKET"
     assert ss.probes_spent_free == len(scouted)
 
 
