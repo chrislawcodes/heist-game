@@ -271,7 +271,7 @@ _RAW_ROSTER: list[Character] = [
         id=8,
         name="Theo Kapoor",
         skills={"inside_man": M},
-        skill_scores={"inside_man": 6},
+        skill_scores={"inside_man": 8},
         floor_cost=200_000,
         backstory=(
             "Second-generation Indian-American from New Jersey, trained at Juilliard on a "
@@ -299,9 +299,9 @@ _RAW_ROSTER: list[Character] = [
             "Which is most people."
         ),
         look=(
-            "Indian-American man in his early forties: dark brown hair pushed back, small "
-            "earring in the left ear, close-trimmed beard going grey at the chin. "
-            "Open-collar shirt under a cardigan. Soft confident smile mid-sentence."
+            "Indian-American man in his early forties: dark hair swept back, a small left "
+            "earring, close-trimmed beard going grey at the chin. A sharp jacket half-on over "
+            "an open collar. A practiced, magnetic half-smile that's quietly selling you something."
         ),
         signature_line='"Well, well, well — you must be the host."',
     ),
@@ -692,27 +692,27 @@ _RAW_ROSTER: list[Character] = [
     ),
     Character(
         id=20,
-        name='Renata "Echo" Salazar',
+        name='Rafael "Echo" Salazar',
         skills={},
         skill_scores={"inside_man": 9, "hacker": 5},
         floor_cost=0,
         backstory=(
             "Former corporate-intelligence interrogator who realized a forged badge and a warm "
-            "smile got her more than any subpoena. Left the firm the day they tried to make "
-            "her testify against the wrong people."
+            "smile got him more than any subpoena. Left the firm the day they tried to make "
+            "him testify against the wrong people."
         ),
         voice=(
             "Warm and precise. Mirrors your cadence back at you within a sentence so you feel "
-            "understood. Never raises her voice."
+            "understood. Never raises his voice."
         ),
         motivation=(
-            "Proving she was always the smartest person in rooms that were built to overlook her."
+            "Proving he was always the smartest person in rooms that were built to overlook him."
         ),
         quirk="Repeats your last two words back as a question to keep you talking.",
         crew_dynamic="Runs the human layer like a switchboard. The crew's default face.",
         weakness="Can't resist a genuinely clever mark — slows down to enjoy the duel.",
         look=(
-            "Latina woman in her forties, impeccably ordinary — the most forgettable person in "
+            "Latino man in his forties, impeccably ordinary — the most forgettable person in "
             "any lobby, entirely by design. Soft eyes that miss nothing."
         ),
         signature_line='"...by design? Tell me more about \'by design.\'"',

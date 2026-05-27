@@ -11,10 +11,10 @@ from heist.ai import StubHeistAI
 
 _JOB_BIDS: dict[str, list[tuple[int, int, str]]] = {
     "The Museum Gala": [
-        (10, 700_000, "High safecracker."),
-        (8, 200_000, "Inside Man M; half of the collaboration."),
-        (9, 400_000, "Inside Man M + Muscle L; other half of collaboration."),
+        (10, 700_000, "High safecracker for the vault (physical Hard)."),
+        (8, 425_000, "High inside man — covers the social Hard alone."),
         (13, 700_000, "High driver for a clean exit."),
+        (3, 200_000, "Cheap hacker/inside support."),
     ],
     "The Armored Car": [
         (4, 700_000, "High muscle for the guards."),
@@ -23,10 +23,10 @@ _JOB_BIDS: dict[str, list[tuple[int, int, str]]] = {
         (2, 200_000, "Hacker M for any electronic interference."),
     ],
     "The Corporate Server Farm": [
-        (1, 1_100_000, "High hacker plus backup driver in one body."),
-        (8, 200_000, "Inside Man M for the social layer."),
+        (1, 1_100_000, "High hacker for the electronic Hard."),
         (11, 400_000, "Safecracker M for the server-room lock."),
-        (3, 200_000, "Hacker L + Inside Man L — cheap third pair of eyes."),
+        (12, 400_000, "Safecracker/Hacker support."),
+        (3, 200_000, "Cheap hacker/inside support."),
     ],
     "The Penthouse Caper": [
         (2, 200_000, "Hacker M for the smart home."),
@@ -58,11 +58,18 @@ _JOB_BIDS: dict[str, list[tuple[int, int, str]]] = {
 def _bid_response(job_name: str) -> str:
     # Bid each pick's true floor cost (the hardcoded amounts in _JOB_BIDS are
     # legacy hints; pricing is owned by the curve in mechanics.score_floor_cost).
-    from heist.content import ROSTER_BY_ID
-    bids = [
-        {"character_id": cid, "bid": ROSTER_BY_ID[cid].floor_cost, "rationale": why}
-        for (cid, _amt, why) in _JOB_BIDS[job_name]
-    ]
+    # Budget-aware: take picks in priority order, skipping any that would blow the
+    # bankroll, so a re-priced roster can never push the stub over budget (the
+    # fill step tops the crew back up to 4).
+    from heist.content import BANKROLL, ROSTER_BY_ID
+    bids = []
+    spent = 0
+    for (cid, _amt, why) in _JOB_BIDS[job_name]:
+        cost = ROSTER_BY_ID[cid].floor_cost
+        if spent + cost > BANKROLL:
+            continue
+        bids.append({"character_id": cid, "bid": cost, "rationale": why})
+        spent += cost
     return json.dumps({
         "casting_strategy": f"Crew built for {job_name}.",
         "bids": bids,
