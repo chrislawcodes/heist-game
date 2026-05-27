@@ -122,8 +122,8 @@
 
 **Goal:** docs match shipped reality.
 
-- [ ] T027 [P: heist_game_design.md] Correct core mechanics to the 1–10 score model (buckets 1-3/4-7/8-10, score-margin resolution, +1-point collaboration, scouting reveal ladder); mark Phase 4 built; document the contested board (shared, global-consumption, 8 shown, trailing-first, gating+wilds) and the reward-climb model ($1M floor, $15-18M jackpots, edges); update roster count to 21.
-- [ ] T028 [P: CLAUDE.md] Update "Locked Design Decisions": skill scores (not buckets), 21-character roster, correct current phase, contested-board slate rule; update the job-slate line.
+- [x] T027 [P: heist_game_design.md] Correct core mechanics to the 1–10 score model (buckets 1-3/4-7/8-10, score-margin resolution, +1-point collaboration, scouting reveal ladder); mark Phase 4 built; document the contested board (shared, global-consumption, 8 shown, trailing-first, gating+wilds) and the reward-climb model ($1M floor, $15-18M jackpots, edges); update roster count to 21.
+- [x] T028 [P: CLAUDE.md] Update "Locked Design Decisions": skill scores (not buckets), 21-character roster, correct current phase, contested-board slate rule; update the job-slate line.
 
 **Checkpoint:** docs consistent with shipped behavior.
 
