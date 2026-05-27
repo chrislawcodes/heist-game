@@ -425,6 +425,117 @@ CHARACTERS: list[dict] = [
         ),
         "signature_line": '"I\'ve been on the other side of this door. Trust me."',
     },
+    {
+        "id": 17, "file": "c17_priya", "name": 'Priya "Patch" Iyer',
+        "skills": "Hacker 7, Inside 5", "floor_cost": 325_000,
+        "backstory": "Ran security for a regional hospital network until she flagged a breach the board wanted buried; fired the week before her options vested. Freelances now, and keeps the termination letter laminated in her bag.",
+        "voice": "Precise and deadpan. Over-explains the thing she's about to do, then does it faster than anyone expects. Says 'noted' instead of 'okay.'",
+        "motivation": "Paying for her father's memory-care facility, month to month. Prices every job in weeks of care bought.",
+        "quirk": "Labels everything — cables, drives, people. Narrates her keystrokes under her breath.",
+        "crew_dynamic": "Reliable and a little preachy about opsec. Redoes sloppy work without being asked and mentions it exactly once.",
+        "weakness": "Rigid — brilliant on a prepped plan, rattled when the job goes off-script.",
+        "look": (
+            "Close crop, slight high angle looking down at her hands over a keyboard. "
+            "A South Asian woman in her late thirties: dark hair in a tight practical bun, "
+            "rectangular glasses catching the light, a faint permanent line between her brows. "
+            "Deadpan and precise, lips just parted mid-explanation."
+        ),
+        "setting": (
+            "A tidy server closet lit by a single warm task lamp, the rest of the room "
+            "swallowed in black. Every cable and drive neatly labeled with a handwritten strip; "
+            "a label-maker in frame. Pinned to the dark wall: a laminated letter and a small "
+            "creased photo of an older man."
+        ),
+        "signature_line": '"Give me four minutes and a clean port. Noted."',
+    },
+    {
+        "id": 18, "file": "c18_nadia", "name": 'Nadia "Relay" Santos',
+        "skills": "Hacker 8, Driver 6", "floor_cost": 525_000,
+        "backstory": "Manila-raised; ran traffic-cam and toll-system intrusions for a rideshare syndicate before going independent, and learned to drive in EDSA gridlock. She'd rather own the last ten seconds than trust a stranger with them.",
+        "voice": "Clipped and technical. Narrates latency and ETAs in the same breath. Calls every plan 'the relay.'",
+        "motivation": "Building an off-grid cabin with a server rack she'll never have to leave. Counts jobs in months of solitude bought.",
+        "quirk": "Keeps a stopwatch running on every job and checks it mid-sentence.",
+        "crew_dynamic": "Trusts the plan over the people. Cold until you hit your marks, then loyal.",
+        "weakness": "On a comms blackout she freezes for a beat — can't act on a network she can't see.",
+        "look": (
+            "Three-quarter angle, hands poised over a keyboard. A Filipina woman in her early "
+            "thirties: warm brown skin, a shaved-side undercut, an earpiece always in, "
+            "fingerless gloves. Restless, alert eyes and a faint focused half-smile."
+        ),
+        "setting": (
+            "A dim loft lit warm from a side window, the far side sinking into deep shadow. "
+            "Behind her, a wall of city maps with escape routes traced in marker; a police "
+            "scanner and a set of car keys on the desk, a stopwatch beside the keyboard."
+        ),
+        "signature_line": '"Window\'s nine seconds. I\'m already in, and the car\'s already moving."',
+    },
+    {
+        "id": 19, "file": "c19_tavita", "name": 'Tavita "Crowbar" Faleolo',
+        "skills": "Safecracker 8, Muscle 6", "floor_cost": 525_000,
+        "backstory": "Samoan-New Zealander who ran demolition crews in Auckland and learned the fastest way through a wall is knowing where it's weak. Did a stretch for an 'industrial accident' that only the insurers believed was an accident.",
+        "voice": "Low and unhurried. Fond of construction metaphors. Rarely finishes a coffee.",
+        "motivation": "A quiet retirement and a workshop. Resents that he's best known for the loud part.",
+        "quirk": "Taps a wall three times and listens before he ever touches a vault.",
+        "crew_dynamic": "Gentle giant. Moves people out of the danger zone without being asked or thanked.",
+        "weakness": "Too patient — keeps working a lock well past the smart moment to walk away.",
+        "look": (
+            "Broad bust shot from a slightly low angle, looming. A big Samoan man in his fifties: "
+            "broad-shouldered, greying hair, a traditional pe'a tattoo just visible below one "
+            "rolled sleeve, scarred knuckles, a contractor's pencil behind one ear. Calm and "
+            "patient, one large hand raised flat as if listening to a wall."
+        ),
+        "setting": (
+            "A stripped utility room in front of a heavy vault door, its hinges and seams "
+            "catching a hard work-lamp beam; everything else cross-hatched into black. "
+            "Demolition tools and a contractor's level lean against exposed concrete, fine dust "
+            "hanging in the light."
+        ),
+        "signature_line": '"Everything\'s got a seam. Give me a minute to find it."',
+    },
+    {
+        "id": 20, "file": "c20_renata", "name": 'Renata "Echo" Salazar',
+        "skills": "Inside Man 9, Hacker 5", "floor_cost": 750_000,
+        "backstory": "Former corporate-intelligence interrogator who realized a forged badge and a warm smile got her more than any subpoena. Left the firm the day they tried to make her testify against the wrong people.",
+        "voice": "Warm and precise. Mirrors your cadence back within a sentence so you feel understood. Never raises her voice.",
+        "motivation": "Proving she was always the smartest person in rooms built to overlook her.",
+        "quirk": "Repeats your last two words back as a question to keep you talking.",
+        "crew_dynamic": "Runs the human layer like a switchboard. The crew's default face.",
+        "weakness": "Can't resist a genuinely clever mark — slows down to enjoy the duel.",
+        "look": (
+            "Straight-on, eye-level, composed. A Latina woman in her forties, deliberately "
+            "ordinary — neat blazer, simple haircut, the most forgettable person in any room by "
+            "design. Soft, attentive eyes that miss nothing and a warm, disarming half-smile. "
+            "A visitor badge clipped to her lapel."
+        ),
+        "setting": (
+            "A polished public lobby at night, mostly dark: a reception desk and turnstiles "
+            "softly cross-hatched behind her, a wall clock, a potted plant. A single overhead "
+            "light pools on her; she holds a phone loosely, mid-conversation with someone just "
+            "out of frame."
+        ),
+        "signature_line": '"...by design? Tell me more about \'by design.\'"',
+    },
+    {
+        "id": 21, "file": "c21_tunde", "name": 'Tunde "Diesel" Bakare',
+        "skills": "Muscle 9, Driver 6", "floor_cost": 800_000,
+        "backstory": "Ex-bouncer and amateur strongman, Lagos by way of Manchester. Drove armored transport for eight years before he worked out he understood the trucks better than the people paying to fill them.",
+        "voice": "Booming and cheerful. Defuses a room with a joke right up until the exact second he doesn't. Goes quiet when it's gone wrong.",
+        "motivation": "Bankrolling his little sister's haulage company — fully legit, his name nowhere on it.",
+        "quirk": "Hums highlife under his breath when a job's going well.",
+        "crew_dynamic": "The morale engine. Will physically put himself between the crew and trouble.",
+        "weakness": "Soft-hearted — hesitates a half-second before hurting anyone who reminds him of family.",
+        "look": (
+            "Low-angle bust shot looking up, emphasizing his size. An enormous Nigerian-British "
+            "man in his late thirties: easy booming grin, a single gold tooth, close-cropped "
+            "hair, huge arms crossed over work gloves."
+        ),
+        "setting": (
+            "A freight loading bay at night — a roll-up door half-raised behind him, stacked "
+            "pallets and chain-link cross-hatched into deep shadow, a single overhead lamp hard "
+            "on his shoulders. A hand truck and cargo strapping nearby."
+        ),
+        "signature_line": '"Get in the van. I said get in the *van*."',
+    },
 ]
 
 
@@ -434,9 +545,10 @@ CHARACTERS: list[dict] = [
 
 STYLE_BLOCK = """\
 STYLE & FORMAT
-Codenames-style black-and-white pen-and-ink illustration. Square 1:1 \
-aspect ratio. High-contrast cross-hatched shading throughout. Single \
-figure dominant in frame. No text, no watermark.\
+Codenames-style black-and-white pen-and-ink illustration, low-key and \
+shadow-heavy. Square 1:1 aspect ratio. Dense cross-hatching with deep blacks \
+and dramatic single-source lighting (chiaroscuro) — the figure emerges from a \
+near-black background. Single figure dominant in frame. No text, no watermark.\
 """
 
 

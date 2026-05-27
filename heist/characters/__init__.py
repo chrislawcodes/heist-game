@@ -739,7 +739,7 @@ _RAW_ROSTER: list[Character] = [
         weakness="Soft-hearted — hesitates a half-second before hurting anyone who reminds him of family.",
         look=(
             "Enormous Nigerian-British man in his late thirties: easy grin, a single gold tooth, "
-            "hands like dinner plates resting on a steering wheel."
+            "close-cropped hair, huge arms crossed over work gloves."
         ),
         signature_line='"Get in the van. I said get in the *van*."',
     ),
