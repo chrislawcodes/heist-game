@@ -87,8 +87,13 @@
   color: var(--muted); width: 30px; flex-shrink: 0;
   font-family: monospace;
 }
-.cc-skill-bars { display: flex; gap: 2px; }
-.seg { width: 10px; height: 4px; border-radius: 1px; background: rgba(255,255,255,0.08); }
+.cc-skill-bars { display: flex; gap: 2px; flex: 1; }
+.cc-skill-num {
+  font-family: monospace; font-size: 11px; font-weight: 700;
+  color: var(--text); width: 8px; text-align: right; flex-shrink: 0;
+}
+.cc-skill-num.zero { color: rgba(255,255,255,0.18); font-weight: 400; }
+.seg { flex: 1; height: 4px; border-radius: 1px; background: rgba(255,255,255,0.08); }
 .seg.f-hack  { background: var(--sk-hack); }
 .seg.f-safe  { background: var(--sk-safe); }
 .seg.f-musc  { background: var(--sk-musc); }
@@ -416,7 +421,7 @@ const Shell = {
         const val = Shell.helpers.skillVal(c, sk);
         const segs = Array.from({length:3}, (_, j) =>
           `<span class="seg ${j < val ? 'f-' + sk : ''}"></span>`).join('');
-        return `<div class="cc-skill"><span class="cc-skill-label">${SKILL_LABEL[sk]}</span><div class="cc-skill-bars">${segs}</div></div>`;
+        return `<div class="cc-skill"><span class="cc-skill-label">${SKILL_LABEL[sk]}</span><div class="cc-skill-bars">${segs}</div><span class="cc-skill-num${val === 0 ? ' zero' : ''}">${val}</span></div>`;
       }).join('');
       const idAttr = noId ? '' : ` id="cc-${c.id}"`;
       const costRow = hideCost ? '' :
