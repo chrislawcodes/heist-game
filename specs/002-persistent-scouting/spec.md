@@ -1,88 +1,115 @@
-# Feature Specification: Persistent Scouting in Campaigns
+# Feature Specification: Scouting v2 — Two-Stage Hidden-Bucket Reveal (persistent + redesigned cards)
 
 **Feature branch:** `feat/scout-persistence`
-**Created:** 2026-05-26
+**Created:** 2026-05-26 (revised 2026-05-26 for the two-stage hidden-bucket model)
 **Status:** Draft → Planning
-**Input:** Make scouting a lasting investment across a campaign. Lock each job's hidden 1-10 challenge scores once at campaign start (no per-round re-roll), and carry each team's scouted-cell reveals forward across all rounds so a location scouted once stays known to that team for the rest of the campaign. The per-round replay must show the team's cumulative scouted cells. Must not break campaign save/resume.
+**Input:** Make scouting the way a crew actually learns a location. A challenge's difficulty starts **fully hidden** — the crew doesn't even know the rough bucket. The **first** scout of a cell reveals its **bucket** (Low/Med/Hard); a **second** scout reveals the **exact 1-10**. Knowledge **persists** across a campaign (per team), and each job's true scores are **locked** for the whole campaign. The job cards show only what the crew actually knows: empty bars when unscouted, filled bars once the bucket is known, the exact number to the right once it's known — with the row briefly highlighted when scouted this turn. No magnifying glass.
 
 ---
 
 ## Overview
 
-Today a campaign restarts scouting from zero every round: `runner.run_one_job` calls `roll_slate_scores` to re-roll every job's hidden scores, and builds a fresh blank `ScoutState`. The `Campaign` object carries crew, loot, and round results forward — but nothing about scouting. So a probe a team spends in round 1 teaches it nothing for round 2, and even if the reveal carried over the underlying number would have changed.
+This revises the earlier "persistent scouting" spec. The persistence and locked-score parts stand; the **reveal model changes**.
 
-This feature makes scouting **persist**, under the user-confirmed "lock scores per campaign" model:
+**Before:** every job publicly advertised its per-cell bucket (Low/Med/Hard). Scouting jumped straight to the exact 1-10. Cards drew the public bucket as filled bars for every cell.
 
-1. **Locked scores** — a job's hidden 1-10 difficulties are rolled **once** at campaign start and reused unchanged for every round. They are **campaign-global**: identical for every team.
-2. **Per-team scouting memory** — once a team scouts a `(job, category)` cell, that exact score stays known to **that team** for the rest of the campaign. Each round still grants fresh free probes to learn *more* cells; known cells need no re-probe.
+**Now (two-stage, hidden bucket):**
+- A cell begins **HIDDEN** — the crew knows nothing about its difficulty (not even the bucket). It only knows the job's reward and that four challenge categories exist.
+- **Probe #1** on a cell → **BUCKET**: the crew learns the rough Low/Med/Hard.
+- **Probe #2** on the same cell → **EXACT**: the crew learns the precise 1-10 under that bucket.
+- A probe advances exactly one level; fully knowing a cell costs two probes (possibly spread across rounds).
 
-Because the engine owns the event stream (the project's two-lane rule), the carried-forward reveals must be **emitted by the engine** at the start of each round so the existing replay viewer shows them — the browser never reconstructs game state.
+This makes scouting genuinely load-bearing: the AI now picks jobs nearly blind unless it scouts, and persistence means knowledge accumulates over a campaign (blind early, well-cased late). The engine already has the ladder — `RevealLevel` is `HIDDEN → BUCKET → EXACT` and `ScoutState.reveal()` advances one step; today's `apply_probes` jumps to EXACT and the slate is shown publicly, which is what this changes.
 
-The high-risk surface is **campaign save/resume**: campaigns checkpoint and can resume mid-flight (`orchestration.run_campaign_conductor`, `checkpoint_version`, `game_states`, `campaign_to_dict`/`campaign_from_dict`). The new persisted state must serialize and survive a resume without re-rolling scores, losing reveals, or double-counting probes.
-
-This is sequenced MVP-first with a staging review between phases.
+Locked design preserved: score buckets 1-3 Low / 4-7 Med / 8-10 High; +1-point collaboration; the steep heat cascade is untouched (this makes scouting its counterweight). Scouting remains locations-only; character scores stay public. Reward ranges stay public. Hidden-depth twists stay hidden regardless of scouting.
 
 ---
 
 ## User Scenarios & Testing
 
-### User Story 1 — A job's difficulty is fixed for the whole campaign (Priority: P1)
+### User Story 1 — A job's difficulty is fixed for the whole campaign (Priority: P1) — BUILT
 
-As the **game system**, I roll every job's hidden 1-10 challenge scores once when the campaign begins and reuse those same numbers in every round — so a team's knowledge of a location stays true and scouting is worth doing.
+As the **game system**, I roll each job's hidden 1-10 challenge scores once at campaign start and reuse them every round.
 
-**Why this priority**: Foundation. Persisting a scouted number is meaningless if the number changes underneath it next round. Nothing else in this feature is coherent without locked scores.
+**Status:** implemented (locked `Campaign.slate_scores`, conductor rolls once + shares, CLI reuses; tests green).
 
-**Independent Test**: Run a 2+ round stub campaign; capture each job's challenge scores in round 1 and round 2; they must be identical.
-
-**Acceptance Scenarios**:
-
-1. **Given** a fresh campaign, **When** round 1 and round 2 run, **Then** every job on the slate has the exact same hidden challenge scores in both rounds.
-2. **Given** a job that was attempted in round 1, **When** it appears on the slate again in round 2, **Then** its hidden scores are unchanged.
-3. **Given** the locked scores were rolled at campaign start, **When** any team scouts a cell, **Then** the revealed value equals the locked value for that cell (no divergence between teams).
+**Acceptance:** a job's scores are identical across rounds; a scouted value equals the locked value; all teams share identical locked scores.
 
 ---
 
-### User Story 2 — Once a team scouts a location, it stays scouted for that team (Priority: P1)
+### User Story 2 — Two-stage hidden reveal (Priority: P1) 🎯 MVP
 
-As a **player (team)**, I keep what I learn: a cell I scouted in an earlier round is still known to me in every later round without spending another probe, and the replay shows everything I currently know — not just what I probed this round.
+As a **player (team)**, a cell starts fully hidden; my first scout of it tells me the bucket, my second tells me the exact number — so difficulty is something I *earn*, not something I'm handed.
 
-**Why this priority**: This is the user's actual request and the core value. Scouting becomes a cumulative, lasting investment that counters the heat cascade.
+**Why this priority**: This is the core mechanic change. Everything else (cards, the AI's job choice) depends on it.
 
-**Independent Test**: In a stub campaign, have a team scout cell X in round 1. In round 2, verify (a) X is already known to that team without a new probe, (b) the round-2 replay shows X's score, and (c) a different team that did *not* scout X does not know it.
+**Independent Test**: In a stub campaign, probe a cell once → it's at BUCKET (bucket known, no exact). Probe it again → EXACT (number known). The AI's job-slate text shows nothing about an un-probed cell's difficulty.
 
 **Acceptance Scenarios**:
 
-1. **Given** team A scouted `(Museum, physical)` in round 1, **When** round 2 begins, **Then** team A already knows `(Museum, physical)` and spends no probe to keep it.
-2. **Given** team A enters round 2 already knowing 2 cells and is granted 3 fresh probes, **When** it scouts 3 new cells, **Then** at the job-pick it knows 5 cells total.
-3. **Given** team A knows `(Museum, physical)` but team B does not, **When** round 2's replays render, **Then** team A's job tab shows that cell and team B's does not.
-4. **Given** a team re-issues a probe for a cell it already knows, **When** the probe is applied, **Then** it is a no-op and no free probe is consumed.
+1. **Given** an un-scouted cell, **When** the crew probes it once, **Then** its reveal level becomes BUCKET — the bucket is known, the exact number is not.
+2. **Given** a cell already at BUCKET, **When** the crew probes it again, **Then** it becomes EXACT and the exact 1-10 is known.
+3. **Given** a cell at EXACT, **When** probed again, **Then** it's a no-op and no probe is spent.
+4. **Given** an un-probed cell, **When** the AI is shown the job slate to pick a job, **Then** that cell's difficulty (bucket and number) is **not** disclosed — only that the category exists.
+5. **Given** the revealed bucket of a cell, **Then** it equals the published bucket of the cell's locked score (a "Hard" reveal corresponds to an 8-10 locked score).
 
 ---
 
-### User Story 3 — A resumed campaign keeps its locked scores and scouting memory (Priority: P2)
+### User Story 3 — Scouting persists across rounds at its level (Priority: P1) 🎯 MVP
 
-As the **game system**, when a campaign stalls and is resumed, I restore the same locked scores and every team's accumulated scouting memory exactly — without re-rolling, losing intel, or double-counting probes or loot.
+As a **player (team)**, what I've learned stays learned: a cell I took to BUCKET last round is still at BUCKET this round (and a fresh probe can push it to EXACT); a cell at EXACT stays EXACT. Each round grants fresh probes for new progress. The replay shows my full accumulated knowledge.
 
-**Why this priority**: Resume is an existing, load-bearing capability. The mechanic in US1/US2 can be demonstrated without a mid-campaign crash, but shipping it must not regress resume — so this is a hard correctness requirement that rides just behind the MVP.
+**Why this priority**: Persistence is what makes the two-stage cost worth paying over a campaign.
 
-**Independent Test**: Start a campaign, run round 1 with some scouting, force a stall after round 1, resume, and confirm round 2 sees the identical locked scores and the team's round-1 reveals intact.
+**Independent Test**: Take a cell to BUCKET in round 0; in round 1 it's still BUCKET with no probe spent, and one probe there advances it to EXACT. A second team that didn't scout it still sees it HIDDEN.
 
 **Acceptance Scenarios**:
 
-1. **Given** a campaign that completed round 1 with scouting, **When** it is resumed, **Then** the locked scores are byte-identical to before and are not re-rolled.
-2. **Given** team A had scouted 2 cells before the stall, **When** the campaign resumes, **Then** team A still knows exactly those 2 cells.
-3. **Given** a campaign created before this feature existed (no stored locked scores), **When** it is resumed, **Then** locked scores are initialized once and the campaign continues without error.
+1. **Given** team A took `(Museum, physical)` to BUCKET in round 0, **When** round 1 begins, **Then** A still knows that bucket with no probe spent, and the round-1 replay shows it.
+2. **Given** A's cell is at BUCKET entering round 1, **When** A probes it once more, **Then** it advances to EXACT (carry + advance compose correctly).
+3. **Given** A knows a cell but team B does not, **When** round-1 replays render, **Then** A's card shows it and B's shows it hidden.
+4. **Given** a probe re-issued for an EXACT cell, **Then** it is a no-op consuming no probe.
+
+---
+
+### User Story 4 — Job cards show only what the crew knows (Priority: P1) 🎯 MVP
+
+As the **player watching**, each job card's four challenge rows reflect my knowledge: empty bars when hidden, bars filled to the bucket once known, the exact number to the right once known — with a brief highlight on rows I scouted this turn. No magnifying glass.
+
+**Why this priority**: This is the visible payoff and what the user asked for; the engine work is invisible without it.
+
+**Independent Test**: In a replay, an un-scouted row shows empty bars and no number; after a bucket reveal it shows filled bars; after an exact reveal it shows bars + the number to the right; a row revealed this turn is highlighted.
+
+**Acceptance Scenarios**:
+
+1. **Given** a hidden cell, **When** the card renders, **Then** the row shows empty bars and no number.
+2. **Given** a bucket-known cell, **When** the card renders, **Then** the bars fill to the bucket level (None 0 / Low 1 / Med 2 / Hard 3) with no number.
+3. **Given** an exact-known cell, **When** the card renders, **Then** the bars fill to the bucket **and** the exact 1-10 shows to the right of the bars.
+4. **Given** a cell revealed during this round, **When** the card renders, **Then** its row carries a subtle highlight (outline or low-opacity tint); carried-over reveals from prior rounds are not highlighted.
+5. **Given** any cell, **When** the card renders, **Then** there is no magnifying-glass icon anywhere.
+
+---
+
+### User Story 5 — Resume keeps locked scores + reveal levels (Priority: P2)
+
+As the **game system**, a resumed campaign restores the locked scores and each team's per-cell reveal **levels** (HIDDEN/BUCKET/EXACT) and exact scores, with no re-roll, loss, or double-count.
+
+**Independent Test**: take cells to BUCKET and EXACT in round 0, stall, resume — round 1 shows the identical levels and locked scores.
+
+**Acceptance Scenarios**:
+
+1. **Given** a campaign with mixed BUCKET/EXACT reveals before a stall, **When** resumed, **Then** every cell's level and exact score is restored exactly and scores are not re-rolled.
+2. **Given** a legacy campaign with no stored locked scores, **When** resumed, **Then** scores initialize once and it continues without error.
 
 ---
 
 ## Edge Cases
 
-- **Job attempted, then re-offered** → locked scores stay the same (campaigns use the full job list every round; locking is per-campaign, not per-attempt).
-- **Team with no driver / zero free probes this round** → keeps all previously-known cells; simply learns nothing new this round.
-- **Resume between the scout turn and the job pick** → carried-forward reveals are neither lost nor duplicated; probe budget is not refunded or re-spent.
-- **Legacy campaign with no stored locked scores** → roll once on first access and persist (back-compat; no crash).
-- **Re-probing a known cell** → no-op, no probe spent (existing `apply_probes` guard, now applied across rounds).
-- **A team eliminated mid-campaign** → its scouting memory is irrelevant going forward; no special handling required.
+- **None-difficulty cell** → scouting it once reveals bucket NONE (0 bars); a second probe reveals exact 0. The crew can't tell a None cell from a deadly one until they scout (full fog).
+- **Out of probes mid-cell** → a cell at BUCKET stays BUCKET; it's finished to EXACT in a later round (persistence makes this fine).
+- **Re-probe an EXACT cell** → no-op, no probe spent.
+- **Resume between scout turn and job pick** → reveal levels neither lost nor advanced twice; budget not refunded/re-spent.
+- **Legacy campaign** (pre-feature) → no stored locked scores → rolled once on first access; no crash.
 
 ---
 
@@ -90,40 +117,39 @@ As the **game system**, when a campaign stalls and is resumed, I restore the sam
 
 ### Functional Requirements
 
-- **FR-001**: System MUST roll each job's hidden 1-10 challenge scores exactly once per campaign and reuse the identical values for every round. (Supports US1)
-- **FR-002**: Locked scores MUST be campaign-global — the same for every team in the campaign. (Supports US1)
-- **FR-003**: System MUST persist each team's scouting memory (revealed cells and their exact scores) on that team's campaign state across rounds. (Supports US2)
-- **FR-004**: At the start of each round, each team MUST already know every cell it scouted in any prior round, with no probe spent to retain it. (Supports US2)
-- **FR-005**: Each round MUST still grant a fresh free-probe budget (crew size + best-driver bonus) usable on cells not yet known. (Supports US2)
-- **FR-006**: Applying a probe to a cell the team already knows MUST be a no-op that consumes no free probe. (Supports US2)
-- **FR-007**: At the start of each round the engine MUST emit the team's carried-forward known cells as events so the replay viewer shows the cumulative set; the browser MUST NOT reconstruct this. (Supports US2)
-- **FR-008**: The AI's scout and job-pick prompts MUST reflect already-known cells, so a team does not waste probes re-scouting and can reason over its full accumulated intel. (Supports US2)
-- **FR-009**: Locked scores and per-team scouting memory MUST serialize through the campaign's existing save format and survive a mid-campaign resume with no re-roll, no lost reveals, and no double-counting of probes or loot. (Supports US3)
-- **FR-010**: A campaign persisted before this feature (no stored locked scores) MUST initialize its locked scores once on first access and resume without error. (Supports US3)
-- **FR-011**: System MUST NOT change the score buckets (1-3 Low / 4-7 Medium / 8-10 High), the +1-point collaboration rule, or soften the heat cascade. (Guardrail)
-- **FR-012**: Scouting MUST remain locations-only; character scores stay public and unaffected. (Guardrail)
-- **FR-013**: Scouting MUST reveal only the exact scores of a job's **published** challenge categories. Hidden challenges and the hidden-depth twist (`_roll_hidden_depth`) MUST stay hidden even for a fully-scouted job, in every round — persistence never lifts that fog. (Guardrail)
+- **FR-001**: System MUST roll each job's hidden 1-10 scores once per campaign and reuse them every round (campaign-global). *(US1 — built)*
+- **FR-002**: A challenge cell MUST begin HIDDEN — neither bucket nor exact known to any team until scouted. *(US2)*
+- **FR-003**: A probe on a cell MUST advance its reveal level by exactly one step (HIDDEN→BUCKET→EXACT) and spend exactly one free probe; a probe on an EXACT cell MUST be a no-op spending nothing. *(US2)*
+- **FR-004**: A BUCKET reveal MUST disclose only the bucket (derived from the locked score); the exact 1-10 MUST remain undisclosed until a second probe takes the cell to EXACT. *(US2)*
+- **FR-005**: The AI's job-slate prompt MUST disclose a cell's bucket only at BUCKET+ and the exact only at EXACT; HIDDEN cells MUST disclose neither. *(US2)*
+- **FR-006**: Each team's per-cell reveal levels and exact scores MUST persist across rounds; a fresh per-round free-probe budget is granted; carried knowledge is never re-paid. *(US3)*
+- **FR-007**: At the start of each round the engine MUST emit the team's carried-forward reveals (at their level) so the replay shows cumulative knowledge; the browser MUST NOT reconstruct it. *(US3)*
+- **FR-008**: Job cards MUST render each challenge row from the team's reveal state only — empty bars at HIDDEN, bucket-filled bars at BUCKET, bucket-filled bars + exact number to the right at EXACT — NOT from the job's public profile. *(US4)*
+- **FR-009**: A row whose reveal advanced **this round** MUST carry a subtle highlight; carried-over reveals MUST NOT. There MUST be no magnifying-glass icon. *(US4)*
+- **FR-010**: Locked scores + per-cell reveal levels + exact scores MUST serialize and survive a mid-campaign resume with no re-roll, loss, or double-count; legacy campaigns initialize locked scores once. *(US5)*
+- **FR-011**: System MUST NOT change score buckets, +1 collaboration, or soften the heat cascade. Reward ranges stay public. Scouting stays locations-only. Hidden-depth stays hidden. *(Guardrail)*
 
 ### Key Entities
 
-- **Locked slate scores** — `{job_name → {category → 1-10 score}}`, rolled once and stored at the **campaign (game-record) level**, shared by all teams. Replaces the per-round `roll_slate_scores` call inside `run_one_job`.
-- **Per-team scouting memory** — the persistent portion of `ScoutState` (`reveals` + `exact_scores`) attached to each team's `Campaign`/team-state and threaded forward each round. The free-probe budget remains per-round.
+- **Locked slate scores** — `{job → {category → 1-10}}`, campaign-global, rolled once. *(built)*
+- **Per-team scout reveals** — `ScoutState.reveals: {job → {category → RevealLevel}}` (HIDDEN/BUCKET/EXACT) + `exact_scores: {job → {category → 1-10}}` (only at EXACT). Persists across rounds.
 
 ---
 
 ## Success Criteria
 
-- **SC-001**: Across a 3-round campaign, each job's challenge scores are identical in every round (zero variance round-to-round).
-- **SC-002**: A cell scouted in round 1 is shown as known in every later round for that team, with zero additional probes spent to retain it.
-- **SC-003**: Resuming a campaign mid-way preserves 100% of each team's prior reveals and the identical locked scores; loot and probe counts are unchanged by the resume.
-- **SC-004**: A team never spends a free probe to re-learn a cell it already knows.
-- **SC-005**: One team's scouting memory never appears for another team.
+- **SC-001**: A job's challenge scores are identical every round (zero variance). *(built)*
+- **SC-002**: One probe takes a HIDDEN cell to BUCKET (bucket known, exact unknown); a second takes it to EXACT.
+- **SC-003**: An un-probed cell's difficulty never appears in the AI's job-slate prompt or on its card.
+- **SC-004**: A cell's reveal level is retained in every later round for that team with zero extra probes to retain it.
+- **SC-005**: Resume preserves 100% of each team's reveal levels + exact scores and identical locked scores; no probe/loot double-count.
+- **SC-006**: Cards show empty/bucket/exact correctly; this-turn reveals are highlighted; no magnifying glass anywhere.
 
 ---
 
 ## Assumptions
 
-- **Hidden depth stays per-round AND stays hidden.** The per-run complication/opportunity element (`_roll_hidden_depth`) is a separate "surprise during the run" mechanic and is **out of scope** — it continues to roll fresh each round, and scouting never reveals it. Only the slate's **published** challenge cells get locked-and-scoutable scores; the hidden challenges remain hidden however much a team scouts (see FR-013).
-- **Locked scores are stored explicitly**, rolled at campaign start (or lazily on first access for legacy campaigns) and saved — not re-derived from a seed at read time, to avoid drift.
-- **Character scores remain public** and unchanged; scouting applies to locations only.
-- **Single-job (non-campaign) play is unchanged** — locking and persistence are campaign concepts; the standalone `run_heist` path keeps its current per-run behavior.
+- The four challenge categories (electronic/physical/confrontation/social) are always shown as rows; only their difficulty is fogged. Reward range stays public.
+- The revealed bucket is derived from the locked score (`score_to_bucket`), so it always agrees with the eventual exact.
+- Hidden depth stays per-round and never revealed by scouting (FR-011).
+- Single-job (non-campaign) play: the two-stage reveal applies within the run; locking/persistence are campaign concepts.

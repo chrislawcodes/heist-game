@@ -30,8 +30,10 @@ def apply_probes(
     slate_scores: dict[str, dict[str, int]],
     probes: list[dict],
 ) -> list[dict]:
-    """Apply the AI's probe list to `scout_state`, revealing exact scores within
-    the free budget. Returns the `scouted` event payloads to emit (in order)."""
+    """Apply the AI's probe list to `scout_state`. Each probe advances ONE cell by
+    one reveal level: HIDDEN→BUCKET (learn the rough bucket) or BUCKET→EXACT (learn
+    the 1-10). A cell already at EXACT is a no-op that spends no probe. Returns the
+    `scouted` event payloads to emit (in order)."""
     events: list[dict] = []
     for probe in probes:
         if not isinstance(probe, dict):
@@ -44,20 +46,23 @@ def apply_probes(
         if scores is None or category not in scores:
             continue  # unknown job/category — drop
         if scout_state.level(job, category) >= RevealLevel.EXACT:
-            continue  # already known — no-op, no budget spent
+            continue  # already fully known — no-op, no budget spent
         if scout_state.budget_remaining() <= 0:
             continue  # out of free probes (paid overflow deferred)
         scout_state.probes_spent_free += 1
-        scout_state.reveals.setdefault(job, {})[category] = RevealLevel.EXACT
+        new_level = scout_state.reveal(job, category)  # advance one step
         score = scores[category]
-        scout_state.exact_scores.setdefault(job, {})[category] = score
-        events.append({
+        event = {
             "type": "scouted",
             "job": job,
             "category": category,
-            "reveal_level": "EXACT",
+            "reveal_level": new_level.name,  # "BUCKET" or "EXACT"
             "bucket": score_to_bucket(score).name,
-            "score": score,
             "probes_remaining_free": scout_state.budget_remaining(),
-        })
+        }
+        if new_level >= RevealLevel.EXACT:
+            # Second probe: the exact 1-10 is now known.
+            scout_state.exact_scores.setdefault(job, {})[category] = score
+            event["score"] = score
+        events.append(event)
     return events

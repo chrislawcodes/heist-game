@@ -62,6 +62,7 @@ from heist.state import (
     Crew,
     HeistState,
     HiddenDepthRoll,
+    RevealLevel,
     Scene,
     SceneResult,
     ScoutState,
@@ -373,30 +374,44 @@ def _run_scene_loop(
         )
 
 
-def _emit_carried_scout(carried: ScoutState, emit: EmitFn) -> None:
-    """Re-emit the cells this team already knew from prior rounds so the per-round
-    replay shows cumulative intel (the engine owns the event stream — the UI never
-    reconstructs prior rounds)."""
+def _emit_carried_scout(
+    carried: ScoutState, slate_scores: dict[str, dict[str, int]], emit: EmitFn
+) -> None:
+    """Re-emit the cells this team already knew from prior rounds — at their reveal
+    level — so the per-round replay shows cumulative intel (the engine owns the event
+    stream; the UI never reconstructs prior rounds). BUCKET cells emit the bucket
+    only; EXACT cells also carry the score. Bucket is derived from the locked score."""
     if not emit:
         return
     from heist.mechanics import score_to_bucket
-    for job, cats in carried.exact_scores.items():
-        for category, score in cats.items():
-            emit({
+    for job, cats in carried.reveals.items():
+        for category, level in cats.items():
+            if level < RevealLevel.BUCKET:
+                continue
+            score = slate_scores.get(job, {}).get(category)
+            if score is None:
+                continue
+            event = {
                 "type": "scouted",
                 "job": job,
                 "category": category,
-                "reveal_level": "EXACT",
+                "reveal_level": level.name,
                 "bucket": score_to_bucket(score).name,
-                "score": score,
                 "carried": True,
-            })
+            }
+            if level >= RevealLevel.EXACT:
+                event["score"] = score
+            emit(event)
 
 
 def _merge_scout_reveals(dest: ScoutState, src: ScoutState) -> None:
-    """Fold a round's working reveals back into the persistent per-team memory."""
+    """Fold a round's working reveals back into the persistent per-team memory,
+    taking the higher reveal level per cell (knowledge never downgrades)."""
     for job, levels in src.reveals.items():
-        dest.reveals.setdefault(job, {}).update(levels)
+        d = dest.reveals.setdefault(job, {})
+        for category, level in levels.items():
+            if level > d.get(category, RevealLevel.HIDDEN):
+                d[category] = level
     for job, scores in src.exact_scores.items():
         dest.exact_scores.setdefault(job, {}).update(scores)
 
@@ -481,7 +496,7 @@ def run_one_job(
     # Persistent scouting: first re-emit what this team already knew (cumulative
     # intel in the replay), then scout for MORE this round on a fresh probe budget,
     # then fold the new reveals back into the campaign's per-team memory.
-    _emit_carried_scout(campaign.scout_state, emit)
+    _emit_carried_scout(campaign.scout_state, slate_scores, emit)
     scout_state = _run_scout_turn(
         crew, available_jobs, slate_scores, ai, logs, emit,
         carried=campaign.scout_state,

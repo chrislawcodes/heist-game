@@ -3,7 +3,15 @@
 from __future__ import annotations
 
 from heist.content import BANKROLL, JOBS, ROSTER
-from heist.state import Campaign, Character, Crew, HeistState, Scene, ScoutState
+from heist.state import (
+    Campaign,
+    Character,
+    Crew,
+    HeistState,
+    RevealLevel,
+    Scene,
+    ScoutState,
+)
 
 
 def _skill_str(c: Character) -> str:
@@ -31,10 +39,18 @@ def _job_slate_summary(
     for j in jobs:
         cells = []
         for k, v in j.profile.items():
-            cell = f"{k} {v.name}"
-            scouted = scout_state.scouted_score(j.name, k) if scout_state else None
-            if scouted is not None:
-                cell += f" (scouted: {scouted}/10)"
+            # Two-stage fog: difficulty is hidden until scouted. With no scout
+            # context (single-job play), fall back to the published bucket.
+            if scout_state is None:
+                cell = f"{k} {v.name}"
+            else:
+                level = scout_state.level(j.name, k)
+                if level >= RevealLevel.EXACT:
+                    cell = f"{k} {v.name} ({scout_state.scouted_score(j.name, k)}/10)"
+                elif level >= RevealLevel.BUCKET:
+                    cell = f"{k} {v.name}"
+                else:
+                    cell = f"{k} ?"
             cells.append(cell)
         lines.append(
             f"  - {j.name!r}: reward ${j.reward_range[0]:,}-${j.reward_range[1]:,}, "
@@ -142,22 +158,23 @@ def _fill_prompt(crew_so_far: list[Character], remaining: int) -> str:
 def _scout_prompt(
     crew: Crew, available_jobs: list, scout_state: ScoutState
 ) -> str:
-    """Pre-commit scouting turn: the crew can learn the EXACT 1-10 difficulty of
-    specific (job, challenge) cells before picking. Buckets are already public;
-    scouting buys down the within-bucket uncertainty so you can right-size and
-    spot underdefended jobs (high reward range over soft true scores)."""
+    """Pre-commit scouting turn: difficulty is HIDDEN until scouted. A first probe
+    on a cell reveals its bucket (Low/Med/Hard); a second probe reveals the exact
+    1-10. Knowledge persists across the campaign, so casing pays off over time."""
     budget = scout_state.budget_remaining()
     return (
         "SCOUTING — before you pick a job, you may case the slate.\n\n"
         "Your crew:\n" + "\n".join(f"  - {c.name}: {_skill_str(c)}" for c in crew.members)
-        + f"\n\nSlate (buckets are estimates; a probe reveals the exact 1-10):\n"
+        + "\n\nSlate (difficulty is hidden until you scout it — '?' means unknown; a "
+        "bucket like 'Hard' means you've learned the rough level; 'Hard (9/10)' means "
+        "you know the exact):\n"
         f"{_job_slate_summary(available_jobs, scout_state)}\n\n"
         f"You have {budget} free scouting probe(s) this round (crew size + your best "
-        "driver's bonus). Each probe reveals the EXACT difficulty of one job's one "
-        "challenge category (electronic / physical / confrontation / social). Spend "
-        "them where the buckets leave you most uncertain — especially Hard cells you "
-        "plan to attempt, or a high-reward job you suspect might be softer than it "
-        "looks. Probing the same cell twice is wasted.\n\n"
+        "driver's bonus). Each probe advances ONE cell by one step: a first probe on a "
+        "cell reveals its bucket, a second probe reveals the exact 1-10. Fully knowing a "
+        "cell takes two probes — and what you learn carries into later rounds, so you can "
+        "finish a cell next time. Spend probes on the jobs you're actually considering; "
+        "probing an already-exact cell is wasted.\n\n"
         "Reply with ONLY JSON:\n"
         '{\n'
         '  "probes": [ {"job": "<exact name>", "category": "<electronic|physical|'

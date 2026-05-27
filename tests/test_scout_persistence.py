@@ -5,7 +5,7 @@ import random
 
 from heist.campaign import run_campaign
 from heist.content import DEFAULT_PROMPT
-from heist.state import Campaign
+from heist.state import Campaign, RevealLevel
 from heist.stub_responses import build_stub_ai
 
 
@@ -71,16 +71,18 @@ def test_scouted_value_equals_locked_value():
 
 def _run_capturing(rounds: int):
     """Run a stub campaign, capturing emitted events segmented per round plus a
-    per-round snapshot of the team's (accumulating) scout memory."""
+    per-round snapshot of the team's reveal levels and exact scores."""
     events: list[dict] = []
     bounds: list[int] = []
-    snaps: list[dict] = []
+    levels: list[dict] = []
+    exacts: list[dict] = []
 
     def before_round(_idx):
         bounds.append(len(events))
 
     def on_round(camp, state, extras):
-        snaps.append(copy.deepcopy(camp.scout_state.exact_scores))
+        levels.append(copy.deepcopy(camp.scout_state.reveals))
+        exacts.append(copy.deepcopy(camp.scout_state.exact_scores))
 
     campaign, _ = run_campaign(
         DEFAULT_PROMPT, build_stub_ai(), rounds=rounds,
@@ -89,41 +91,49 @@ def _run_capturing(rounds: int):
     )
     bounds.append(len(events))
     per_round = [events[bounds[i]:bounds[i + 1]] for i in range(len(bounds) - 1)]
-    return campaign, snaps, per_round
+    return campaign, levels, exacts, per_round
 
 
-def _cells(exact_scores: dict) -> set:
-    return {(j, c) for j, cats in exact_scores.items() for c in cats}
+def _known(levelmap: dict) -> set:
+    """Cells revealed to BUCKET or better."""
+    return {(j, c) for j, cats in levelmap.items()
+            for c, lvl in cats.items() if lvl >= RevealLevel.BUCKET}
+
+
+def _exact_cells(exact: dict) -> set:
+    return {(j, c) for j, cats in exact.items() for c in cats}
 
 
 def test_reveals_carry_forward_across_rounds():
-    """SC-002: cells known after round 0 are still known after round 1."""
-    _campaign, snaps, _per_round = _run_capturing(rounds=2)
-    assert len(snaps) >= 2
-    assert _cells(snaps[0]), "stub should scout at least one cell in round 0"
-    assert _cells(snaps[0]) <= _cells(snaps[1]), "round-0 reveals must persist into round 1"
+    """SC-004: a cell known (BUCKET+) after round 0 is still known after round 1."""
+    _campaign, levels, _exacts, _per = _run_capturing(rounds=2)
+    assert _known(levels[0]), "stub should learn at least one cell's bucket in round 0"
+    assert _known(levels[0]) <= _known(levels[1]), "round-0 knowledge must persist into round 1"
 
 
-def test_carried_scouted_events_reemitted_each_round():
-    """FR-007: round 1's stream re-emits round-0's known cells (carried=True)."""
-    _campaign, snaps, per_round = _run_capturing(rounds=2)
+def test_carried_reveals_reemitted_each_round():
+    """FR-007: round 1's stream re-emits round-0's known cells as carried events."""
+    _campaign, levels, _exacts, per_round = _run_capturing(rounds=2)
     carried = {
         (e["job"], e["category"])
         for e in per_round[1]
         if e.get("type") == "scouted" and e.get("carried")
     }
-    assert _cells(snaps[0]) <= carried, "round 1 must re-emit round-0's known cells"
+    assert _known(levels[0]) <= carried, "round 1 must re-emit round-0's known cells"
 
 
-def test_reprobing_known_cells_spends_no_new_reveal():
-    """SC-004 / FR-006: the stub re-probes the same cells each round; in round 1
-    those are already known, so round 1 produces only carried (no new) reveals."""
-    _campaign, _snaps, per_round = _run_capturing(rounds=2)
-    fresh = [
-        e for e in per_round[1]
-        if e.get("type") == "scouted" and not e.get("carried")
-    ]
-    assert fresh == [], f"re-probing known cells should yield no new reveals, got {fresh}"
+def test_carried_bucket_advances_to_exact_next_round():
+    """Two-stage carry+advance: a cell left at BUCKET in round 0 is taken to EXACT by
+    a fresh probe in round 1 (the stub re-probes the same cells)."""
+    _campaign, levels, exacts, _per = _run_capturing(rounds=2)
+    r0_bucket = {
+        (j, c) for j, cats in levels[0].items()
+        for c, lvl in cats.items() if lvl == RevealLevel.BUCKET
+    }
+    assert r0_bucket, "round 0 should leave cells at BUCKET (one probe each)"
+    assert not _exact_cells(exacts[0]), "no cell should be EXACT after a single probe"
+    assert r0_bucket <= _exact_cells(exacts[1]), \
+        "round-1 re-probes should take carried BUCKET cells to EXACT"
 
 
 def test_per_team_scout_memory_is_independent():
