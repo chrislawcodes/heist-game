@@ -383,6 +383,7 @@ body {
     <div class="tagline">Write the strategy. Watch the crew work.</div>
     <div class="hero-actions">
       <button class="btn btn-primary" onclick="newCampaign()">+ New Campaign</button>
+      <button class="btn btn-secondary" onclick="manageCrews()" title="Build and save reusable AI crews">🎭 Crews</button>
       <button class="btn btn-secondary" onclick="quickTest()" title="Launch a 3-round campaign: The Operators vs The Wreckers vs The Ghost (all Codex)">▶ Quick Test</button>
       <button class="btn btn-secondary" onclick="mediumTest()" title="Launch a 7-round campaign: The Operators vs The Wreckers vs The Ghost (all Codex)">▶ Medium Test</button>
     </div>
@@ -681,6 +682,10 @@ function updateCampaignProgressTicks() {
 
 async function newCampaign() {
   window.location = '/setup';
+}
+
+async function manageCrews() {
+  window.location = '/crews';
 }
 
 async function quickTest() {

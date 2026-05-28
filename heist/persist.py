@@ -19,6 +19,8 @@ import contextlib
 import json
 import os
 import threading
+import time
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -127,6 +129,65 @@ def delete_game_record(game_id: int) -> None:
     path = _game_record_path(game_id)
     with contextlib.suppress(FileNotFoundError):
         path.unlink()
+
+
+# ── premade crews ───────────────────────────────────────────────────────────
+#
+# Reusable AI-competitor profiles (name + agent + strategy prompt) the player
+# saves once and drops into campaigns / Quick Test. Stored as one JSON list,
+# wrapped as ``{"crews": [...]}`` so the dict-typed atomic writer is happy.
+
+
+def _crews_path() -> Path:
+    return _state_dir() / "crews.json"
+
+
+def load_crews() -> list[dict]:
+    """Return saved premade crews, or ``[]`` if the store is missing/corrupt.
+
+    A usable crew needs at least ``id``, ``name``, and ``prompt``; malformed
+    entries are skipped rather than failing the whole load (same forgiving
+    spirit as ``load_game_records``).
+    """
+    payload = _safe_load(_crews_path())
+    if not isinstance(payload, dict):
+        return []
+    crews = payload.get("crews")
+    if not isinstance(crews, list):
+        return []
+    out: list[dict] = []
+    for entry in crews:
+        if not isinstance(entry, dict):
+            continue
+        if not entry.get("id") or not entry.get("name") or not entry.get("prompt"):
+            continue
+        out.append(entry)
+    return out
+
+
+def save_crews(crews: list[dict]) -> None:
+    _atomic_write(_crews_path(), {"crews": crews})
+
+
+def add_crew(crew: dict) -> dict:
+    """Append ``crew`` with a fresh ``id`` + ``created_at``; return the stored copy."""
+    stored = dict(crew)
+    stored["id"] = uuid.uuid4().hex
+    stored["created_at"] = time.time()
+    crews = load_crews()
+    crews.append(stored)
+    save_crews(crews)
+    return stored
+
+
+def delete_crew(crew_id: str) -> bool:
+    """Remove the crew with ``crew_id``; return True iff one was removed."""
+    crews = load_crews()
+    remaining = [c for c in crews if c.get("id") != crew_id]
+    if len(remaining) == len(crews):
+        return False
+    save_crews(remaining)
+    return True
 
 
 # ── runner snapshots ──────────────────────────────────────────────────────────

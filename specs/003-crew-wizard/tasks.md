@@ -54,18 +54,20 @@
 
 ### Foundation for User Story 2 (crew store + API)
 
-- [ ] T009 [P: heist/persist.py] [US2] In `heist/persist.py`, add `_crews_path()` (`_state_dir()/"crews.json"`), `load_crews()` (→ `payload.get("crews", [])`; `[]` on missing/corrupt/non-list; skip entries missing id/name/prompt), `save_crews(list)` (`_atomic_write(path, {"crews": crews})`), `add_crew(crew)` (assign `id`=uuid4 hex + `created_at`, append, save, return stored crew), `delete_crew(id)` (filter, save, return bool removed).
-- [ ] T010 [US2] In `heist/server.py`, register routes: `GET /api/crews` → `_serve_crews` (return `{"crews": load_crews()}`); `POST /api/crews` → `_handle_save_crew` (read JSON, trim+validate non-empty `name` & `prompt`→400 else, default `agent` to `stub`, keep optional `wizard`, call `add_crew`, return `{ok, crew}`); `DELETE /api/crews/{id}` → `_handle_delete_crew` (404 if not removed, else `{ok}`). Add the `do_DELETE` branch for `/api/crews/<id>`.
+- [X] T009 [P: heist/persist.py] [US2] In `heist/persist.py`, add `_crews_path()` (`_state_dir()/"crews.json"`), `load_crews()` (→ `payload.get("crews", [])`; `[]` on missing/corrupt/non-list; skip entries missing id/name/prompt), `save_crews(list)` (`_atomic_write(path, {"crews": crews})`), `add_crew(crew)` (assign `id`=uuid4 hex + `created_at`, append, save, return stored crew), `delete_crew(id)` (filter, save, return bool removed).
+- [X] T010 [US2] In `heist/server.py`, register routes: `GET /api/crews` → `_serve_crews` (return `{"crews": load_crews()}`); `POST /api/crews` → `_handle_save_crew` (read JSON, trim+validate non-empty `name` & `prompt`→400 else, default `agent` to `stub`, keep optional `wizard`, call `add_crew`, return `{ok, crew}`); `DELETE /api/crews/{id}` → `_handle_delete_crew` (404 if not removed, else `{ok}`). Add the `do_DELETE` branch for `/api/crews/<id>`.
 
 ### UI for User Story 2
 
-- [ ] T011 [US2] In `heist/web/setup.html`, add **Add Crew** on the wizard Run It step: POST current `{name, agent, prompt, wizard}` to `/api/crews`; show a confirmation; if the name matches an existing saved crew, show a non-blocking duplicate-name warning (still saves under a new id).
-- [ ] T012 [US2] In `heist/web/setup.html`, implement **Add from saved crew**: fetch `GET /api/crews`, show a picker (empty-state when none), append the chosen crew to the assembler list; add a delete control that calls `DELETE /api/crews/{id}` and refreshes the picker.
+- [X] T011 [US2] In `heist/web/setup.html`, add **Add Crew** on the wizard Run It step: POST current `{name, agent, prompt, wizard}` to `/api/crews`; show a confirmation; if the name matches an existing saved crew, show a non-blocking duplicate-name warning (still saves under a new id).
+- [X] T012 [US2] In `heist/web/setup.html`, implement **Add from saved crew**: fetch `GET /api/crews`, show a picker (empty-state when none), append the chosen crew to the assembler list; add a delete control that calls `DELETE /api/crews/{id}` and refreshes the picker.
 
 ### Tests for User Story 2
 
-- [ ] T013 [P: tests/test_crews_persist.py] [US2] Add `tests/test_crews_persist.py`: save→load round-trip; delete removes only the target; missing file → `[]`; corrupt/non-list file → `[]`; two crews with the same name keep distinct ids; uses a tmp `HEIST_STATE_DIR`.
-- [ ] T014 [P: tests/test_crews_api.py] [US2] Add `tests/test_crews_api.py`: `POST /api/crews` happy path returns id+created_at; empty name/prompt → 400; `GET` lists saved; `DELETE` removes target and 404s on unknown id. (Follow the existing server-test harness pattern in `tests/`.)
+- [X] T013 [P: tests/test_crews_persist.py] [US2] Add `tests/test_crews_persist.py`: save→load round-trip; delete removes only the target; missing file → `[]`; corrupt/non-list file → `[]`; two crews with the same name keep distinct ids; uses a tmp `HEIST_STATE_DIR`.
+- [X] T014 [P: tests/test_crews_api.py] [US2] Add `tests/test_crews_api.py`: `POST /api/crews` happy path returns id+created_at; empty name/prompt → 400; `GET` lists saved; `DELETE` removes target and 404s on unknown id. (Follow the existing server-test harness pattern in `tests/`.)
+
+> Design note (per user): added a lobby **🎭 Crews** button → `/crews` route → a **Crews library view** in `setup.html` (list saved crews + “+ New Crew” → wizard → **Save Crew** + delete). The wizard's Run It step gained a **Save Crew** action; the assembler gained **Add from saved crew**. Tests landed in the existing `tests/test_persist.py` (persist) and `tests/test_campaign_e.py` (API) to reuse their fixtures.
 
 **Checkpoint:** US2 fully functional. **STOP for staging review (8001) before P3.**
 

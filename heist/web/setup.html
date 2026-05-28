@@ -66,7 +66,7 @@ header { padding: 12px 0 26px; }
 .chip span:hover { border-color: var(--accent-dim); color: var(--text); transform: translateY(-1px); }
 .chip input:checked + span { background: rgba(201,168,76,0.12); border-color: var(--accent); color: var(--accent); }
 
-/* ── crew list (assembler) ── */
+/* ── crew rows (assembler list + library) ── */
 .crew-list { display: grid; gap: 10px; margin-bottom: 14px; }
 .crew-row {
   display: flex; align-items: flex-start; gap: 12px;
@@ -85,17 +85,22 @@ header { padding: 12px 0 26px; }
   font-size: 0.8rem; color: var(--text-dim); line-height: 1.5;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
-.crew-row .crew-remove {
+.crew-row .row-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.icon-btn {
   background: transparent; border: 1px solid var(--border); color: var(--text-dim);
   border-radius: 8px; padding: 6px 10px; font-size: 0.72rem; cursor: pointer;
   font-family: inherit; letter-spacing: 0.06em; text-transform: uppercase;
 }
-.crew-row .crew-remove:hover { border-color: var(--danger); color: var(--danger); }
+.icon-btn:hover { border-color: var(--accent-dim); color: var(--accent); }
+.icon-btn.danger:hover { border-color: var(--danger); color: var(--danger); }
 .empty-state {
   border: 1px dashed var(--border); border-radius: 12px; padding: 22px;
   text-align: center; color: var(--text-muted); font-size: 0.88rem; line-height: 1.6;
 }
-.add-row { display: flex; flex-wrap: wrap; gap: 10px; }
+.add-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.saved-picker { display: none; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 6px; }
+.saved-picker.visible { display: flex; }
+.saved-picker select { width: auto; min-width: 220px; }
 
 .field { display: grid; gap: 8px; margin-bottom: 14px; }
 .field:last-child { margin-bottom: 0; }
@@ -204,7 +209,6 @@ select {
 }
 .pill-label { font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); }
 .pill-value { font-size: 0.86rem; color: var(--text); margin-top: 2px; }
-.section-label { font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 8px; }
 .run-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 .toast {
   display: none; margin-top: 12px; padding: 10px 14px; border-radius: 10px;
@@ -231,8 +235,8 @@ select {
       <div class="eyebrow">HEIST / New Campaign</div>
       <div class="title">Plan the rounds. Brief the crews.</div>
       <div class="subtitle">
-        Pick how long the campaign runs, then build one or more AI crews to compete. Each
-        crew gets its own strategy — use the wizard to shape it, or hand-edit the prompt.
+        Pick how long the campaign runs, then add one or more AI crews to compete. Build a fresh
+        crew with the wizard, or pull in one you've saved.
       </div>
     </header>
 
@@ -254,7 +258,12 @@ select {
           <div class="group-label">Crews in this campaign</div>
           <div class="crew-list" id="crew-list"></div>
           <div class="add-row">
-            <button class="btn btn-secondary" id="build-crew-btn" onclick="openWizard()">+ Build a crew</button>
+            <button class="btn btn-secondary" onclick="openWizard('campaign')">+ Build a crew</button>
+            <button class="btn btn-ghost" id="add-saved-btn" onclick="toggleSavedPicker()">↳ Add from saved crew</button>
+          </div>
+          <div class="saved-picker" id="saved-picker">
+            <select id="saved-select"></select>
+            <button class="btn btn-secondary" onclick="addSavedToCampaign()">Add</button>
           </div>
         </section>
 
@@ -268,7 +277,35 @@ select {
     </div>
   </div>
 
-  <!-- ══════════ VIEW B: Strategy wizard ══════════ -->
+  <!-- ══════════ VIEW B: Crews library ══════════ -->
+  <div id="crews-view" hidden>
+    <header>
+      <div class="eyebrow">HEIST / Crews</div>
+      <div class="title">Your crews.</div>
+      <div class="subtitle">Premade AI competitors you've saved. Build new ones, reuse them in any campaign, or drop the ones you're done with.</div>
+    </header>
+
+    <div class="panel">
+      <div class="stack">
+        <section>
+          <div class="add-row">
+            <button class="btn btn-primary" onclick="openWizard('library')">+ New Crew</button>
+          </div>
+        </section>
+        <div class="rule"></div>
+        <section>
+          <div class="group-label">Saved crews</div>
+          <div class="crew-list" id="library-list"></div>
+        </section>
+        <div id="library-error" class="error-box" aria-live="polite"></div>
+      </div>
+      <div class="footer">
+        <button class="btn btn-ghost" onclick="window.location = '/'">← Back to lobby</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ VIEW C: Strategy wizard ══════════ -->
   <div id="wizard-view" hidden>
     <header>
       <div class="eyebrow">HEIST / Build a crew</div>
@@ -487,7 +524,8 @@ select {
         <div class="step-nav">
           <button class="btn btn-ghost" onclick="goTo(4)">← Back</button>
           <div class="run-actions">
-            <button class="btn btn-primary" onclick="addCrewToCampaign()">＋ Add to Campaign</button>
+            <button class="btn btn-secondary" onclick="saveCrew()">💾 Save Crew</button>
+            <button class="btn btn-primary" id="add-to-campaign-btn" onclick="addCrewToCampaign()">＋ Add to Campaign</button>
           </div>
         </div>
       </div>
@@ -507,10 +545,12 @@ function escapeText(value) {
 // ── state ──
 let numRounds = 5;
 let campaignCrews = [];   // [{ name, agent, prompt, wizard }]
+let savedCrews = [];      // mirror of /api/crews
 let launchPending = false;
 let currentStep = 1;
 const TOTAL_STEPS = 5;
-let promptEdited = false; // true once the player hand-edits the final prompt
+let promptEdited = false;       // true once the player hand-edits the final prompt
+let wizardReturn = 'campaign';  // 'campaign' | 'library'
 
 // ── rounds ──
 document.querySelectorAll('input[name="rounds"]').forEach(input => {
@@ -521,16 +561,22 @@ document.querySelectorAll('input[name="rounds"]').forEach(input => {
 });
 
 // ── view switching ──
-function openWizard() {
-  resetWizard();
-  document.getElementById('assembler-view').hidden = true;
-  document.getElementById('wizard-view').hidden = false;
+function showView(which) {
+  document.getElementById('assembler-view').hidden = which !== 'assembler';
+  document.getElementById('crews-view').hidden = which !== 'library';
+  document.getElementById('wizard-view').hidden = which !== 'wizard';
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
+
+function openWizard(returnTo) {
+  wizardReturn = returnTo === 'library' ? 'library' : 'campaign';
+  document.getElementById('add-to-campaign-btn').style.display =
+    wizardReturn === 'campaign' ? '' : 'none';
+  resetWizard();
+  showView('wizard');
+}
 function closeWizard() {
-  document.getElementById('wizard-view').hidden = true;
-  document.getElementById('assembler-view').hidden = false;
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  showView(wizardReturn === 'library' ? 'library' : 'assembler');
 }
 
 // ── choice-card selection ──
@@ -659,7 +705,7 @@ function addCrewToCampaign() {
     agent, prompt, wizard: collectWizard(),
   });
   renderCrewList();
-  closeWizard();
+  showView('assembler');
 }
 
 function removeCrew(idx) {
@@ -670,7 +716,7 @@ function removeCrew(idx) {
 function renderCrewList() {
   const list = document.getElementById('crew-list');
   if (!campaignCrews.length) {
-    list.innerHTML = `<div class="empty-state"><strong>No crews yet.</strong><br>Hit “Build a crew” to brief your first AI competitor.</div>`;
+    list.innerHTML = `<div class="empty-state"><strong>No crews yet.</strong><br>Hit “Build a crew” to brief your first AI competitor — or pull one in from your saved crews.</div>`;
     return;
   }
   list.innerHTML = campaignCrews.map((c, idx) => `
@@ -682,8 +728,102 @@ function renderCrewList() {
         </div>
         <div class="crew-preview">${escapeText(c.prompt)}</div>
       </div>
-      <button class="crew-remove" onclick="removeCrew(${idx})">Remove</button>
+      <div class="row-actions"><button class="icon-btn danger" onclick="removeCrew(${idx})">Remove</button></div>
     </div>`).join('');
+}
+
+// ── saved crews (library + reuse) ──
+async function fetchSavedCrews() {
+  try {
+    const resp = await fetch('/api/crews');
+    const data = await resp.json();
+    savedCrews = Array.isArray(data.crews) ? data.crews : [];
+  } catch { savedCrews = []; }
+  return savedCrews;
+}
+
+function toggleSavedPicker() {
+  const picker = document.getElementById('saved-picker');
+  if (picker.classList.contains('visible')) { picker.classList.remove('visible'); return; }
+  fetchSavedCrews().then(() => {
+    const sel = document.getElementById('saved-select');
+    if (!savedCrews.length) {
+      setAssemblerError('No saved crews yet. Build one and hit “Save Crew”, or use the Crews screen.');
+      return;
+    }
+    setAssemblerError('');
+    sel.innerHTML = savedCrews.map(c => `<option value="${escapeText(c.id)}">${escapeText(c.name)} — ${escapeText(c.agent)}</option>`).join('');
+    picker.classList.add('visible');
+  });
+}
+
+function addSavedToCampaign() {
+  const id = document.getElementById('saved-select').value;
+  const crew = savedCrews.find(c => c.id === id);
+  if (!crew) return;
+  campaignCrews.push({ name: crew.name, agent: crew.agent, prompt: crew.prompt, wizard: crew.wizard || null });
+  renderCrewList();
+  document.getElementById('saved-picker').classList.remove('visible');
+}
+
+async function renderLibrary() {
+  await fetchSavedCrews();
+  const list = document.getElementById('library-list');
+  if (!savedCrews.length) {
+    list.innerHTML = `<div class="empty-state"><strong>No saved crews yet.</strong><br>Hit “+ New Crew” to build one. Saved crews are reusable in any campaign and in Quick Test.</div>`;
+    return;
+  }
+  list.innerHTML = savedCrews.map(c => `
+    <div class="crew-row">
+      <div class="crew-main">
+        <div class="crew-head">
+          <div class="crew-name">${escapeText(c.name)}</div>
+          <span class="agent-badge">${escapeText(c.agent)}</span>
+        </div>
+        <div class="crew-preview">${escapeText(c.prompt)}</div>
+      </div>
+      <div class="row-actions"><button class="icon-btn danger" onclick="deleteSavedCrew('${escapeText(c.id)}')">🗑 Delete</button></div>
+    </div>`).join('');
+}
+
+async function deleteSavedCrew(id) {
+  if (!confirm('Delete this saved crew? This can\'t be undone.')) return;
+  try {
+    const resp = await fetch('/api/crews/' + encodeURIComponent(id), { method: 'DELETE' });
+    if (!resp.ok) {
+      const data = await resp.json().catch(() => ({}));
+      throw new Error(data.error || resp.status);
+    }
+    renderLibrary();
+  } catch (err) {
+    setBox('library-error', 'Delete failed: ' + (err.message || err));
+  }
+}
+
+async function saveCrew() {
+  const name = document.getElementById('crew-name').value.trim();
+  const agent = document.getElementById('crew-agent').value;
+  const prompt = document.getElementById('final-prompt').value.trim();
+  if (!name) { setWizardError('Give the crew a name before saving.'); return; }
+  if (!prompt) { setWizardError('Write or generate a strategy before saving.'); return; }
+  setWizardError('');
+  const dup = (await fetchSavedCrews()).some(c => c.name.trim().toLowerCase() === name.toLowerCase());
+  try {
+    const resp = await fetch('/api/crews', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, agent, prompt, wizard: collectWizard() }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || resp.status);
+    if (dup) {
+      setWizardToast(`Saved “${name}”. Note: another saved crew already uses that name — both are kept.`, true);
+    } else {
+      setWizardToast(`Saved “${name}” to your crews.`, false);
+    }
+    if (wizardReturn === 'library') { renderLibrary(); showView('library'); }
+  } catch (err) {
+    setWizardError('Save failed: ' + (err.message || err));
+  }
 }
 
 // ── launch ──
@@ -721,6 +861,7 @@ function setAssemblerError(message) { setBox('assembler-error', message); }
 function setWizardError(message) { setBox('wizard-error', message); }
 function setBox(id, message) {
   const box = document.getElementById(id);
+  if (!box) return;
   if (!message) { box.classList.remove('visible'); box.textContent = ''; return; }
   box.textContent = message; box.classList.add('visible');
 }
@@ -749,7 +890,18 @@ function resetWizard() {
   goTo(1);
 }
 
-renderCrewList();
+// ── init: choose starting view ──
+function init() {
+  renderCrewList();
+  const params = new URLSearchParams(window.location.search);
+  if (window.location.pathname === '/crews' || params.get('view') === 'crews') {
+    renderLibrary();
+    showView('library');
+  } else {
+    showView('assembler');
+  }
+}
+init();
 </script>
 </body>
 </html>

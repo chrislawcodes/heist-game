@@ -210,3 +210,70 @@ def test_fsync_path_does_not_leak_tmp(tmp_path, monkeypatch):
         persist.save_game_record(_sample_game(2))
     # No tmp files left behind.
     assert [p for p in games_dir.iterdir() if ".tmp." in p.name] == []
+
+
+# ── premade crews ─────────────────────────────────────────────────────────────
+
+
+def _sample_crew(name: str = "The Operators") -> dict:
+    return {"name": name, "agent": "codex-mini", "prompt": "Run a quiet, surgical heist."}
+
+
+def test_add_and_load_crew_roundtrip():
+    stored = persist.add_crew(_sample_crew())
+    assert stored["id"]
+    assert stored["created_at"] > 0
+    crews = persist.load_crews()
+    assert len(crews) == 1
+    assert crews[0]["name"] == "The Operators"
+    assert crews[0]["agent"] == "codex-mini"
+    assert crews[0]["prompt"] == "Run a quiet, surgical heist."
+    assert crews[0]["id"] == stored["id"]
+
+
+def test_delete_crew_removes_only_target():
+    a = persist.add_crew(_sample_crew("A"))
+    b = persist.add_crew(_sample_crew("B"))
+    assert persist.delete_crew(a["id"]) is True
+    remaining = persist.load_crews()
+    assert [c["id"] for c in remaining] == [b["id"]]
+    # Deleting an unknown id is a no-op returning False.
+    assert persist.delete_crew("does-not-exist") is False
+    assert len(persist.load_crews()) == 1
+
+
+def test_load_crews_missing_file_returns_empty():
+    assert persist.load_crews() == []
+
+
+def test_load_crews_corrupt_file_returns_empty():
+    path = persist._crews_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("{not json", encoding="utf-8")
+    assert persist.load_crews() == []
+
+
+def test_load_crews_non_list_payload_returns_empty():
+    persist._atomic_write(persist._crews_path(), {"crews": "nope"})
+    assert persist.load_crews() == []
+
+
+def test_load_crews_skips_malformed_entries():
+    persist._atomic_write(
+        persist._crews_path(),
+        {"crews": [
+            {"id": "x", "name": "Good", "prompt": "p", "agent": "stub"},
+            {"id": "y", "name": "No prompt", "agent": "stub"},  # dropped
+            {"name": "No id", "prompt": "p"},                    # dropped
+        ]},
+    )
+    crews = persist.load_crews()
+    assert [c["name"] for c in crews] == ["Good"]
+
+
+def test_duplicate_names_keep_distinct_ids():
+    a = persist.add_crew(_sample_crew("Twins"))
+    b = persist.add_crew(_sample_crew("Twins"))
+    assert a["id"] != b["id"]
+    names = [c["name"] for c in persist.load_crews()]
+    assert names == ["Twins", "Twins"]
