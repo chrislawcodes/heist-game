@@ -234,7 +234,9 @@ body {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 300px minmax(0, 1fr) 380px;
+  /* Center column only as wide as the crew card (crew row + stats beside it);
+     the Trash Talk and Mind of AI rails share the rest of the width equally. */
+  grid-template-columns: minmax(0, 1fr) 780px minmax(0, 1fr);
 }
 .panel {
   min-width: 0;
@@ -297,15 +299,10 @@ body {
   padding: 10px 0;
   border-bottom: 1px solid rgba(255,255,255,0.05);
 }
+.wire-item .portrait-card { width: 120px; flex: none; }
 .wire-body {
   min-width: 0;
   flex: 1;
-}
-.wire-name {
-  font-size: 12px;
-  font-weight: 750;
-  color: var(--text);
-  margin-bottom: 4px;
 }
 .wire-text {
   font-size: 13px;
@@ -318,6 +315,7 @@ body {
 .standings-list {
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 12px;
 }
 .round-card {
@@ -361,6 +359,9 @@ body {
 }
 .ai-card {
   position: relative;
+  width: 100%;
+  /* One row of four crew portraits on the left + the stats column on the right. */
+  max-width: 780px;
   background: linear-gradient(180deg, rgba(23,23,28,0.98) 0%, rgba(18,18,20,0.98) 100%);
   border: 1px solid var(--border);
   border-left-width: 4px;
@@ -400,7 +401,7 @@ body {
 .ai-card[data-ai-color="red"] { border-left-color: var(--red); }
 .card-top {
   display: grid;
-  grid-template-columns: 64px 10px minmax(0, 1fr) auto;
+  grid-template-columns: 64px 10px minmax(0, 1fr);
   gap: 12px;
   align-items: center;
   padding: 14px 14px 12px;
@@ -481,12 +482,13 @@ body {
   line-height: 1.1;
 }
 .total-col {
-  min-width: 160px;
   text-align: right;
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 3px;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 4px 12px;
 }
 .total-val {
   font-size: 22px;
@@ -552,12 +554,6 @@ body {
   display: grid;
   gap: 14px;
 }
-.crew-and-coverage {
-  display: flex;
-  gap: 18px;
-  align-items: center;
-}
-.crew-and-coverage .crew-grid { flex: 0 1 auto; }
 .coverage {
   display: flex;
   flex-direction: column;
@@ -616,10 +612,20 @@ body {
   background: rgba(232,160,48,0.07);
   border: 1px solid rgba(232,160,48,0.2);
 }
-.rh-links {
-  display: flex;
-  gap: 4px;
+.rh-watch {
+  justify-self: end;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--accent);
+  text-decoration: none;
+  border: 1px solid rgba(232,160,48,0.3);
+  border-radius: 5px;
+  padding: 4px 11px;
+  white-space: nowrap;
 }
+.rh-watch:hover { background: rgba(232,160,48,0.12); border-color: var(--accent); }
 .rh-num { color: var(--muted); font-weight: 800; font-size: 10px; }
 .rh-job { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rh-take { color: var(--accent); font-weight: 700; }
@@ -632,18 +638,39 @@ body {
 .rh-abort-tag { font-size: 9px; font-weight: 700; letter-spacing: 1px; opacity: 0.8; }
 .round-row.rh-sat { opacity: 0.35; }
 .rh-sat-label { font-style: italic; }
-.rh-hire-link {
-  font-size: 9px; font-weight: 800; color: var(--accent);
-  text-decoration: none; opacity: 0.7; margin-left: 4px;
-}
-.rh-hire-link:hover { opacity: 1; }
 
+/* Crew portraits (one row of four) on the left, team stats to the right. */
+.crew-stats {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+}
+.crew-stats .crew-grid { flex: 0 0 auto; }
+.card-stats {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+}
+.card-stats .coverage { flex: none; width: 100%; max-width: 300px; }
 .crew-grid {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
 .crew-grid .portrait-card { width: 120px; }
+/* Reserve a fixed slot for a missing 4th (or fewer) crew member so every card
+   is the same width. Not a .portrait-card, so the reveal never treats it as a
+   crew member. */
+.crew-slot-empty {
+  width: 120px;
+  aspect-ratio: 1;
+  border-radius: 6px;
+  border: 1px dashed rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.02);
+}
 
 /* Reflection rail */
 .tabs {
@@ -704,23 +731,6 @@ body {
   line-height: 1.65;
   color: #d0cbe0;
 }
-.watch-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 10px;
-  padding: 8px 10px;
-  border-radius: 8px;
-  border: 1px solid rgba(232,160,48,0.22);
-  background: rgba(232,160,48,0.10);
-  color: var(--accent);
-  text-decoration: none;
-  font-size: 11px;
-  font-weight: 900;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-}
-.watch-link:hover { border-color: rgba(232,160,48,0.4); background: rgba(232,160,48,0.16); }
 
 .card-foot {
   padding: 0 14px 14px;
@@ -1133,7 +1143,14 @@ body {
   }
 
   function renderCrewGrid(crew, caughtIds, phase, baseline = false) {
-    return crew.map(member => memberCardHtml(member, caughtIds.has(String(member.char_id || member.id)), phase, baseline)).join('');
+    const cards = crew.map(member => memberCardHtml(member, caughtIds.has(String(member.char_id || member.id)), phase, baseline));
+    // Always reserve four crew slots so every card is the same width; fill any
+    // missing slots with a blank placeholder (never a .portrait-card, so the
+    // reveal animation doesn't mistake it for a crew member).
+    for (let i = crew.length; i < 4; i++) {
+      cards.push('<div class="crew-slot-empty" aria-hidden="true"></div>');
+    }
+    return cards.join('');
   }
 
   function coverageHtml(crew, baseline = false) {
@@ -1176,11 +1193,8 @@ body {
       const isAbort = r.aborted;
       const cls = isAbort ? 'rh-abort' : r.escape === 'clean' ? 'rh-clean' : r.escape === 'caught' ? 'rh-caught' : 'rh-fail';
       const icon = isAbort ? '↩' : r.escape === 'clean' ? '✓' : r.escape === 'caught' ? '✗' : '~';
-      const hireLink = r.hiring_game_id
-        ? `<a class="rh-hire-link" href="/hiring?campaign=${encodeURIComponent(gameId)}&ai=${encodeURIComponent(row.ai_idx)}&round=${encodeURIComponent(r.round_idx)}" title="Watch hiring" onclick="event.stopPropagation()">H</a>`
-        : '';
-      const watchLink = r.game_id
-        ? `<a class="rh-hire-link" href="/heist?campaign=${encodeURIComponent(gameId)}&ai=${encodeURIComponent(row.ai_idx)}&round=${encodeURIComponent(r.round_idx)}" title="Watch heist" onclick="event.stopPropagation()">→</a>`
+      const watchBtn = r.game_id
+        ? `<a class="rh-watch" href="/heist?campaign=${encodeURIComponent(gameId)}&ai=${encodeURIComponent(row.ai_idx)}&round=${encodeURIComponent(r.round_idx)}" title="Watch this heist" onclick="event.stopPropagation()">Watch</a>`
         : '';
       const scouted = Array.isArray(r.scouted) ? r.scouted : [];
       const scoutTitle = scouted.map(s => `${s.job} · ${s.category} ${s.score}/10`).join('\n');
@@ -1192,7 +1206,7 @@ body {
       <span class="rh-job">${esc(r.job_name || '—')}${isAbort ? ' <span class="rh-abort-tag">ABORT</span>' : ''}${scoutBadge}</span>
       <span class="rh-take">${money(r.take || 0)}</span>
       <span class="rh-icon">${icon}</span>
-      <span class="rh-links">${hireLink}${watchLink}</span>
+      ${watchBtn}
     </div>`;
     });
     return rows.length ? `<div class="round-history">${rows.join('')}</div>` : '';
@@ -1205,9 +1219,8 @@ body {
     }
     return entries.map(item => `
       <div class="wire-item">
-        ${Shell.helpers.portraitCardHtml(item.speaker || { name: item.speaker_name, skills: {} }, { charId: item.speaker_char_id, widthPx: 84 })}
+        ${Shell.helpers.portraitCardHtml(item.speaker || { name: item.speaker_name, skills: {} }, { charId: item.speaker_char_id })}
         <div class="wire-body">
-          <div class="wire-name">${esc(item.speaker_name || 'Unknown')}</div>
           <div class="wire-text">${esc(item.text || '')}</div>
         </div>
       </div>
@@ -1349,9 +1362,6 @@ body {
     const rankChangeText = showDelta ? formatRankDelta(model.rankDelta) : '';
     const rankChangeClass = `rank-change${showDelta ? ' show ' + (model.rankDelta > 0 ? 'up' : 'dn') : ''}`;
     const takeClass = `take-badge${!isBefore && showResult ? ' show' : ''}`;
-    const watchLink = (model.row.status === 'done' || model.row.status === 'running') && model.row.ai_idx != null
-      ? `<a class="watch-link" href="/hiring?campaign=${encodeURIComponent(gameId)}&ai=${encodeURIComponent(model.row.ai_idx)}&round=0">Watch →</a>`
-      : '';
     const historyHtml = renderRoundHistory(model.row, model.totalRounds);
     const caughtIds = model.caughtIds;
     const baseline = model.roundNumber === 0;
@@ -1369,26 +1379,27 @@ body {
           <div class="name-col">
             <div class="ai-name">${esc(model.aiName)}</div>
           </div>
-          <div class="total-col">
-            <div class="total-val" data-role="total">${moneyM(totalValue)}</div>
-            <div class="total-meta">
-              <div class="${takeClass}" data-role="take">${isBefore ? '+$0.00M' : '+' + moneyM(takeValue)}</div>
-              <div class="heat-chip">
-                <span class="heat-label">HEAT</span>
-                <span class="heat-value ${heatClass(heatValue)}${!isBefore && heatValue >= 7 ? ' pulse' : ''}" data-role="heat-value">${heatValue} / 9</span>
-              </div>
-            </div>
-          </div>
         </div>
         <div class="card-body">
-          <div class="crew-and-coverage">
+          <div class="crew-stats">
             <div class="crew-grid">
               ${crewHtml}
             </div>
-            ${coverageHtml(model.crew, baseline)}
+            <div class="card-stats">
+              <div class="total-col">
+                <div class="total-val" data-role="total">${moneyM(totalValue)}</div>
+                <div class="total-meta">
+                  <div class="${takeClass}" data-role="take">${isBefore ? '+$0.00M' : '+' + moneyM(takeValue)}</div>
+                  <div class="heat-chip">
+                    <span class="heat-label">HEAT</span>
+                    <span class="heat-value ${heatClass(heatValue)}${!isBefore && heatValue >= 7 ? ' pulse' : ''}" data-role="heat-value">${heatValue} / 9</span>
+                  </div>
+                </div>
+              </div>
+              ${coverageHtml(model.crew, baseline)}
+            </div>
           </div>
           ${historyHtml}
-          ${watchLink}
         </div>
       </article>
     `;
