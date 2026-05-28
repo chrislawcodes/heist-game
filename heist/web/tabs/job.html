@@ -192,7 +192,7 @@
 .job-root .jt-slate-card {
   background: var(--panel); border: 1px solid var(--border);
   border-radius: 8px; padding: 14px;
-  transition: all 0.25s ease;
+  transition: transform 0.35s ease, border-color 0.25s ease, background-color 0.25s ease, box-shadow 0.25s ease;
 }
 .job-root .jt-slate-name-row {
   display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px;
@@ -215,6 +215,10 @@
   font-size: 10px; color: var(--muted);
   flex: 1; min-width: 0;
 }
+.job-root .jt-slate-row-value {
+  font-family: monospace; font-size: 11px; color: var(--muted);
+  white-space: nowrap;
+}
 
 /* Scouted-cell intel: exact 1-10 revealed by a probe. Unscouted cells show
    only the estimate bars; a scouted cell lights up with its true score. */
@@ -228,6 +232,14 @@
 .job-root .jt-diff-hidden {
   font-family: monospace; font-size: 12px; font-weight: 700;
   color: var(--muted); opacity: 0.6; padding: 0 6px;
+}
+@keyframes jt-row-pulse {
+  0%, 100% { background: transparent; }
+  50% { background: rgba(255, 215, 0, 0.18); }
+}
+.job-root .jt-slate-row.jt-pulse {
+  animation: jt-row-pulse 0.8s ease;
+  border-radius: 6px;
 }
 </style>
 
@@ -401,6 +413,25 @@
     return '🏢';
   }
 
+  function hasRevealedCell(cells) {
+    return !!cells && Object.values(cells).some(v => v === 'BUCKET' || v === 'EXACT');
+  }
+
+  function pulseSlateRow(jobName, category) {
+    const grid = $$('slate-grid');
+    if (!grid) return;
+    const row = Array.from(grid.querySelectorAll('.jt-slate-row')).find(el =>
+      el.dataset.job === jobName && el.dataset.cat === category
+    );
+    if (!row) return;
+    row.classList.remove('jt-pulse');
+    void row.offsetWidth;
+    row.classList.add('jt-pulse');
+    row.addEventListener('animationend', () => {
+      row.classList.remove('jt-pulse');
+    }, { once: true });
+  }
+
   // ── render ───────────────────────────────────────────────────────────────────
 
   function renderSlate() {
@@ -410,6 +441,10 @@
     const heading = $$('slate-heading');
     if (!grid) return;
     const esc = Shell.helpers.escapeHtml;
+    const prevRects = new Map();
+    for (const card of grid.querySelectorAll('.jt-slate-card[data-job]')) {
+      prevRects.set(card.dataset.job, card.getBoundingClientRect());
+    }
     // Show this round's contested board (≤8 jobs the team actually chose from),
     // not the full ~50-job pool. Fall back to the full list only for legacy /
     // non-campaign games that emit no job_board event.
@@ -435,8 +470,19 @@
       social: 'soc', physical: 'safe', electronic: 'hack', confrontation: 'musc',
     };
 
-    const visibleJobs = pickedName ? jobs.filter(j => j.name !== pickedName) : jobs;
     const revealCells0 = revealByAI[Shell.currentAI] || {};
+    const visibleJobs = (pickedName ? jobs.filter(j => j.name !== pickedName) : jobs)
+      .map((j, index) => ({
+        job: j,
+        index,
+        revealed: hasRevealedCell(revealCells0[j.name]),
+      }))
+      .sort((a, b) => {
+        if (a.revealed !== b.revealed) return a.revealed ? -1 : 1;
+        return a.index - b.index;
+      })
+      .map(entry => entry.job);
+
     grid.innerHTML = visibleJobs.map(j => {
       const rr = j.reward_range;
       const reward = rr
@@ -459,20 +505,47 @@
         const bars = known
           ? `<div class="cs-bars">${segs(levelToCount(level), skillCls)}</div>`
           : `<span class="jt-diff-hidden">?</span>`;
-        return `<div class="jt-slate-row${isExact ? ' jt-scouted' : ''}">
+        return `<div class="jt-slate-row${isExact ? ' jt-scouted' : ''}" data-job="${esc(j.name)}" data-cat="${key}">
           <span class="jt-slate-row-label">${key.charAt(0).toUpperCase()}${key.slice(1)}</span>
           ${bars}
           ${badge}
         </div>`;
       }).join('');
-      return `<div class="jt-slate-card">
+      const mod = j.escape_modifier;
+      const modStr = mod != null ? (mod > 0 ? '+' + mod : String(mod)) : '—';
+      const escapeRow = `<div class="jt-slate-row" data-job="${esc(j.name)}" data-cat="escape">
+          <span class="jt-slate-row-label">Escape</span>
+          <span class="jt-slate-row-value">modifier ${modStr}</span>
+        </div>`;
+      return `<div class="jt-slate-card" data-job="${esc(j.name)}">
         <div class="jt-slate-name-row">
           <div class="jt-slate-name">${esc(j.name)}</div>
         </div>
         <div class="jt-slate-reward">Reward ${reward}</div>
-        <div class="jt-slate-rows">${rows}</div>
+        <div class="jt-slate-rows">${rows}${escapeRow}</div>
       </div>`;
     }).join('');
+
+    const cardsToFlip = [];
+    for (const card of grid.querySelectorAll('.jt-slate-card[data-job]')) {
+      const oldRect = prevRects.get(card.dataset.job);
+      if (!oldRect) continue;
+      const newRect = card.getBoundingClientRect();
+      const dx = oldRect.left - newRect.left;
+      const dy = oldRect.top - newRect.top;
+      if (!dx && !dy) continue;
+      card.style.transition = 'none';
+      card.style.transform = `translate(${dx}px, ${dy}px)`;
+      cardsToFlip.push(card);
+    }
+    if (cardsToFlip.length) {
+      requestAnimationFrame(() => {
+        for (const card of cardsToFlip) {
+          card.style.transition = '';
+          card.style.transform = '';
+        }
+      });
+    }
   }
 
   function render() {
@@ -634,7 +707,10 @@
         (scoutedByAI[ai][e.job] ||= {});
         scoutedByAI[ai][e.job][e.category] = e.score;
       }
-      if (ai === Shell.currentAI) render();
+      if (ai === Shell.currentAI) {
+        render();
+        pulseSlateRow(e.job, e.category);
+      }
 
     } else if (e.type === 'game_done') {
       if (e.state) {
