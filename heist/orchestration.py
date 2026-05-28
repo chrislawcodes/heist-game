@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import concurrent.futures
 import contextlib
+import os
 import random
 import threading
 import time
@@ -26,10 +27,43 @@ from heist.persist import (
 )
 from heist.state import ScoutState
 
+PARALLEL_LLM_CALL_STAGGER_SECONDS = 30.0
+"""Default stagger between successive LLM-call submissions in a parallel fan-out.
+
+Scouts (and, later, bids) run concurrently inside the conductor — each team's
+call is independent — but we deliberately delay the *submission* of the next
+team's future by this many seconds so we don't fire all N calls at the same
+instant. With 3 teams the calls are spread across 60s instead of all hitting
+the rate-limiter together. The actual scout work still runs in parallel once
+submitted; the stagger only affects when each future *starts*.
+
+Override via:
+  • ``stagger_seconds=0`` argument (used by unit tests).
+  • ``HEIST_TURN_DELAY=0`` environment (the existing "fast/test mode" knob —
+    smoke tests and integration tests already set this; we honor it so the
+    same single flag disables both per-turn delays and the rate-limit stagger).
+  • ``HEIST_PARALLEL_STAGGER_SECONDS=<float>`` env override for production tuning.
+"""
+
+
+def _default_stagger_seconds() -> float:
+    """Resolve the parallel-call stagger at call time so env vars set after
+    module import (e.g. by tests) still take effect."""
+    if os.environ.get("HEIST_TURN_DELAY") == "0":
+        return 0.0
+    override = os.environ.get("HEIST_PARALLEL_STAGGER_SECONDS")
+    if override is not None:
+        try:
+            return float(override)
+        except ValueError:
+            pass
+    return PARALLEL_LLM_CALL_STAGGER_SECONDS
+
 
 def _run_parallel_scout_turns(
     active_ai_idxs: list[int],
     scout_one: Callable[[int], tuple[ScoutState, int]],
+    stagger_seconds: float | None = None,
 ) -> tuple[dict[int, ScoutState], dict[int, int]]:
     """Fan out per-team scout turns concurrently (feature 003 / US1).
 
@@ -39,10 +73,19 @@ def _run_parallel_scout_turns(
     per-team ScoutState / logs / emit channel), so threads are sufficient — scout
     calls are I/O-bound (LLM subprocess/HTTP).
 
+    ``stagger_seconds`` delays each subsequent future submission so we don't
+    hammer the LLM provider with N simultaneous requests (rate-limit guard).
+    The first team submits immediately; team N submits at ``(N-1) * stagger``
+    seconds. All futures run concurrently once submitted, so total elapsed time
+    is ``(N-1) * stagger + max_individual_call_time`` — substantially faster
+    than fully serial while staying friendly to per-minute limits.
+
     Per-team exceptions are caught + logged; the failing team's probes_spent is
     treated as 0 (sorts to the front of pick_order — they go in blind) and their
     ScoutState defaults to an empty one (no reveals).
     """
+    if stagger_seconds is None:
+        stagger_seconds = _default_stagger_seconds()
     scout_states: dict[int, ScoutState] = {}
     probes_spent: dict[int, int] = {}
     if not active_ai_idxs:
@@ -50,7 +93,11 @@ def _run_parallel_scout_turns(
     with concurrent.futures.ThreadPoolExecutor(
         max_workers=max(1, len(active_ai_idxs))
     ) as pool:
-        futures = {pool.submit(scout_one, i): i for i in active_ai_idxs}
+        futures: dict[concurrent.futures.Future, int] = {}
+        for idx, ai_idx in enumerate(active_ai_idxs):
+            if idx > 0 and stagger_seconds > 0:
+                time.sleep(stagger_seconds)
+            futures[pool.submit(scout_one, ai_idx)] = ai_idx
         for fut in concurrent.futures.as_completed(futures):
             ai_idx = futures[fut]
             try:
