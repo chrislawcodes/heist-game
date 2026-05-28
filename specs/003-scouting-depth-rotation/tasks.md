@@ -60,8 +60,8 @@
 
 ### Implementation for US2
 
-- [ ] T008 [heist/board.py] [US2] Change `pick_order(standings: list[tuple[int, int]]) -> list[int]` (line ~64) to accept `list[tuple[int, int, int]]` interpreted as `(ai_idx, probes_spent, banked_loot)`. Sort by `(probes_spent, banked_loot, ai_idx)` ascending. Update the docstring to reflect the new semantics and tiebreak chain. The single existing call site in `orchestration.py` will be updated in US1 (T012); leave a `# TODO: caller update in US1` comment if helpful — but do NOT update orchestration.py here.
-- [ ] T009 [P: tests/test_board.py] [US2] Add `pick_order` unit tests: (a) ascending probes — `[(0,2,1_000_000),(1,7,500_000),(2,4,750_000)]` → `[0,2,1]`; (b) bankroll tiebreak — `[(0,4,1_000_000),(1,4,500_000)]` → `[1,0]`; (c) ai_idx tiebreak — `[(0,4,500_000),(1,4,500_000)]` → `[0,1]`; (d) all-zero-probes — falls through to bankroll then ai_idx; (e) empty input → `[]`.
+- [X] T008 [heist/board.py] [US2] Change `pick_order(standings: list[tuple[int, int]]) -> list[int]` (line ~64) to accept `list[tuple[int, int, int]]` interpreted as `(ai_idx, probes_spent, banked_loot)`. Sort by `(probes_spent, banked_loot, ai_idx)` ascending. Update the docstring to reflect the new semantics and tiebreak chain. The single existing call site in `orchestration.py` will be updated in US1 (T012); leave a `# TODO: caller update in US1` comment if helpful — but do NOT update orchestration.py here.
+- [X] T009 [P: tests/test_board.py] [US2] Add `pick_order` unit tests: (a) ascending probes — `[(0,2,1_000_000),(1,7,500_000),(2,4,750_000)]` → `[0,2,1]`; (b) bankroll tiebreak — `[(0,4,1_000_000),(1,4,500_000)]` → `[1,0]`; (c) ai_idx tiebreak — `[(0,4,500_000),(1,4,500_000)]` → `[0,1]`; (d) all-zero-probes — falls through to bankroll then ai_idx; (e) empty input → `[]`.
 
 **Checkpoint**: US2 complete (`pick_order` accepts probes-aware standings, unit-tested).
 

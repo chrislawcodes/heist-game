@@ -1080,8 +1080,12 @@ def run_campaign_conductor(
                     )
                     board_objs_round = [_JBN[n] for n in _board_names]
                     board_slate_scores = roll_slate_scores(board_objs_round, _brng)
+                    # Feature 003 (US1 will fill in real probes_spent counts).
+                    # Until US1 lands, every team is treated as having spent 0
+                    # probes, so order falls through to bankroll then ai_idx —
+                    # equivalent to the old trailing-team-first rule.
                     _order = pick_order(
-                        [(i, c.banked_loot) for i, c in _active_camps.items()]
+                        [(i, 0, c.banked_loot) for i, c in _active_camps.items()]
                     )
                     board_payload_round = [_job_to_dict(o) for o in board_objs_round]
                     pick_order_round = _order

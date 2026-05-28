@@ -37,12 +37,29 @@ def test_affordable_monotonic_in_bankroll():
     assert not affordable(j_easy, estimated_crew_cost(j_easy) - 1)
 
 
-def test_pick_order_is_trailing_first_with_idx_tiebreak():
-    # ai 2 trails, ai 0 leads; ties broken by ai_idx.
-    standings = [(0, 5_000_000), (1, 1_000_000), (2, 1_000_000), (3, 9_000_000)]
+def test_pick_order_ascending_probes_with_tiebreaks():
+    """Feature 003 / US2: pick order = ascending probes_spent, then ascending
+    banked_loot, then ascending ai_idx. Standings are (ai_idx, probes, bankroll)."""
+    # Fewest probes wins outright.
+    standings = [(0, 5, 1_000_000), (1, 1, 9_000_000), (2, 3, 500_000)]
+    assert pick_order(standings) == [1, 2, 0]
+    # Same probes → bankroll asc wins.
+    same_probes = [(0, 4, 1_000_000), (1, 4, 500_000), (2, 4, 2_000_000)]
+    assert pick_order(same_probes) == [1, 0, 2]
+    # Same probes + same bankroll → ai_idx asc wins.
+    same_all = [(2, 4, 500_000), (0, 4, 500_000), (1, 4, 500_000)]
+    assert pick_order(same_all) == [0, 1, 2]
+
+
+def test_pick_order_all_zero_probes_falls_through_to_bankroll():
+    """When every team rushed (0 probes), order is bankroll-ascending then ai_idx —
+    equivalent to the old trailing-team-first rule for that case."""
+    standings = [(0, 0, 5_000_000), (1, 0, 1_000_000), (2, 0, 1_000_000), (3, 0, 9_000_000)]
     assert pick_order(standings) == [1, 2, 0, 3]
-    tied = [(3, 0), (1, 0), (2, 0), (0, 0)]
-    assert pick_order(tied) == [0, 1, 2, 3]
+
+
+def test_pick_order_empty_input():
+    assert pick_order([]) == []
 
 
 def test_board_size_and_no_consumed():

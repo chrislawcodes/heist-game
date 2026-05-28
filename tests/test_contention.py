@@ -5,14 +5,16 @@ from heist.board import pick_order, resolve_contention
 
 
 def test_pick_order_trailing_first():
-    # ai 0 leads ($5M), ai 1 trails ($1M), ai 2 mid ($3M) → order 1,2,0.
-    assert pick_order([(0, 5_000_000), (1, 1_000_000), (2, 3_000_000)]) == [1, 2, 0]
+    # ai 0 leads ($5M), ai 1 trails ($1M), ai 2 mid ($3M). All-zero probes →
+    # falls through to bankroll ascending. Feature 003 pick_order takes
+    # (ai_idx, probes_spent, banked_loot) tuples.
+    assert pick_order([(0, 0, 5_000_000), (1, 0, 1_000_000), (2, 0, 3_000_000)]) == [1, 2, 0]
 
 
 def test_lower_banked_wins_a_contested_job():
     """All three teams want 'The Mint' first; the trailing (lowest-banked) team
     claims it, the richer teams fall back to the next available board job."""
-    order = pick_order([(0, 5_000_000), (1, 1_000_000), (2, 3_000_000)])
+    order = pick_order([(0, 0, 5_000_000), (1, 0, 1_000_000), (2, 0, 3_000_000)])
     board = ["The Mint", "B", "C", "D"]
 
     def everyone_wants_the_mint(ai_idx, remaining):

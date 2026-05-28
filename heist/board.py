@@ -61,10 +61,19 @@ def affordable(job: Job, bankroll: int) -> bool:
     return estimated_crew_cost(job) <= bankroll
 
 
-def pick_order(standings: list[tuple[int, int]]) -> list[int]:
-    """Return ai_idx ordered trailing-team-first: ascending banked loot, with a
-    deterministic ai_idx tiebreak. ``standings`` = [(ai_idx, banked_loot)]."""
-    return [ai for ai, _ in sorted(standings, key=lambda t: (t[1], t[0]))]
+def pick_order(standings: list[tuple[int, int, int]]) -> list[int]:
+    """Return ai_idx ordered fewest-probes-first.
+
+    Feature 003 — scouting depth is now the primary pick-order axis. Sort by:
+      1. ``probes_spent`` ascending — teams that rushed in (used fewer probes)
+         pick first; teams that scouted deep go later.
+      2. ``banked_loot`` ascending — preserves a soft anti-snowball as the
+         tiebreak (trailing team wins among same-probes teams).
+      3. ``ai_idx`` ascending — final deterministic tiebreak.
+
+    ``standings`` = list of ``(ai_idx, probes_spent, banked_loot)`` tuples.
+    """
+    return [ai for ai, _, _ in sorted(standings, key=lambda t: (t[1], t[2], t[0]))]
 
 
 def resolve_contention(
