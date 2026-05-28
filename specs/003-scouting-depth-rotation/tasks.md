@@ -29,9 +29,9 @@
 
 ⚠️ **CRITICAL**: Phase 2 must be complete before US4/US5 begin. P1 stories (US1/2/3) do not depend on it.
 
-- [ ] T003 [heist/state.py] Add three new fields to the `Campaign` dataclass: `carryover_board: list[str] = field(default_factory=list)`, `persistent_slate_scores: dict[str, dict[str, int]] = field(default_factory=dict)`, `per_ai_scout_state: dict[int, "ScoutState"] = field(default_factory=dict)`. Place after the existing `consumed_jobs` field. No behavior wiring yet.
-- [ ] T004 [heist/serialize.py] In `campaign_to_dict` emit the 3 new keys (`carryover_board`, `persistent_slate_scores`, `per_ai_scout_state` — the last using `scout_state_to_dict` per entry); in `campaign_from_dict` read them with empty defaults via `d.get(..., ...)` for backward compat. Depends on T003.
-- [ ] T005 [tests/test_campaign.py] Add a round-trip test: build a Campaign with the 3 new fields populated → `campaign_to_dict` → `campaign_from_dict` → asserts. Also test that a pre-feature dict (missing the keys) loads with empty defaults (no crash). Depends on T004.
+- [X] T003 [heist/state.py] Add three new fields to the `Campaign` dataclass: `carryover_board: list[str] = field(default_factory=list)`, `persistent_slate_scores: dict[str, dict[str, int]] = field(default_factory=dict)`, `per_ai_scout_state: dict[int, "ScoutState"] = field(default_factory=dict)`. Place after the existing `consumed_jobs` field. No behavior wiring yet.
+- [X] T004 [heist/serialize.py] In `campaign_to_dict` emit the 3 new keys (`carryover_board`, `persistent_slate_scores`, `per_ai_scout_state` — the last using `scout_state_to_dict` per entry); in `campaign_from_dict` read them with empty defaults via `d.get(..., ...)` for backward compat. Depends on T003.
+- [X] T005 [tests/test_campaign.py] Add a round-trip test: build a Campaign with the 3 new fields populated → `campaign_to_dict` → `campaign_from_dict` → asserts. Also test that a pre-feature dict (missing the keys) loads with empty defaults (no crash). Depends on T004. *(Placed in tests/test_serialize_board.py with the existing campaign round-trip tests — better cohesion.)*
 
 **Checkpoint**: Foundation ready — P2 stories can later attach behavior to these fields.
 

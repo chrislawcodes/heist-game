@@ -235,6 +235,16 @@ class Campaign:
     # never re-offered). Single-AI: authoritative here. Multi-AI: the conductor
     # owns the shared set and mirrors it into each per-AI campaign each round.
     consumed_jobs: set[str] = field(default_factory=set)
+    # Feature 003 — board carryover + persistent scouting. Empty for pre-feature
+    # saves; populated by the conductor at each round boundary.
+    #   carryover_board: job names from the prior round's board that no team picked.
+    #   persistent_slate_scores: hidden 1-10 challenge scores per carried job
+    #     (rolled once when first drawn; dropped when consumed).
+    #   per_ai_scout_state: ai_idx → ScoutState, carries reveals/exact_scores
+    #     across rounds; per-round counters reset at round start.
+    carryover_board: list[str] = field(default_factory=list)
+    persistent_slate_scores: dict[str, dict[str, int]] = field(default_factory=dict)
+    per_ai_scout_state: dict[int, ScoutState] = field(default_factory=dict)
 
     @property
     def round_idx(self) -> int:

@@ -419,6 +419,15 @@ def campaign_to_dict(campaign: Campaign) -> dict:
         "round_results": [_round_result_to_dict(r) for r in campaign.round_results],
         "between_round_log": [dict(entry) for entry in campaign.between_round_log],
         "consumed_jobs": sorted(campaign.consumed_jobs),
+        # Feature 003 — board carryover + persistent scouting.
+        "carryover_board": list(campaign.carryover_board),
+        "persistent_slate_scores": {
+            j: dict(cats) for j, cats in campaign.persistent_slate_scores.items()
+        },
+        "per_ai_scout_state": {
+            str(i): scout_state_to_dict(ss)
+            for i, ss in campaign.per_ai_scout_state.items()
+        },
     }
 
 
@@ -431,6 +440,16 @@ def campaign_from_dict(d: dict) -> Campaign:
         round_results=[_round_result_from_any(r) for r in d.get("round_results", [])],
         between_round_log=[dict(entry) for entry in d.get("between_round_log", [])],
         consumed_jobs={str(n) for n in d.get("consumed_jobs", []) if isinstance(n, str)},
+        # Feature 003 — defaults to empty for pre-feature saves.
+        carryover_board=[str(n) for n in d.get("carryover_board", []) if isinstance(n, str)],
+        persistent_slate_scores={
+            j: {c: int(s) for c, s in cats.items()}
+            for j, cats in d.get("persistent_slate_scores", {}).items()
+        },
+        per_ai_scout_state={
+            int(i): scout_state_from_dict(d_ss)
+            for i, d_ss in d.get("per_ai_scout_state", {}).items()
+        },
     )
     game_id = d.get("game_id")
     if game_id is not None:
