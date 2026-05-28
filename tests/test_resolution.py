@@ -279,6 +279,7 @@ def test_abort_sets_aborted_and_routes_to_escape():
     )
     ai = StubHeistAI([
         '{"assigned_member_ids": [1, 2], "abort": true, "reasoning": "bail"}',
+        "She clocked the guard count and shook her head. Too many. They pulled back.",
         '{"assigned_member_ids": [1], "abort": false, "reasoning": "driver"}',
         '{"narration": "escape"}',
     ])
@@ -298,7 +299,7 @@ def test_abort_sets_aborted_and_routes_to_escape():
     assert state.aborted is True
     assert state.escape_success is True
     assert [r.scene.type for r in state.scene_results] == ["challenge", "escape"]
-    assert not any("scene_1_narrate" in prompt for prompt in ai.prompts_seen)
+    assert state.scene_results[0].narration != ""
 
 
 # ── new event-field tests ────────────────────────────────────────────────────

@@ -309,6 +309,22 @@ def _scene_narrate_prompt(scene: Scene, outcome_summary: str, assigned: list | N
     )
 
 
+def _scene_abort_narrate_prompt(scene: Scene, reasoning: str, pov: Character) -> str:
+    pov_brief = _crew_brief([pov])
+    return (
+        f"Narrate scene {scene.number} ({scene.title}) in 100-150 words. "
+        "The crew aborted before attempting this scene. "
+        "Tell it from the POV of the person best suited to face the challenge — "
+        "show them reading the threat and making the call to pull back. "
+        "Keep it tight: short paragraphs, terse dialogue with minimal tags, "
+        "concrete sensory detail over flowery prose.\n"
+        f"\nPOV character:\n{pov_brief}\n\n"
+        "Write them as they actually are — use their specific voice, gestures, and look.\n"
+        f"\nWhy the crew pulled back: {reasoning}\n\n"
+        "Reply with ONLY the prose — in markdown, no heading."
+    )
+
+
 def _epilogue_prompt(state: HeistState) -> str:
     return (
         f"The heist is done. Final state:\n"

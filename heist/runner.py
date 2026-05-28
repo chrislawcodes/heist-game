@@ -42,6 +42,7 @@ from heist.prompts import (
     _epilogue_prompt,
     _fill_prompt,
     _job_prompt,
+    _scene_abort_narrate_prompt,
     _scene_assign_prompt,
     _scene_decision_prompt,
     _scene_narrate_prompt,
@@ -787,6 +788,18 @@ def resume_heist(
     return state, extras
 
 
+def _pov_for_abort(scene: Scene, state: HeistState) -> Character | None:
+    """Return the highest-skilled free crew member for the scene's challenge skill."""
+    skill = scene.challenge_skill
+    if not skill:
+        return None
+    free = _free_members(state)
+    candidates = [m for m in free if m.skills.get(skill, SkillLevel.NONE) != SkillLevel.NONE]
+    if not candidates:
+        return None
+    return max(candidates, key=lambda m: int(m.skills.get(skill, SkillLevel.NONE)))
+
+
 def _execute_scene(
     scene: Scene,
     state: HeistState,
@@ -827,12 +840,20 @@ def _execute_scene(
     if bool(assign_parsed.get("abort", False)):
         state.aborted = True
         decision = {"abort": True, "reasoning": assignment_reasoning}
-        outcome_summary = "Crew aborted the heist before resolving this scene."
+        pov = _pov_for_abort(scene, state)
+        if pov is not None:
+            narrate_turn = _call(
+                ai, _scene_abort_narrate_prompt(scene, assignment_reasoning, pov),
+                f"scene_{scene.number}_narrate", logs, emit,
+            )
+            narration = narrate_turn.text
+        else:
+            narration = ""
         return SceneResult(
             scene=scene,
             assigned_member_ids=member_ids,
             success=None,
-            narration="",
+            narration=narration,
             reasoning=assignment_reasoning,
             decision=decision,
             outcome=None,
