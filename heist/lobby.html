@@ -100,6 +100,14 @@ body {
   background: var(--surface); padding: 16px;
 }
 .preset-list { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-bottom: 14px; }
+.preset-section-label {
+  grid-column: 1 / -1;
+  font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--text-dim);
+  margin-top: 8px;
+}
+.preset-section-label:first-child { margin-top: 0; }
+.preset-section-empty { grid-column: 1 / -1; font-size: 0.8rem; color: var(--text-muted); font-style: italic; }
 .preset-pick {
   display: flex; gap: 10px; align-items: flex-start;
   padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px;
@@ -423,7 +431,7 @@ body {
         <div class="preset-list" id="preset-list"></div>
         <div class="preset-picker-actions">
           <button class="btn btn-primary" onclick="launchCustomQuickTest()">▶ Launch with selected</button>
-          <span class="preset-picker-hint">Pick 2–6 famous crews. 3-round campaign.</span>
+          <span class="preset-picker-hint">Pick 1–6 crews — famous, saved, or both. 3-round campaign.</span>
           <span class="preset-picker-error" id="preset-picker-error"></span>
         </div>
       </div>
@@ -775,28 +783,68 @@ function presetPrompt(p) {
   ].filter(Boolean).join('\n\n');
 }
 
-function renderPresetList() {
+let savedCrewsCache = [];
+
+async function fetchSavedCrews() {
+  try {
+    const resp = await fetch('/api/crews');
+    const data = await resp.json();
+    savedCrewsCache = Array.isArray(data.crews) ? data.crews : [];
+  } catch { savedCrewsCache = []; }
+  return savedCrewsCache;
+}
+
+async function renderPresetList() {
   const list = document.getElementById('preset-list');
   if (!list) return;
-  list.innerHTML = QT_PRESETS.map(p => `
+  await fetchSavedCrews();
+  const presetCards = QT_PRESETS.map(p => `
     <label class="preset-pick">
-      <input type="checkbox" value="${esc(p.key)}">
+      <input type="checkbox" value="preset:${esc(p.key)}">
       <div class="preset-pick-text">
         <div class="preset-pick-name">${esc(p.emoji)} ${esc(p.name)}</div>
         <div class="preset-pick-tag">${esc(p.tagline)}</div>
       </div>
     </label>
   `).join('');
+  const savedSection = savedCrewsCache.length
+    ? `<div class="preset-section-label">🎭 Your saved crews</div>` + savedCrewsCache.map(c => `
+        <label class="preset-pick">
+          <input type="checkbox" value="saved:${esc(c.id)}">
+          <div class="preset-pick-text">
+            <div class="preset-pick-name">${esc(c.name)}</div>
+            <div class="preset-pick-tag">${esc(c.agent)} · ${esc((c.prompt || '').slice(0, 100))}${(c.prompt || '').length > 100 ? '…' : ''}</div>
+          </div>
+        </label>
+      `).join('')
+    : `<div class="preset-section-label">🎭 Your saved crews</div><div class="preset-section-empty">None yet — build one on the Crews screen and it'll appear here.</div>`;
+  list.innerHTML = `<div class="preset-section-label">🎬 Famous crews</div>${presetCards}${savedSection}`;
 }
+
+// Refresh saved-crew list whenever the picker is opened (catches crews saved this session).
+document.addEventListener('DOMContentLoaded', () => {
+  const picker = document.getElementById('preset-picker');
+  if (picker) picker.addEventListener('toggle', () => { if (picker.open) renderPresetList(); });
+});
 
 async function launchCustomQuickTest() {
   const errBox = document.getElementById('preset-picker-error');
   errBox.textContent = '';
-  const keys = Array.from(document.querySelectorAll('#preset-list input[type="checkbox"]:checked')).map(i => i.value);
-  if (keys.length < 1) { errBox.textContent = 'Pick at least 1 crew.'; return; }
-  if (keys.length > 6) { errBox.textContent = 'Pick at most 6 crews.'; return; }
-  const chosen = keys.map(k => QT_PRESETS.find(p => p.key === k)).filter(Boolean);
-  const ais = chosen.map(p => ({ name: p.name, agent: 'codex-mini', prompt: presetPrompt(p) }));
+  const values = Array.from(document.querySelectorAll('#preset-list input[type="checkbox"]:checked')).map(i => i.value);
+  if (values.length < 1) { errBox.textContent = 'Pick at least 1 crew.'; return; }
+  if (values.length > 6) { errBox.textContent = 'Pick at most 6 crews.'; return; }
+  const ais = [];
+  for (const v of values) {
+    const [kind, id] = v.split(':', 2);
+    if (kind === 'preset') {
+      const p = QT_PRESETS.find(x => x.key === id);
+      if (p) ais.push({ name: p.name, agent: 'codex-mini', prompt: presetPrompt(p) });
+    } else if (kind === 'saved') {
+      const c = savedCrewsCache.find(x => x.id === id);
+      if (c) ais.push({ name: c.name, agent: c.agent || 'stub', prompt: c.prompt });
+    }
+  }
+  if (ais.length !== values.length) { errBox.textContent = "Couldn't resolve every selection — reload and try again."; return; }
   try {
     const resp = await fetch('/api/new-campaign', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
