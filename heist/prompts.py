@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from heist.content import BANKROLL, JOBS, ROSTER
 from heist.state import (
     Campaign,
@@ -88,72 +90,22 @@ def _scouting_report(scout_state, available_jobs) -> str:
     return "\n".join(lines) + "\n\n"
 
 
-_TRADECRAFT = """\
-What you know about this work:
+def _load_rulebook() -> str:
+    """Load the AI-facing rulebook from heist/RULES.md.
 
-  • Every job is a profile of four challenge types — Electronic (cameras,
-    networks, electronic locks), Physical (vaults, safes, structural),
-    Confrontation (guards, armed response), and Social (blending in, talking
-    your way through). Each has a hidden true difficulty from 1 to 10 (1-3 Low,
-    4-7 Medium, 8-10 Hard).
+    The file may carry a human-only preamble before the first ``---``
+    horizontal rule; everything after that separator is the rules text we
+    hand to the AI. Falling back to the whole file is safe if no separator
+    is present.
+    """
+    raw = (Path(__file__).parent / "RULES.md").read_text(encoding="utf-8")
+    _preamble, sep, body = raw.partition("\n---\n")
+    return (body if sep else raw).strip()
 
-  • You do NOT see a job's difficulty for free — it reads "???" until you SCOUT
-    it. Your first scout on a challenge reveals its bucket (Low/Med/Hard); a
-    second scout on the same challenge reveals the exact 1-10 number. Spend your
-    free scouts on the jobs you're seriously weighing. Even a revealed bucket is
-    only an estimate (a "Hard" could be 8 or 10), so leave margin.
 
-  • Crew skills are shown as an exact 1-10 score (these are public). Same
-    buckets: 1-3 Low, 4-7 Medium, 8-10 High.
-
-  • Teamwork adds exactly ONE point. Put two crew in the same area and your
-    effective score is the higher of the two PLUS 1, capped at 10. So a pair of
-    Mediums only reaches High if one is already near the top — a 7 pairs up to 8
-    (High), but two ordinary Mediums (say 5 and 6) only reach 7, still Medium.
-    Do NOT assume two Mediums can cover a Hard; most of the time they cannot.
-
-  • The exit always matters. A strong Driver covers a clean escape; no driver
-    means running on foot, and that limits which jobs you'll survive.
-
-How a scene resolves — your crew's effective score vs the challenge's true
-score (the margin is your score minus the challenge's score):
-
-  • Beat it by 2 or more: CLEAN — you pass, no heat.
-  • Tie, or beat it by 1: SQUEAK — you pass, but heat +1.
-  • Short by 1 to 3: FAIL — the scene fails, heat +1.
-  • Short by 4 or more: CAUGHT — the scene fails AND a crew member is taken,
-    heat +1.
-  (A challenge with no defense always comes up clean.)
-
-  Since you can't see the exact challenge number, margin is your safety net: a
-  score that only matches the bucket can squeak (costing heat) or, if the hidden
-  number runs high, fail outright. Bring more than you think you need on a Hard.
-
-Heat and the getaway:
-
-  • Heat is your alarm level — it rises by 1 for every scene that isn't clean
-    (squeak, fail, or caught).
-  • The escape is a getaway check. Each job has an escape difficulty from 0–6
-    (more heavily-defended jobs are higher), and your total heat is ADDED to
-    it. Your best Driver's score must be at least that combined number to get
-    out — pair two drivers to push the effective score up. No driver means a
-    score of 0 (you're on foot). If the escape fails, one more crew member is
-    caught.
-
-The take:
-
-  • You only secure loot from scenes you pass (clean or squeak). You KEEP that
-    take only if at least one crew member escapes uncaught — if the whole crew
-    is taken, you leave with nothing.
-  • You can abort at any scene: you take the escape immediately with whatever
-    you've secured so far.
-
-Across a campaign (multiple rounds):
-
-  • You draft your crew once and keep it across rounds, banking loot as you go.
-    Heat resets each round — it only affects that round's own escape.
-  • Crew taken (a CAUGHT scene or a failed escape) are gone for the rest of the
-    campaign. If your whole crew is taken, the campaign ends."""
+# Single source of truth: heist/RULES.md. Update that file when game rules
+# change; this constant is rebuilt on import.
+_TRADECRAFT = _load_rulebook()
 
 
 def _bid_prompt(strategy: str) -> str:

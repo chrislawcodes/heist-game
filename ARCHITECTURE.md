@@ -266,6 +266,10 @@ Pure functions, no AI calls.
 
 ## AI Layer
 
+### `heist/prompts.py` + `heist/RULES.md` — the AI rulebook
+
+All prompt-builders for the Heist AI live in `heist/prompts.py` (pure text — no AI calls, no state mutation). The in-fiction "tradecraft" block that teaches the AI every game mechanic — 1-10 hidden scores under 1-3/4-7/8-10 buckets, +1-point collaboration, score-margin resolution, the contested board, the two-step scouting reveal, the 0-6 escape + heat — is **stored in [`heist/RULES.md`](heist/RULES.md)** and loaded at module import via `_load_rulebook()`. **This file is the single source of truth for the AI's rules** — update it when mechanics change. `tests/test_prompts.py` pins the key phrases ("one point", "estimate", "margin", "How a scene resolves", "Heat and the getaway", "running on foot") so CI catches drift before the AI regresses to old rules.
+
 ### `heist/ai.py`
 
 `HeistAI` protocol: one method — `ask(prompt: str) -> AgentTurn`. Defines `parse_json_block()` (strips markdown fences, extracts JSON, attempts deterministic repairs) used by `_call_json` for structured responses. Prose-only calls (casting summary, scene narration, epilogue) bypass JSON parsing entirely and use `_call` directly.

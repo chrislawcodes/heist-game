@@ -596,10 +596,14 @@ section once said "to define," the **As built** subsection records what shipped.
   not a binary contest. Collaboration = best score **+1 point**, capped at 10.
 - **Convex pricing** (`$100k seat + Σ premium(score)`); see Character pricing.
 - **Scouting** is a free, per-round, pre-commit intel phase: each crew gets
-  `crew size + best-driver bonus` free probes; **one probe reveals a location
-  challenge's exact 1–10 score**. (The planned narrowed-range middle tier and a
-  $100k paid-overflow probe were *not* built — scouting is free-probes-only, and
-  the reward range is public, not scouted.)
+  `crew size + best-driver bonus` free probes. A **two-step reveal** is in
+  effect: the **first** probe on a (job, challenge category) reveals its
+  bucket (Low/Med/Hard); a **second** probe on the same cell reveals the
+  exact 1–10 score. (The originally-shipped one-probe-exact model was reverted
+  to the two-step ladder in PR #81. The $100k paid-overflow probe planned in
+  the rationale below was never built — scouting is free-probes-only, and the
+  reward range is public, not scouted.) The AI-facing version of this rule
+  lives in [`heist/RULES.md`](heist/RULES.md).
 - **Tiered challenge bands.** Each job has a tier (easy/med/hard/elite → 1/2/3)
   that sets how high its Hards roll; tier-3 Hards roll 9–10 (squeak-only).
 - **Contested job board.** A pool of ~50 jobs; each round shows a shared
@@ -619,8 +623,12 @@ section once said "to define," the **As built** subsection records what shipped.
 Every skill and every challenge has a true **1-10 score**; only its **bucket**
 is published:
 
-- Skills: `0 = None, 1-3 = Low, 4-6 = Med, 7-10 = High` (boundaries tunable).
-- Challenges: `0 = None, 1-3 = Low, 4-6 = Medium, 7-10 = Hard`.
+- Skills: `0 = None, 1-3 = Low, 4-7 = Med, 8-10 = High`.
+- Challenges: `0 = None, 1-3 = Low, 4-7 = Medium, 8-10 = Hard`.
+
+*(This block is the original Phase 4 rationale — the boundaries above match what
+shipped. See the "As built" subsection above for the canonical list, and
+[`heist/RULES.md`](heist/RULES.md) for the AI-facing rulebook.)*
 
 So a published "High" safecracker could be a 7 or a 10; a "Hard" vault could be
 a 7 or a 9. **The bucket becomes an estimate, not a contract.**
