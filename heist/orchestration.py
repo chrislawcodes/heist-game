@@ -1083,11 +1083,17 @@ def run_campaign_conductor(
                     _order = pick_order(
                         [(i, c.banked_loot) for i, c in _active_camps.items()]
                     )
+                    board_payload_round = [_job_to_dict(o) for o in board_objs_round]
+                    pick_order_round = _order
+                    consumed_count_round = len(_shared_consumed)
 
                     def _pick_for(
                         ai_idx: int, remaining: list[str],
                         _active_camps: dict = _active_camps,
                         board_slate_scores: dict = board_slate_scores,
+                        board_payload_round: list[dict] = board_payload_round,
+                        pick_order_round: list[int] = pick_order_round,
+                        consumed_count_round: int = consumed_count_round,
                         board_scout_states: dict = board_scout_states,
                         round_idx: int = round_idx,
                     ) -> str:
@@ -1095,17 +1101,24 @@ def run_campaign_conductor(
                         # the scout + job-pick events file on the round page the
                         # viewer reads — not the campaign-level log.
                         open_round_sub_game(ai_idx, round_idx)
+                        emit_fn = make_emit_fn(ai_idx)
+                        emit_fn({
+                            "type": "job_board", "campaign_id": campaign_id,
+                            "round_idx": round_idx, "board": board_payload_round,
+                            "pick_order": pick_order_round,
+                            "consumed_count": consumed_count_round,
+                        })
                         camp = _active_camps[ai_idx]
                         crew = _Crew(members=list(camp.standing_crew))
                         rem_objs = [_JBN[n] for n in remaining]
                         ss = _run_scout_turn(
                             crew, rem_objs, board_slate_scores, ais[ai_idx],
-                            logs_per_ai[ai_idx], make_emit_fn(ai_idx),
+                            logs_per_ai[ai_idx], emit_fn,
                         )
                         board_scout_states[ai_idx] = ss
                         chosen = pick_job_from_board(
                             ais[ai_idx], crew, rem_objs, ss, camp,
-                            logs_per_ai[ai_idx], make_emit_fn(ai_idx),
+                            logs_per_ai[ai_idx], emit_fn,
                         )
                         return chosen.name
 
@@ -1113,10 +1126,7 @@ def run_campaign_conductor(
                         _order, _board_names, _pick_for,
                     )
                     board_assignments = {i: _JBN[_assigned[i]] for i in _assigned}
-                    board_payload_round = [_job_to_dict(o) for o in board_objs_round]
-                    pick_order_round = _order
                     contested_round = _contested
-                    consumed_count_round = len(_shared_consumed)
                     # Consume globally: mirror the shared set + this round's
                     # claims into every active team's campaign.
                     _new_shared = _shared_consumed | set(_assigned.values())
@@ -1162,14 +1172,6 @@ def run_campaign_conductor(
                         "ai_idx": i,
                     }
                     gamestate.broadcast(crew_evt)
-                    # Two-lane: emit this team's view of the round's board + its
-                    # claim into its now-open round sub-game.
-                    emit_fn({
-                        "type": "job_board", "campaign_id": campaign_id,
-                        "round_idx": round_idx, "board": board_payload_round,
-                        "pick_order": pick_order_round,
-                        "consumed_count": consumed_count_round,
-                    })
                     emit_fn({
                         "type": "job_claimed", "campaign_id": campaign_id,
                         "round_idx": round_idx, "ai_idx": i,
