@@ -426,12 +426,12 @@ body {
       <button class="btn btn-secondary" onclick="mediumTest()" title="Launch a 7-round campaign: The Operators vs The Wreckers vs The Ghost (all Codex)">▶ Medium Test</button>
     </div>
     <details class="preset-picker" id="preset-picker">
-      <summary>▶ Quick Test with… <span style="opacity:.6">▾</span></summary>
+      <summary>Preset Crews <span id="preset-picker-summary-extra" style="opacity:.6">— none selected ▾</span></summary>
       <div class="picker-body">
         <div class="preset-list" id="preset-list"></div>
         <div class="preset-picker-actions">
-          <button class="btn btn-primary" onclick="launchCustomQuickTest()">▶ Launch with selected</button>
-          <span class="preset-picker-hint">Pick 1–6 crews — famous, saved, or both. 3-round campaign.</span>
+          <button class="btn btn-primary" onclick="launchCustomQuickTest()">▶ Launch Quick Test now</button>
+          <span class="preset-picker-hint">Pick 1–6 crews — used as the default for both ▶ Quick Test and ▶ Medium Test (saved across reloads). Empty = fall back to Operators / Wreckers / Ghost.</span>
           <span class="preset-picker-error" id="preset-picker-error"></span>
         </div>
       </div>
@@ -785,6 +785,81 @@ function presetPrompt(p) {
 
 let savedCrewsCache = [];
 
+// ── Preset Crews — persisted selection used as the default for ▶ Quick Test and ▶ Medium Test ──
+const PRESET_STORAGE_KEY = 'heist.presetCrews.selection';
+
+function loadSavedSelection() {
+  try {
+    const raw = localStorage.getItem(PRESET_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.filter(v => typeof v === 'string') : [];
+  } catch { return []; }
+}
+
+function persistSelection(values) {
+  try { localStorage.setItem(PRESET_STORAGE_KEY, JSON.stringify(values)); } catch {}
+  updatePresetSummary(values);
+}
+
+function readCurrentSelection() {
+  return Array.from(
+    document.querySelectorAll('#preset-list input[type="checkbox"]:checked')
+  ).map(i => i.value);
+}
+
+function updatePresetSummary(values) {
+  const extra = document.getElementById('preset-picker-summary-extra');
+  if (!extra) return;
+  if (!values || values.length === 0) {
+    extra.textContent = '— none selected ▾';
+  } else {
+    extra.textContent = `— ${values.length} selected ▾`;
+  }
+}
+
+// Resolves "preset:<key>" / "saved:<id>" strings into ai-config dicts the
+// /api/new-campaign endpoint accepts. Returns {ais, err}.
+function resolveSelectionToAis(values) {
+  const ais = [];
+  for (const v of values) {
+    const [kind, id] = v.split(':', 2);
+    if (kind === 'preset') {
+      const p = QT_PRESETS.find(x => x.key === id);
+      if (!p) return { ais: null, err: `Unknown preset '${id}'.` };
+      ais.push({ name: p.name, agent: 'codex-mini', prompt: presetPrompt(p) });
+    } else if (kind === 'saved') {
+      const c = savedCrewsCache.find(x => x.id === id);
+      if (!c) return { ais: null, err: `Saved crew '${id}' is gone — refresh and re-pick.` };
+      ais.push({ name: c.name, agent: c.agent || 'stub', prompt: c.prompt });
+    } else {
+      return { ais: null, err: `Unknown selection '${v}'.` };
+    }
+  }
+  return { ais, err: null };
+}
+
+async function launchFromSavedPreset(numRounds) {
+  const values = loadSavedSelection();
+  if (values.length === 0) return null; // signals "fall back to hard-coded"
+  // Need savedCrewsCache populated if any "saved:" pick is present.
+  if (savedCrewsCache.length === 0 && values.some(v => v.startsWith('saved:'))) {
+    await fetchSavedCrews();
+  }
+  const { ais, err } = resolveSelectionToAis(values);
+  if (err || !ais || ais.length === 0) {
+    alert(`Preset Crews: ${err || 'empty selection'} — falling back to default.`);
+    return null;
+  }
+  const resp = await fetch('/api/new-campaign', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ num_rounds: numRounds, ais }),
+  });
+  const data = await resp.json();
+  if (!resp.ok) throw new Error(data.error || resp.status);
+  window.location = `/campaign?game=${data.campaign_id}`;
+  return true;
+}
+
 async function fetchSavedCrews() {
   try {
     const resp = await fetch('/api/crews');
@@ -819,32 +894,32 @@ async function renderPresetList() {
       `).join('')
     : `<div class="preset-section-label">🎭 Your saved crews</div><div class="preset-section-empty">None yet — build one on the Crews screen and it'll appear here.</div>`;
   list.innerHTML = `<div class="preset-section-label">🎬 Famous crews</div>${presetCards}${savedSection}`;
+
+  // Restore prior selection from localStorage and bind change → save.
+  const saved = new Set(loadSavedSelection());
+  list.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+    if (saved.has(cb.value)) cb.checked = true;
+    cb.addEventListener('change', () => persistSelection(readCurrentSelection()));
+  });
+  updatePresetSummary(readCurrentSelection());
 }
 
 // Refresh saved-crew list whenever the picker is opened (catches crews saved this session).
+// Also reflect any persisted Preset Crews selection in the summary on initial load.
 document.addEventListener('DOMContentLoaded', () => {
   const picker = document.getElementById('preset-picker');
   if (picker) picker.addEventListener('toggle', () => { if (picker.open) renderPresetList(); });
+  updatePresetSummary(loadSavedSelection());
 });
 
 async function launchCustomQuickTest() {
   const errBox = document.getElementById('preset-picker-error');
   errBox.textContent = '';
-  const values = Array.from(document.querySelectorAll('#preset-list input[type="checkbox"]:checked')).map(i => i.value);
+  const values = readCurrentSelection();
   if (values.length < 1) { errBox.textContent = 'Pick at least 1 crew.'; return; }
   if (values.length > 6) { errBox.textContent = 'Pick at most 6 crews.'; return; }
-  const ais = [];
-  for (const v of values) {
-    const [kind, id] = v.split(':', 2);
-    if (kind === 'preset') {
-      const p = QT_PRESETS.find(x => x.key === id);
-      if (p) ais.push({ name: p.name, agent: 'codex-mini', prompt: presetPrompt(p) });
-    } else if (kind === 'saved') {
-      const c = savedCrewsCache.find(x => x.id === id);
-      if (c) ais.push({ name: c.name, agent: c.agent || 'stub', prompt: c.prompt });
-    }
-  }
-  if (ais.length !== values.length) { errBox.textContent = "Couldn't resolve every selection — reload and try again."; return; }
+  const { ais, err } = resolveSelectionToAis(values);
+  if (err) { errBox.textContent = err; return; }
   try {
     const resp = await fetch('/api/new-campaign', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -853,13 +928,16 @@ async function launchCustomQuickTest() {
     const data = await resp.json();
     if (!resp.ok) throw new Error(data.error || resp.status);
     window.location = `/campaign?game=${data.campaign_id}`;
-  } catch (err) {
-    errBox.textContent = 'Launch failed: ' + (err.message || err);
+  } catch (err2) {
+    errBox.textContent = 'Launch failed: ' + (err2.message || err2);
   }
 }
 
 async function quickTest() {
   try {
+    // If the user has Preset Crews selected, use those. Otherwise fall back to
+    // the hard-coded Operators / Wreckers / Ghost trio.
+    if (await launchFromSavedPreset(3)) return;
     const resp = await fetch('/api/quick-campaign', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -878,6 +956,8 @@ async function quickTest() {
 
 async function mediumTest() {
   try {
+    // Honor the saved Preset Crews selection (same set, longer campaign).
+    if (await launchFromSavedPreset(7)) return;
     const resp = await fetch('/api/medium-campaign', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
