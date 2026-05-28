@@ -3,7 +3,15 @@
 from __future__ import annotations
 
 from heist.content import BANKROLL, JOBS, ROSTER
-from heist.state import Campaign, Character, Crew, HeistState, Scene, ScoutState
+from heist.state import (
+    Campaign,
+    Character,
+    Crew,
+    HeistState,
+    RevealLevel,
+    Scene,
+    ScoutState,
+)
 
 
 def _skill_str(c: Character) -> str:
@@ -31,10 +39,16 @@ def _job_slate_summary(
     for j in jobs:
         cells = []
         for k, v in j.profile.items():
-            cell = f"{k} {v.name}"
-            scouted = scout_state.scouted_score(j.name, k) if scout_state else None
-            if scouted is not None:
-                cell += f" (scouted: {scouted}/10)"
+            # Difficulty is fogged until scouted: a first scout reveals the
+            # bucket (Low/Med/Hard), a second reveals the exact 1-10 score.
+            lvl = scout_state.level(j.name, k) if scout_state else RevealLevel.HIDDEN
+            if lvl >= RevealLevel.EXACT:
+                sc = scout_state.scouted_score(j.name, k) if scout_state else None
+                cell = f"{k} {v.name} (scouted: {sc}/10)"
+            elif lvl >= RevealLevel.BUCKET:
+                cell = f"{k} {v.name} (estimate)"
+            else:
+                cell = f"{k} ??? (unscouted)"
             cells.append(cell)
         lines.append(
             f"  - {j.name!r}: reward ${j.reward_range[0]:,}-${j.reward_range[1]:,}, "
@@ -49,11 +63,14 @@ What you know about this work:
   • Every job is a profile of four challenge types — Electronic (cameras,
     networks, electronic locks), Physical (vaults, safes, structural),
     Confrontation (guards, armed response), and Social (blending in, talking
-    your way through). Each is shown as a bucket: None, Low, Medium, or Hard.
+    your way through). Each has a hidden true difficulty from 1 to 10 (1-3 Low,
+    4-7 Medium, 8-10 Hard).
 
-  • That bucket is only an ESTIMATE. Under it, every challenge has a hidden true
-    difficulty from 1 to 10 (1-3 Low, 4-7 Medium, 8-10 Hard). A published "Hard"
-    might be an 8 or a 10 — you can't see the exact number, so leave margin.
+  • You do NOT see a job's difficulty for free — it reads "???" until you SCOUT
+    it. Your first scout on a challenge reveals its bucket (Low/Med/Hard); a
+    second scout on the same challenge reveals the exact 1-10 number. Spend your
+    free scouts on the jobs you're seriously weighing. Even a revealed bucket is
+    only an estimate (a "Hard" could be 8 or 10), so leave margin.
 
   • Crew skills are shown as an exact 1-10 score (these are public). Same
     buckets: 1-3 Low, 4-7 Medium, 8-10 High.
@@ -142,22 +159,23 @@ def _fill_prompt(crew_so_far: list[Character], remaining: int) -> str:
 def _scout_prompt(
     crew: Crew, available_jobs: list, scout_state: ScoutState
 ) -> str:
-    """Pre-commit scouting turn: the crew can learn the EXACT 1-10 difficulty of
-    specific (job, challenge) cells before picking. Buckets are already public;
-    scouting buys down the within-bucket uncertainty so you can right-size and
-    spot underdefended jobs (high reward range over soft true scores)."""
+    """Pre-commit scouting turn: difficulty is fogged ("???") until scouted. The
+    first probe on a (job, challenge) reveals its bucket (Low/Med/Hard); a second
+    probe on the same cell reveals the exact 1-10 score. Scouting is how you spot
+    underdefended jobs (good reward over soft true scores) before committing."""
     budget = scout_state.budget_remaining()
     return (
         "SCOUTING — before you pick a job, you may case the slate.\n\n"
         "Your crew:\n" + "\n".join(f"  - {c.name}: {_skill_str(c)}" for c in crew.members)
-        + f"\n\nSlate (buckets are estimates; a probe reveals the exact 1-10):\n"
+        + "\n\nSlate (each challenge reads '???' until you scout it):\n"
         f"{_job_slate_summary(available_jobs, scout_state)}\n\n"
         f"You have {budget} free scouting probe(s) this round (crew size + your best "
-        "driver's bonus). Each probe reveals the EXACT difficulty of one job's one "
-        "challenge category (electronic / physical / confrontation / social). Spend "
-        "them where the buckets leave you most uncertain — especially Hard cells you "
-        "plan to attempt, or a high-reward job you suspect might be softer than it "
-        "looks. Probing the same cell twice is wasted.\n\n"
+        "driver's bonus). A probe targets one job's one challenge category "
+        "(electronic / physical / confrontation / social). The FIRST probe on a cell "
+        "reveals its bucket (Low/Med/Hard); a SECOND probe on the same cell reveals "
+        "the exact 1-10 number. Spend probes on the jobs you're seriously weighing — "
+        "learn the buckets broadly, then nail down the exact number on the Hard cells "
+        "you plan to attempt.\n\n"
         "Reply with ONLY JSON:\n"
         '{\n'
         '  "probes": [ {"job": "<exact name>", "category": "<electronic|physical|'

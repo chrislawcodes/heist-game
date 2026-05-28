@@ -1089,7 +1089,12 @@ def run_campaign_conductor(
                         _active_camps: dict = _active_camps,
                         board_slate_scores: dict = board_slate_scores,
                         board_scout_states: dict = board_scout_states,
+                        round_idx: int = round_idx,
                     ) -> str:
+                        # Open this team's round sub-game NOW (before scouting), so
+                        # the scout + job-pick events file on the round page the
+                        # viewer reads — not the campaign-level log.
+                        open_round_sub_game(ai_idx, round_idx)
                         camp = _active_camps[ai_idx]
                         crew = _Crew(members=list(camp.standing_crew))
                         rem_objs = [_JBN[n] for n in remaining]
@@ -1143,7 +1148,11 @@ def run_campaign_conductor(
                     if pending_heist_per_ai[i] is not None:
                         return
                     rng = random.Random()
-                    rgid = open_round_sub_game(i, round_idx)
+                    # The round sub-game was already opened in the board stage
+                    # (so scouting filed on the right page); reuse it.
+                    rgid = current_round_sub_gids[i]
+                    if rgid is None:
+                        rgid = open_round_sub_game(i, round_idx)
                     emit_fn = make_emit_fn(i)
                     crew_evt = {
                         "type": "crew_known",

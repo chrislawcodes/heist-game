@@ -44,20 +44,25 @@ def apply_probes(
         if scores is None or category not in scores:
             continue  # unknown job/category — drop
         if scout_state.level(job, category) >= RevealLevel.EXACT:
-            continue  # already known — no-op, no budget spent
+            continue  # fully known — no-op, no budget spent
         if scout_state.budget_remaining() <= 0:
             continue  # out of free probes (paid overflow deferred)
         scout_state.probes_spent_free += 1
-        scout_state.reveals.setdefault(job, {})[category] = RevealLevel.EXACT
+        # Two-step ladder: one probe advances one level (HIDDEN→BUCKET→EXACT).
+        # First probe on a (job, category) reveals the bucket (Low/Med/Hard);
+        # a second reveals the exact 1-10 score.
+        new_level = scout_state.reveal(job, category)
         score = scores[category]
-        scout_state.exact_scores.setdefault(job, {})[category] = score
-        events.append({
+        ev: dict = {
             "type": "scouted",
             "job": job,
             "category": category,
-            "reveal_level": "EXACT",
+            "reveal_level": new_level.name,
             "bucket": score_to_bucket(score).name,
-            "score": score,
             "probes_remaining_free": scout_state.budget_remaining(),
-        })
+        }
+        if new_level >= RevealLevel.EXACT:
+            ev["score"] = score
+            scout_state.exact_scores.setdefault(job, {})[category] = score
+        events.append(ev)
     return events

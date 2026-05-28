@@ -224,14 +224,19 @@
 }
 .job-root .jt-scouted .jt-slate-row-label,
 .job-root .jt-scouted .jt-row-label { color: var(--text); }
+/* Fogged difficulty: shown until the cell has been scouted at least once. */
+.job-root .jt-diff-hidden {
+  font-family: monospace; font-size: 12px; font-weight: 700;
+  color: var(--muted); opacity: 0.6; padding: 0 6px;
+}
 </style>
 
 <template id="job-template">
   <div class="job-root">
 
-    <!-- Job slate: starts at the top showing all 7 jobs. Once job_known fires
-         the picked card drops out and the rest slide BELOW the big comparison
-         (via .has-pick on the root + CSS order). Heading text swaps too. -->
+    <!-- Job slate: this round's contested board (≤8 jobs from job_board), not
+         the full pool. Once job_known fires the picked card drops out and the
+         rest slide BELOW the big comparison (.has-pick + CSS order). -->
     <div class="jt-slate-section">
       <div class="jt-heading" data-jt="slate-heading">Jobs On The Table</div>
       <div class="jt-slate-status" data-jt="slate-status">Waiting for the AI to pick a job…</div>
@@ -344,6 +349,8 @@
   const hdByAI        = {};   // ai_idx → hidden_depth_rolled event
   const crewByAI      = {};   // ai_idx → array of crew members
   const scoutedByAI   = {};   // ai_idx → { jobName → { category → exact 1-10 score } }
+  const revealByAI    = {};   // ai_idx → { jobName → { category → 'BUCKET' | 'EXACT' } }
+  const boardByAI     = {};   // ai_idx → this round's contested board (≤8 jobs)
   // job_pick reasoning is rendered in the shell rail's Play-by-Play stream, not here.
 
   function $$(name) { return root && root.querySelector(`[data-jt="${name}"]`); }
@@ -403,7 +410,11 @@
     const heading = $$('slate-heading');
     if (!grid) return;
     const esc = Shell.helpers.escapeHtml;
-    const jobs = Shell.jobs || [];
+    // Show this round's contested board (≤8 jobs the team actually chose from),
+    // not the full ~50-job pool. Fall back to the full list only for legacy /
+    // non-campaign games that emit no job_board event.
+    const board = boardByAI[Shell.currentAI];
+    const jobs = (board && board.length) ? board : (Shell.jobs || []);
     const picked = jobByAI[Shell.currentAI];
     const pickedName = picked ? picked.name : null;
 
@@ -425,6 +436,7 @@
     };
 
     const visibleJobs = pickedName ? jobs.filter(j => j.name !== pickedName) : jobs;
+    const revealCells0 = revealByAI[Shell.currentAI] || {};
     grid.innerHTML = visibleJobs.map(j => {
       const rr = j.reward_range;
       const reward = rr
@@ -432,15 +444,24 @@
         : '—';
       const profile = j.profile || {};
       const scoutedCells = (scoutedByAI[Shell.currentAI] || {})[j.name] || {};
+      const revealCells = revealCells0[j.name] || {};
       const rows = ['social','physical','electronic','confrontation'].map(key => {
         const level = profile[key];
         const skillCls = challengeSkill[key];
+        // Fog: difficulty is hidden ("?") until scouted. First scout → bucket
+        // bars; second scout → bars + exact 🔍 number.
+        const reveal = revealCells[key];               // undefined | 'BUCKET' | 'EXACT'
+        const known  = reveal === 'BUCKET' || reveal === 'EXACT';
+        const exact  = reveal === 'EXACT';
         const scouted = scoutedCells[key];
-        const isScouted = typeof scouted === 'number';
-        const badge = isScouted ? `<span class="jt-scout-score">🔍 ${scouted}/10</span>` : '';
-        return `<div class="jt-slate-row${isScouted ? ' jt-scouted' : ''}">
+        const isExact = exact && typeof scouted === 'number';
+        const badge = isExact ? `<span class="jt-scout-score">🔍 ${scouted}/10</span>` : '';
+        const bars = known
+          ? `<div class="cs-bars">${segs(levelToCount(level), skillCls)}</div>`
+          : `<span class="jt-diff-hidden">?</span>`;
+        return `<div class="jt-slate-row${isExact ? ' jt-scouted' : ''}">
           <span class="jt-slate-row-label">${key.charAt(0).toUpperCase()}${key.slice(1)}</span>
-          <div class="cs-bars">${segs(levelToCount(level), skillCls)}</div>
+          ${bars}
           ${badge}
         </div>`;
       }).join('');
@@ -489,17 +510,24 @@
       'bars-confrontation': { level: p.confrontation, cls: 'musc' },
     };
     const scoutedPicked = (scoutedByAI[aiIdx] || {})[job.name] || {};
+    const revealPicked  = (revealByAI[aiIdx] || {})[job.name] || {};
     for (const [slot, { level, cls }] of Object.entries(diffMap)) {
       const barsEl = $$(slot);
       if (!barsEl) continue;
-      barsEl.innerHTML = segs(levelToCount(level), cls);
+      const cat = slot.replace('bars-', '');
+      // Fog: show difficulty only for cells this team has scouted.
+      const reveal = revealPicked[cat];
+      const known = reveal === 'BUCKET' || reveal === 'EXACT';
+      barsEl.innerHTML = known
+        ? segs(levelToCount(level), cls)
+        : '<span class="jt-diff-hidden">?</span>';
       const rowEl = barsEl.closest('.jt-row');
       if (!rowEl) continue;
       // Re-render safety: clear any stale scouted badge before re-adding.
       const oldBadge = rowEl.querySelector('.jt-scout-score');
       if (oldBadge) oldBadge.remove();
       rowEl.classList.remove('jt-scouted');
-      const scouted = scoutedPicked[slot.replace('bars-', '')];
+      const scouted = (reveal === 'EXACT') ? scoutedPicked[cat] : undefined;
       if (typeof scouted === 'number') {
         rowEl.classList.add('jt-scouted');
         const badge = document.createElement('span');
@@ -575,7 +603,12 @@
     if (!root || !Shell) return;
     const aiIdx = e.ai_idx ?? 0;
 
-    if (e.type === 'job_known') {
+    if (e.type === 'job_board') {
+      // The round's contested board (≤8 jobs) — what the team actually chose from.
+      boardByAI[aiIdx] = e.board || [];
+      if (aiIdx === Shell.currentAI) render();
+
+    } else if (e.type === 'job_known') {
       jobByAI[aiIdx] = e.job;
       if (aiIdx === Shell.currentAI) render();
 
@@ -591,9 +624,16 @@
 
     } else if (e.type === 'scouted') {
       const ai = e.ai_idx ?? 0;
-      (scoutedByAI[ai] ||= {});
-      (scoutedByAI[ai][e.job] ||= {});
-      scoutedByAI[ai][e.job][e.category] = e.score;
+      // Track the reveal level (BUCKET after 1st scout, EXACT after 2nd); only
+      // store the exact number once it's actually revealed.
+      (revealByAI[ai] ||= {});
+      (revealByAI[ai][e.job] ||= {});
+      revealByAI[ai][e.job][e.category] = e.reveal_level || 'EXACT';
+      if (typeof e.score === 'number') {
+        (scoutedByAI[ai] ||= {});
+        (scoutedByAI[ai][e.job] ||= {});
+        scoutedByAI[ai][e.job][e.category] = e.score;
+      }
       if (ai === Shell.currentAI) render();
 
     } else if (e.type === 'game_done') {
@@ -610,6 +650,8 @@
     for (const k of Object.keys(hdByAI))  delete hdByAI[k];
     for (const k of Object.keys(crewByAI))delete crewByAI[k];
     for (const k of Object.keys(scoutedByAI)) delete scoutedByAI[k];
+    for (const k of Object.keys(revealByAI)) delete revealByAI[k];
+    for (const k of Object.keys(boardByAI)) delete boardByAI[k];
     render();
   }
 
