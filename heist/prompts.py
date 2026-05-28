@@ -133,9 +133,12 @@ Heat and the getaway:
 
   • Heat is your alarm level — it rises by 1 for every scene that isn't clean
     (squeak, fail, or caught).
-  • The escape difficulty equals the job's escape rating plus your total heat.
-    Your best Driver must be at or above that to get out (no Driver counts as
-    Low). If the escape fails, one more crew member is caught.
+  • The escape is a getaway check. Each job has an escape difficulty from 0–6
+    (more heavily-defended jobs are higher), and your total heat is ADDED to
+    it. Your best Driver's score must be at least that combined number to get
+    out — pair two drivers to push the effective score up. No driver means a
+    score of 0 (you're on foot). If the escape fails, one more crew member is
+    caught.
 
 The take:
 

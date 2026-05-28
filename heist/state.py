@@ -71,7 +71,6 @@ class Job:
     flavor: str
     reward_range: tuple[int, int]
     profile: dict[str, ChallengeLevel]
-    escape_modifier: int
     hidden_depth: list[HiddenDepthElement]
     reward_amounts: list[tuple[str, int]]
     tier: str = ""

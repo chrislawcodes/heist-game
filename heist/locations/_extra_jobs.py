@@ -33,7 +33,6 @@ NEW_JOBS = [
             "confrontation": ChallengeLevel.LOW,
             "social": ChallengeLevel.NONE,
         },
-        escape_modifier=0,
         tier="easy",
         hidden_depth=[
             HiddenDepthElement(
@@ -77,7 +76,6 @@ NEW_JOBS = [
             "confrontation": ChallengeLevel.NONE,
             "social": ChallengeLevel.MEDIUM,
         },
-        escape_modifier=0,
         tier="easy",
         hidden_depth=[
             HiddenDepthElement(
@@ -121,7 +119,6 @@ NEW_JOBS = [
             "confrontation": ChallengeLevel.NONE,
             "social": ChallengeLevel.LOW,
         },
-        escape_modifier=0,
         tier="medium",
         hidden_depth=[
             HiddenDepthElement(
@@ -173,7 +170,6 @@ NEW_JOBS = [
             "confrontation": ChallengeLevel.MEDIUM,
             "social": ChallengeLevel.MEDIUM,
         },
-        escape_modifier=1,
         tier="easy",
         hidden_depth=[
             HiddenDepthElement(
@@ -217,7 +213,6 @@ NEW_JOBS = [
             "confrontation": ChallengeLevel.NONE,
             "social": ChallengeLevel.MEDIUM,
         },
-        escape_modifier=0,
         tier="medium",
         hidden_depth=[
             HiddenDepthElement(
@@ -261,7 +256,6 @@ NEW_JOBS = [
             "confrontation": ChallengeLevel.LOW,
             "social": ChallengeLevel.MEDIUM,
         },
-        escape_modifier=1,
         tier="easy",
         hidden_depth=[
             HiddenDepthElement(
@@ -305,7 +299,6 @@ NEW_JOBS = [
             "confrontation": ChallengeLevel.MEDIUM,
             "social": ChallengeLevel.NONE,
         },
-        escape_modifier=0,
         tier="easy",
         hidden_depth=[
             HiddenDepthElement(
@@ -349,7 +342,6 @@ NEW_JOBS = [
             "confrontation": ChallengeLevel.NONE,
             "social": ChallengeLevel.LOW,
         },
-        escape_modifier=0,
         tier="medium",
         hidden_depth=[
             HiddenDepthElement(
@@ -394,7 +386,6 @@ NEW_JOBS = [
             "confrontation": ChallengeLevel.NONE,
             "social": ChallengeLevel.LOW,
         },
-        escape_modifier=0,
         tier="easy",
         hidden_depth=[
             HiddenDepthElement(
@@ -439,7 +430,6 @@ NEW_JOBS = [
             "confrontation": ChallengeLevel.NONE,
             "social": ChallengeLevel.MEDIUM,
         },
-        escape_modifier=1,
         tier="medium",
         hidden_depth=[
             HiddenDepthElement(
@@ -484,7 +474,6 @@ NEW_JOBS = [
             "confrontation": ChallengeLevel.NONE,
             "social": ChallengeLevel.MEDIUM,
         },
-        escape_modifier=0,
         tier="easy",
         hidden_depth=[
             HiddenDepthElement(
@@ -528,7 +517,6 @@ NEW_JOBS = [
             "confrontation": ChallengeLevel.LOW,
             "social": ChallengeLevel.NONE,
         },
-        escape_modifier=1,
         tier="medium",
         hidden_depth=[
             HiddenDepthElement(
@@ -572,7 +560,6 @@ NEW_JOBS = [
             "confrontation": ChallengeLevel.NONE,
             "social": ChallengeLevel.NONE,
         },
-        escape_modifier=1,
         tier="easy",
         hidden_depth=[
             HiddenDepthElement(
@@ -617,7 +604,6 @@ NEW_JOBS = [
             "confrontation": ChallengeLevel.NONE,
             "social": ChallengeLevel.MEDIUM,
         },
-        escape_modifier=0,
         tier="easy",
         hidden_depth=[
             HiddenDepthElement(
@@ -665,7 +651,6 @@ NEW_JOBS = [
             "confrontation": ChallengeLevel.LOW,
             "social": ChallengeLevel.HARD,
         },
-        escape_modifier=1,
         tier="medium",
         hidden_depth=[
             HiddenDepthElement(
@@ -717,7 +702,6 @@ NEW_JOBS = [
             "confrontation": ChallengeLevel.HARD,
             "social": ChallengeLevel.NONE,
         },
-        escape_modifier=1,
         tier="medium",
         hidden_depth=[
             HiddenDepthElement(
@@ -762,7 +746,6 @@ NEW_JOBS = [
             "confrontation": ChallengeLevel.NONE,
             "social": ChallengeLevel.LOW,
         },
-        escape_modifier=1,
         tier="medium",
         hidden_depth=[
             HiddenDepthElement(
@@ -807,7 +790,6 @@ NEW_JOBS = [
             "confrontation": ChallengeLevel.LOW,
             "social": ChallengeLevel.MEDIUM,
         },
-        escape_modifier=2,
         tier="medium",
         hidden_depth=[
             HiddenDepthElement(
@@ -858,7 +840,6 @@ NEW_JOBS = [
             "confrontation": ChallengeLevel.HARD,
             "social": ChallengeLevel.LOW,
         },
-        escape_modifier=1,
         tier="medium",
         hidden_depth=[
             HiddenDepthElement(
@@ -904,7 +885,6 @@ NEW_JOBS = [
             "confrontation": ChallengeLevel.MEDIUM,
             "social": ChallengeLevel.NONE,
         },
-        escape_modifier=1,
         tier="hard",
         hidden_depth=[
             HiddenDepthElement(
@@ -949,7 +929,6 @@ NEW_JOBS = [
             "confrontation": ChallengeLevel.NONE,
             "social": ChallengeLevel.MEDIUM,
         },
-        escape_modifier=1,
         tier="medium",
         hidden_depth=[
             HiddenDepthElement(
@@ -994,7 +973,6 @@ NEW_JOBS = [
             "confrontation": ChallengeLevel.HARD,
             "social": ChallengeLevel.MEDIUM,
         },
-        escape_modifier=1,
         tier="medium",
         hidden_depth=[
             HiddenDepthElement(
@@ -1039,7 +1017,6 @@ NEW_JOBS = [
             "confrontation": ChallengeLevel.MEDIUM,
             "social": ChallengeLevel.LOW,
         },
-        escape_modifier=1,
         tier="medium",
         hidden_depth=[
             HiddenDepthElement(
@@ -1084,7 +1061,6 @@ NEW_JOBS = [
             "confrontation": ChallengeLevel.LOW,
             "social": ChallengeLevel.MEDIUM,
         },
-        escape_modifier=0,
         tier="medium",
         hidden_depth=[
             HiddenDepthElement(
@@ -1129,7 +1105,6 @@ NEW_JOBS = [
             "confrontation": ChallengeLevel.HARD,
             "social": ChallengeLevel.MEDIUM,
         },
-        escape_modifier=1,
         tier="medium",
         hidden_depth=[
             HiddenDepthElement(
@@ -1174,7 +1149,6 @@ NEW_JOBS = [
             "confrontation": ChallengeLevel.NONE,
             "social": ChallengeLevel.LOW,
         },
-        escape_modifier=0,
         tier="hard",
         hidden_depth=[
             HiddenDepthElement(
@@ -1220,7 +1194,6 @@ NEW_JOBS = [
             "confrontation": ChallengeLevel.MEDIUM,
             "social": ChallengeLevel.HARD,
         },
-        escape_modifier=1,
         tier="medium",
         hidden_depth=[
             HiddenDepthElement(
@@ -1265,7 +1238,6 @@ NEW_JOBS = [
             "confrontation": ChallengeLevel.NONE,
             "social": ChallengeLevel.MEDIUM,
         },
-        escape_modifier=0,
         tier="medium",
         hidden_depth=[
             HiddenDepthElement(
@@ -1313,7 +1285,6 @@ NEW_JOBS = [
             "confrontation": ChallengeLevel.MEDIUM,
             "social": ChallengeLevel.LOW,
         },
-        escape_modifier=2,
         tier="hard",
         hidden_depth=[
             HiddenDepthElement(
@@ -1364,7 +1335,6 @@ NEW_JOBS = [
             "confrontation": ChallengeLevel.HARD,
             "social": ChallengeLevel.MEDIUM,
         },
-        escape_modifier=2,
         tier="hard",
         hidden_depth=[
             HiddenDepthElement(
@@ -1409,7 +1379,6 @@ NEW_JOBS = [
             "confrontation": ChallengeLevel.NONE,
             "social": ChallengeLevel.HARD,
         },
-        escape_modifier=1,
         tier="hard",
         hidden_depth=[
             HiddenDepthElement(
@@ -1454,7 +1423,6 @@ NEW_JOBS = [
             "confrontation": ChallengeLevel.MEDIUM,
             "social": ChallengeLevel.HARD,
         },
-        escape_modifier=2,
         tier="hard",
         hidden_depth=[
             HiddenDepthElement(
@@ -1499,7 +1467,6 @@ NEW_JOBS = [
             "confrontation": ChallengeLevel.HARD,
             "social": ChallengeLevel.LOW,
         },
-        escape_modifier=2,
         tier="hard",
         hidden_depth=[
             HiddenDepthElement(
@@ -1545,7 +1512,6 @@ NEW_JOBS = [
             "confrontation": ChallengeLevel.LOW,
             "social": ChallengeLevel.HARD,
         },
-        escape_modifier=1,
         tier="hard",
         hidden_depth=[
             HiddenDepthElement(
@@ -1590,7 +1556,6 @@ NEW_JOBS = [
             "confrontation": ChallengeLevel.MEDIUM,
             "social": ChallengeLevel.LOW,
         },
-        escape_modifier=3,
         tier="hard",
         hidden_depth=[
             HiddenDepthElement(

@@ -511,11 +511,9 @@
           ${badge}
         </div>`;
       }).join('');
-      const mod = j.escape_modifier;
-      const modStr = mod != null ? (mod > 0 ? '+' + mod : String(mod)) : '—';
       const escapeRow = `<div class="jt-slate-row" data-job="${esc(j.name)}" data-cat="escape">
           <span class="jt-slate-row-label">Escape</span>
-          <span class="jt-slate-row-value">modifier ${modStr}</span>
+          <span class="jt-slate-row-value">${j.escape_base}/6</span>
         </div>`;
       return `<div class="jt-slate-card" data-job="${esc(j.name)}">
         <div class="jt-slate-name-row">
@@ -611,10 +609,8 @@
     }
 
     // ── escape row ────────────────────────────────────────────────────────────
-    const mod = job.escape_modifier;
-    const modStr = mod != null ? (mod > 0 ? '+' + mod : String(mod)) : '—';
-    $$('escape-mod').textContent = 'modifier ' + modStr;
-    $$('escape-warn').style.display = (mod != null && mod < 0) ? '' : 'none';
+    $$('escape-mod').textContent = `${job.escape_base}/6`;
+    $$('escape-warn').style.display = 'none';
 
     // ── team skills ───────────────────────────────────────────────────────────
     const skillSlots = ['soc', 'safe', 'hack', 'musc', 'drive'];

@@ -19,7 +19,6 @@ MUSEUM = Job(
         "confrontation": ChallengeLevel.LOW,
         "social": ChallengeLevel.HARD,
     },
-    escape_modifier=1,
     tier="easy",
     hidden_depth=[
         HiddenDepthElement(
@@ -85,7 +84,6 @@ ARMORED_CAR = Job(
         "confrontation": ChallengeLevel.HARD,
         "social": ChallengeLevel.NONE,
     },
-    escape_modifier=2,
     tier="easy",
     hidden_depth=[
         HiddenDepthElement(
@@ -150,7 +148,6 @@ SERVER_FARM = Job(
         "confrontation": ChallengeLevel.LOW,
         "social": ChallengeLevel.MEDIUM,
     },
-    escape_modifier=1,
     tier="medium",
     hidden_depth=[
         HiddenDepthElement(
@@ -216,7 +213,6 @@ PENTHOUSE = Job(
         "confrontation": ChallengeLevel.NONE,
         "social": ChallengeLevel.LOW,
     },
-    escape_modifier=0,  # residential building, walk out the lobby
     tier="medium",
     hidden_depth=[
         HiddenDepthElement(
@@ -277,7 +273,6 @@ CARGO_YARD = Job(
         "confrontation": ChallengeLevel.MEDIUM,
         "social": ChallengeLevel.NONE,
     },
-    escape_modifier=0,  # open industrial yard, dark, multiple vehicle routes
     tier="easy",
     hidden_depth=[
         HiddenDepthElement(
@@ -338,7 +333,6 @@ DIPLOMATIC_RECEPTION = Job(
         "confrontation": ChallengeLevel.LOW,
         "social": ChallengeLevel.HARD,
     },
-    escape_modifier=1,
     tier="medium",
     hidden_depth=[
         HiddenDepthElement(
@@ -399,7 +393,6 @@ CASINO_VAULT = Job(
         "confrontation": ChallengeLevel.MEDIUM,
         "social": ChallengeLevel.MEDIUM,
     },
-    escape_modifier=2,
     tier="hard",
     hidden_depth=[
         HiddenDepthElement(
@@ -457,7 +450,6 @@ CORNER_PHARMACY = Job(
         "electronic": ChallengeLevel.NONE,
         "social": ChallengeLevel.NONE,
     },
-    escape_modifier=0,
     tier="easy",
     hidden_depth=[
         HiddenDepthElement(
@@ -501,7 +493,6 @@ ART_FORGERY_RING = Job(
         "physical": ChallengeLevel.LOW,
         "confrontation": ChallengeLevel.NONE,
     },
-    escape_modifier=1,
     tier="medium",
     hidden_depth=[
         HiddenDepthElement(
@@ -545,7 +536,6 @@ PRIVATE_AIRFIELD = Job(
         "electronic": ChallengeLevel.LOW,
         "social": ChallengeLevel.NONE,
     },
-    escape_modifier=2,
     tier="medium",
     hidden_depth=[
         HiddenDepthElement(
@@ -589,7 +579,6 @@ CITY_HALL_RECORDS = Job(
         "physical": ChallengeLevel.MEDIUM,
         "confrontation": ChallengeLevel.LOW,
     },
-    escape_modifier=2,
     tier="hard",
     hidden_depth=[
         HiddenDepthElement(
@@ -633,7 +622,6 @@ HARBOR_CONTAINER_SWAP = Job(
         "electronic": ChallengeLevel.MEDIUM,
         "social": ChallengeLevel.LOW,
     },
-    escape_modifier=3,
     tier="hard",
     hidden_depth=[
         HiddenDepthElement(
@@ -677,7 +665,6 @@ FEDERAL_RESERVE_BRANCH = Job(
         "confrontation": ChallengeLevel.MEDIUM,
         "social": ChallengeLevel.LOW,
     },
-    escape_modifier=3,
     tier="elite",
     hidden_depth=[
         HiddenDepthElement(
@@ -721,7 +708,6 @@ BILLIONAIRES_COMPOUND = Job(
         "physical": ChallengeLevel.HARD,
         "confrontation": ChallengeLevel.HARD,
     },
-    escape_modifier=4,
     tier="elite",
     hidden_depth=[
         HiddenDepthElement(
@@ -764,7 +750,6 @@ MINT = Job(
         "social": ChallengeLevel.HARD,
         "confrontation": ChallengeLevel.HARD,
     },
-    escape_modifier=4,
     tier="elite",
     hidden_depth=[
         HiddenDepthElement(
