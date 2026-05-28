@@ -394,6 +394,8 @@ def _run_scout_turn(
     except Exception as exc:
         log.warn("scout_turn_failed", error=str(exc))
         return scout_state
+    if isinstance(parsed, dict):
+        scout_state.rationale = str(parsed.get("rationale", "") or "")
     probes = parsed.get("probes", []) if isinstance(parsed, dict) else []
     events = apply_probes(
         scout_state, slate_scores, probes if isinstance(probes, list) else []

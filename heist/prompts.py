@@ -31,30 +31,61 @@ def _roster_summary() -> str:
     return "\n".join(lines)
 
 
+def _cell_label(job, category, value, scout_state) -> str:
+    # value is job.profile[category]; mirrors today's slate rendering.
+    lvl = scout_state.level(job.name, category) if scout_state else RevealLevel.HIDDEN
+    if lvl >= RevealLevel.EXACT:
+        sc = scout_state.scouted_score(job.name, category) if scout_state else None
+        return f"{category} {value.name} (scouted: {sc}/10)"
+    elif lvl >= RevealLevel.BUCKET:
+        return f"{category} {value.name} (estimate)"
+    return f"{category} ??? (unscouted)"
+
+
 def _job_slate_summary(
     available_jobs: list | None = None, scout_state: ScoutState | None = None
 ) -> str:
     jobs = available_jobs if available_jobs is not None else JOBS
     lines = []
     for j in jobs:
-        cells = []
-        for k, v in j.profile.items():
-            # Difficulty is fogged until scouted: a first scout reveals the
-            # bucket (Low/Med/Hard), a second reveals the exact 1-10 score.
-            lvl = scout_state.level(j.name, k) if scout_state else RevealLevel.HIDDEN
-            if lvl >= RevealLevel.EXACT:
-                sc = scout_state.scouted_score(j.name, k) if scout_state else None
-                cell = f"{k} {v.name} (scouted: {sc}/10)"
-            elif lvl >= RevealLevel.BUCKET:
-                cell = f"{k} {v.name} (estimate)"
-            else:
-                cell = f"{k} ??? (unscouted)"
-            cells.append(cell)
+        cells = [_cell_label(j, k, v, scout_state) for k, v in j.profile.items()]
         lines.append(
             f"  - {j.name!r}: reward ${j.reward_range[0]:,}-${j.reward_range[1]:,}, "
             f"profile [{' | '.join(cells)}]"
         )
     return "\n".join(lines)
+
+
+def _scouting_report(scout_state, available_jobs) -> str:
+    jobs = available_jobs if available_jobs is not None else JOBS
+    if scout_state is None:
+        return ""
+    revealed_jobs = []
+    no_intel_jobs = []
+    for job in jobs:
+        revealed_cells = [
+            (k, v)
+            for k, v in job.profile.items()
+            if scout_state.level(job.name, k) >= RevealLevel.BUCKET
+        ]
+        if revealed_cells:
+            revealed_jobs.append(
+                f"  - {job.name!r}: "
+                + ", ".join(_cell_label(job, k, v, scout_state) for k, v in revealed_cells)
+            )
+        else:
+            no_intel_jobs.append(repr(job.name))
+    if not revealed_jobs and not scout_state.rationale:
+        return ""
+    lines = [
+        "What your scouting turned up this round"
+        + (f' (your plan: "{scout_state.rationale}")' if scout_state.rationale else "")
+        + ":"
+    ]
+    lines.extend(revealed_jobs)
+    if no_intel_jobs:
+        lines.append("  No intel gathered: " + ", ".join(no_intel_jobs))
+    return "\n".join(lines) + "\n\n"
 
 
 _TRADECRAFT = """\
@@ -193,10 +224,13 @@ def _job_prompt(
     crew_lines = []
     for c in crew.members:
         crew_lines.append(f"  - {c.name}: {_skill_str(c)}")
+    report = _scouting_report(scout_state, available_jobs)
     return (
         f"Crew assembled (spent ${crew.total_cost}/{BANKROLL}):\n"
         + "\n".join(crew_lines)
-        + f"\n\nJob slate:\n{_job_slate_summary(available_jobs, scout_state)}\n\n"
+        + "\n\n"
+        + report
+        + f"Job slate:\n{_job_slate_summary(available_jobs, scout_state)}\n\n"
         "Pick the job this crew should attempt. Before you commit: for every Hard "
         "challenge, make sure the crew's effective score in that area lands solidly "
         "in High (8+) — remember teamwork only adds +1 point, so two Mediums usually "

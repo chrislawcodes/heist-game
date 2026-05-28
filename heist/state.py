@@ -149,6 +149,7 @@ class ScoutState:
     free_probes: int = 0
     probes_spent_free: int = 0
     probes_paid: int = 0
+    rationale: str = ""
 
     def level(self, job: str, category: str) -> RevealLevel:
         return self.reveals.get(job, {}).get(category, RevealLevel.HIDDEN)

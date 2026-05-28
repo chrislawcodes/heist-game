@@ -278,6 +278,7 @@ def scout_state_to_dict(ss: ScoutState) -> dict:
         "free_probes": ss.free_probes,
         "probes_spent_free": ss.probes_spent_free,
         "probes_paid": ss.probes_paid,
+        "rationale": ss.rationale,
     }
 
 
@@ -296,6 +297,7 @@ def scout_state_from_dict(d: dict | None) -> ScoutState:
         free_probes=int(d.get("free_probes", 0)),
         probes_spent_free=int(d.get("probes_spent_free", 0)),
         probes_paid=int(d.get("probes_paid", 0)),
+        rationale=str(d.get("rationale", "") or ""),
     )
 
 
