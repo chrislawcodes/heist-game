@@ -84,6 +84,36 @@ body {
   border: 1px solid var(--border);
 }
 .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+.preset-picker { margin-top: 14px; width: 100%; max-width: 760px; }
+.preset-picker summary {
+  list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
+  padding: 12px 16px; border-radius: 8px; border: 1px solid var(--border);
+  color: var(--text); background: transparent;
+  font-size: 12px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.preset-picker summary:hover { border-color: var(--accent); color: var(--accent); }
+.preset-picker summary::-webkit-details-marker { display: none; }
+.preset-picker[open] summary { border-color: var(--accent); color: var(--accent); }
+.preset-picker .picker-body {
+  margin-top: 12px; border: 1px solid var(--border); border-radius: 12px;
+  background: var(--surface); padding: 16px;
+}
+.preset-list { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-bottom: 14px; }
+.preset-pick {
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px;
+  background: var(--surface2); cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+.preset-pick:hover { border-color: var(--accent-dim); }
+.preset-pick input[type="checkbox"] { margin-top: 3px; accent-color: var(--accent); }
+.preset-pick-text { flex: 1; min-width: 0; }
+.preset-pick-name { font-size: 0.92rem; color: var(--text); }
+.preset-pick-tag { font-size: 0.72rem; color: var(--text-dim); margin-top: 2px; line-height: 1.4; }
+.preset-picker-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.preset-picker-hint { font-size: 12px; color: var(--text-muted); }
+.preset-picker-error { font-size: 12px; color: #e8a3a3; }
 .section {
   margin-top: 18px;
 }
@@ -387,6 +417,17 @@ body {
       <button class="btn btn-secondary" onclick="quickTest()" title="Launch a 3-round campaign: The Operators vs The Wreckers vs The Ghost (all Codex)">▶ Quick Test</button>
       <button class="btn btn-secondary" onclick="mediumTest()" title="Launch a 7-round campaign: The Operators vs The Wreckers vs The Ghost (all Codex)">▶ Medium Test</button>
     </div>
+    <details class="preset-picker" id="preset-picker">
+      <summary>▶ Quick Test with… <span style="opacity:.6">▾</span></summary>
+      <div class="picker-body">
+        <div class="preset-list" id="preset-list"></div>
+        <div class="preset-picker-actions">
+          <button class="btn btn-primary" onclick="launchCustomQuickTest()">▶ Launch with selected</button>
+          <span class="preset-picker-hint">Pick 2–6 famous crews. 3-round campaign.</span>
+          <span class="preset-picker-error" id="preset-picker-error"></span>
+        </div>
+      </div>
+    </details>
   </header>
 
   <section class="section">
@@ -688,6 +729,87 @@ async function manageCrews() {
   window.location = '/crews';
 }
 
+// ── famous-crew presets for the custom Quick Test ──
+const QT_PARAGRAPHS = {
+  targets: {
+    jackpot: "Targets: hunt the jackpots. When an elite-tier payout hits the slate, that is our target — pay up for the crew that can crack it before rivals do. High risk, high reward.",
+    solid:   "Targets: solid picks with manageable risk. Each round, claim the cleanest solid score on the contested board before it's consumed. We want good paydays, not suicide runs.",
+    bargain: "Targets: hunt the mispriced. Some jobs on this board are decoupled — the reward outruns the difficulty. Find those bargains; skip the obvious jackpots. Watch the leader: if our best job and theirs are both on the slate, take theirs — denial wins us the standings race.",
+  },
+  scouting: {
+    heavy:   "Scouting is the job before the job. Case every target you're weighing — burn probes to confirm a soft mark is actually soft, and never read a job's difficulty off its payout. Don't commit to a target you haven't scouted.",
+    skip:    "Don't burn time scouting. Read the published buckets, trust your read, and commit fast — speed and surprise beat perfect information.",
+    escape:  "Probe the escape route on every target we are seriously considering. A bad escape ends the campaign — the take is worthless if the driver gets caught. Burn a scouting probe on the escape before anything else.",
+    defense: "On scouting: for every job we're seriously considering, burn a probe on its toughest published challenge. We need to know which 'Hard' will actually break us before we commit — if the headline difficulty turns out to be real, we walk; if it's bluffing, we take the bargain.",
+  },
+  budget: {
+    stars:       "On crew: spend big. Bring the best available scores, even if that means a smaller crew.",
+    generalists: "On crew: prize versatility. Multi-skill crew over single-skill stars. Every member should be useful on at least two challenge types so we are not paying for dead weight when a scene shifts.",
+    specialists: "On crew: high-skill specialists only. We'd rather show up to one challenge with a 9 than two with 7s. Skip utility players — depth doesn't matter if the headline skill clears the room.",
+    balanced:    "On crew: balance the roster. One or two anchoring specialists, fill the rest with versatile players, and keep a driver for the escape.",
+    bargain:     "On crew: stretch the bankroll. Look for value picks — pair two mid-skill crew on a tough challenge to push them one point higher and clear it.",
+  },
+  play: {
+    surgical:    "In play: heat is the metric we manage above all else. Pick the cleanest scene order and play every scene for the no-heat clean. Pursue bonuses only when they add zero heat — a bonus that lights up the cascade is a trap. If exposure becomes likely, abort. Clean exits preserve the next job.",
+    adaptive:    "In play: improvise inside the plan. Manage heat carefully but accept reasonable suspicion when the math says yes. Pursue bonuses when the crew is in good shape, decline when stretched. If a core scene fails, don't blindly push and don't immediately abort — re-plan around the failure if we can still get out with something.",
+    crewfirst:   "In play: protect the crew above all. Caught crew is forever — they leave the rehire pool. Stick to the plan: skip bonuses, manage heat, and keep pushing through scene failures unless a crew member is at real catch-risk. When that is the risk, abort immediately.",
+    disciplined: "In play: play the percentages. Manage heat — when suspicion climbs, back off, decline risky bonuses, and abort before the cascade snowballs. Pursue bonuses only when the crew is in good shape. If a core scene fails and the plan falls apart, cut losses and live to work another day.",
+  },
+};
+
+const QT_PRESETS = [
+  { key: 'oceans',    name: "Ocean's 11",     emoji: '🎰', tagline: 'Slick con artists. Case the casino, hire all-stars, run it surgical.',           c: { targets: 'jackpot', scouting: 'heavy',   budget: 'stars',       play: 'surgical'    } },
+  { key: 'ateam',     name: 'A-Team',         emoji: '🚐', tagline: 'A plan comes together. Generalists, move fast, adapt on the fly.',                c: { targets: 'solid',   scouting: 'skip',    budget: 'generalists', play: 'adaptive'    } },
+  { key: 'heat',      name: 'Heat',           emoji: '🔫', tagline: "Pros. Never tied to anything you can't walk away from in 30 seconds.",            c: { targets: 'solid',   scouting: 'escape',  budget: 'specialists', play: 'crewfirst'   } },
+  { key: 'italian',   name: 'Italian Job',    emoji: '🏎️', tagline: 'Driver-led precision. Plan the escape first.',                                     c: { targets: 'solid',   scouting: 'escape',  budget: 'balanced',    play: 'disciplined' } },
+  { key: 'inception', name: 'Inception',      emoji: '🌀', tagline: 'Layered plan, all-stars, improvise inside the dream.',                            c: { targets: 'jackpot', scouting: 'heavy',   budget: 'stars',       play: 'adaptive'    } },
+  { key: 'horsemen',  name: 'Now You See Me', emoji: '🃏', tagline: 'The Four Horsemen. Magicians who heist the corrupt — every act has a deeper one.', c: { targets: 'bargain', scouting: 'defense', budget: 'bargain',     play: 'adaptive'    } },
+];
+
+function presetPrompt(p) {
+  return [
+    QT_PARAGRAPHS.targets[p.c.targets],
+    QT_PARAGRAPHS.scouting[p.c.scouting],
+    QT_PARAGRAPHS.budget[p.c.budget],
+    QT_PARAGRAPHS.play[p.c.play],
+  ].filter(Boolean).join('\n\n');
+}
+
+function renderPresetList() {
+  const list = document.getElementById('preset-list');
+  if (!list) return;
+  list.innerHTML = QT_PRESETS.map(p => `
+    <label class="preset-pick">
+      <input type="checkbox" value="${esc(p.key)}">
+      <div class="preset-pick-text">
+        <div class="preset-pick-name">${esc(p.emoji)} ${esc(p.name)}</div>
+        <div class="preset-pick-tag">${esc(p.tagline)}</div>
+      </div>
+    </label>
+  `).join('');
+}
+
+async function launchCustomQuickTest() {
+  const errBox = document.getElementById('preset-picker-error');
+  errBox.textContent = '';
+  const keys = Array.from(document.querySelectorAll('#preset-list input[type="checkbox"]:checked')).map(i => i.value);
+  if (keys.length < 1) { errBox.textContent = 'Pick at least 1 crew.'; return; }
+  if (keys.length > 6) { errBox.textContent = 'Pick at most 6 crews.'; return; }
+  const chosen = keys.map(k => QT_PRESETS.find(p => p.key === k)).filter(Boolean);
+  const ais = chosen.map(p => ({ name: p.name, agent: 'codex-mini', prompt: presetPrompt(p) }));
+  try {
+    const resp = await fetch('/api/new-campaign', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ num_rounds: 3, ais }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || resp.status);
+    window.location = `/campaign?game=${data.campaign_id}`;
+  } catch (err) {
+    errBox.textContent = 'Launch failed: ' + (err.message || err);
+  }
+}
+
 async function quickTest() {
   try {
     const resp = await fetch('/api/quick-campaign', {
@@ -776,6 +898,7 @@ const reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-m
 let refreshTimer = null;
 let heartbeatTimer = null;
 
+renderPresetList();
 refresh();
 refreshTimer = setInterval(refresh, 3000);
 if (!reducedMotion) {
