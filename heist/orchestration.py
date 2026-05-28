@@ -4,11 +4,13 @@ Spawns daemon threads; emits through gamestate.broadcast.
 """
 from __future__ import annotations
 
+import concurrent.futures
 import contextlib
 import random
 import threading
 import time
 import traceback
+from collections.abc import Callable
 from typing import Any
 
 from heist import gamestate
@@ -22,6 +24,44 @@ from heist.persist import (
     save_game_record,
     save_runner_snapshot,
 )
+from heist.state import ScoutState
+
+
+def _run_parallel_scout_turns(
+    active_ai_idxs: list[int],
+    scout_one: Callable[[int], tuple[ScoutState, int]],
+) -> tuple[dict[int, ScoutState], dict[int, int]]:
+    """Fan out per-team scout turns concurrently (feature 003 / US1).
+
+    Each ``scout_one(ai_idx)`` is expected to be a self-contained closure that
+    runs one team's ``_run_scout_turn`` and returns ``(scout_state, probes_spent)``.
+    The teams' scout work is mutually independent (each writes only to its own
+    per-team ScoutState / logs / emit channel), so threads are sufficient — scout
+    calls are I/O-bound (LLM subprocess/HTTP).
+
+    Per-team exceptions are caught + logged; the failing team's probes_spent is
+    treated as 0 (sorts to the front of pick_order — they go in blind) and their
+    ScoutState defaults to an empty one (no reveals).
+    """
+    scout_states: dict[int, ScoutState] = {}
+    probes_spent: dict[int, int] = {}
+    if not active_ai_idxs:
+        return scout_states, probes_spent
+    with concurrent.futures.ThreadPoolExecutor(
+        max_workers=max(1, len(active_ai_idxs))
+    ) as pool:
+        futures = {pool.submit(scout_one, i): i for i in active_ai_idxs}
+        for fut in concurrent.futures.as_completed(futures):
+            ai_idx = futures[fut]
+            try:
+                ss, ps = fut.result()
+                scout_states[ai_idx] = ss
+                probes_spent[ai_idx] = int(ps)
+            except Exception as exc:
+                log.warn("scout_turn_parallel_failed", ai_idx=ai_idx, error=str(exc))
+                scout_states[ai_idx] = ScoutState()
+                probes_spent[ai_idx] = 0
+    return scout_states, probes_spent
 
 
 def _build_ai(agent: str, *, ai_idx: int = 0, auction_mode: bool = False, progress_cb=None):
@@ -1080,54 +1120,78 @@ def run_campaign_conductor(
                     )
                     board_objs_round = [_JBN[n] for n in _board_names]
                     board_slate_scores = roll_slate_scores(board_objs_round, _brng)
-                    # Feature 003 (US1 will fill in real probes_spent counts).
-                    # Until US1 lands, every team is treated as having spent 0
-                    # probes, so order falls through to bankroll then ai_idx —
-                    # equivalent to the old trailing-team-first rule.
-                    _order = pick_order(
+                    # Feature 003 (US1) — restructured board stage:
+                    #   1. Open every active team's round sub-game and emit
+                    #      job_board upfront (preserves the #84 timing fix:
+                    #      the Job tab sees the 8-job board during scouting).
+                    #   2. Fan out scout turns in parallel — they're I/O-bound
+                    #      LLM calls and each team writes only its own state.
+                    #   3. Compute the real pick order from probes_spent.
+                    #   4. Walk the order sequentially for picks (contention
+                    #      resolution requires serial picks).
+                    board_payload_round = [_job_to_dict(o) for o in board_objs_round]
+                    consumed_count_round = len(_shared_consumed)
+                    # Placeholder pick_order in the upfront job_board emit; the
+                    # UI does not consume this field today, but we keep the shape
+                    # stable. Real pick_order computed after scouts (below).
+                    _placeholder_pick_order = pick_order(
                         [(i, 0, c.banked_loot) for i, c in _active_camps.items()]
                     )
-                    board_payload_round = [_job_to_dict(o) for o in board_objs_round]
-                    pick_order_round = _order
-                    consumed_count_round = len(_shared_consumed)
-
-                    def _pick_for(
-                        ai_idx: int, remaining: list[str],
-                        _active_camps: dict = _active_camps,
-                        board_slate_scores: dict = board_slate_scores,
-                        board_payload_round: list[dict] = board_payload_round,
-                        pick_order_round: list[int] = pick_order_round,
-                        consumed_count_round: int = consumed_count_round,
-                        board_scout_states: dict = board_scout_states,
-                        round_idx: int = round_idx,
-                    ) -> str:
-                        # Open this team's round sub-game NOW (before scouting), so
-                        # the scout + job-pick events file on the round page the
-                        # viewer reads — not the campaign-level log.
-                        open_round_sub_game(ai_idx, round_idx)
-                        emit_fn = make_emit_fn(ai_idx)
-                        emit_fn({
+                    emit_fns: dict[int, Any] = {}
+                    for _ai_idx in _active_camps:
+                        open_round_sub_game(_ai_idx, round_idx)
+                        _emit = make_emit_fn(_ai_idx)
+                        emit_fns[_ai_idx] = _emit
+                        _emit({
                             "type": "job_board", "campaign_id": campaign_id,
                             "round_idx": round_idx, "board": board_payload_round,
-                            "pick_order": pick_order_round,
+                            "pick_order": _placeholder_pick_order,
                             "consumed_count": consumed_count_round,
                         })
+
+                    def _scout_one(
+                        ai_idx: int,
+                        _active_camps: dict = _active_camps,
+                        board_objs_round: list = board_objs_round,
+                        board_slate_scores: dict = board_slate_scores,
+                        emit_fns: dict = emit_fns,
+                    ) -> tuple[ScoutState, int]:
+                        camp = _active_camps[ai_idx]
+                        crew = _Crew(members=list(camp.standing_crew))
+                        ss = _run_scout_turn(
+                            crew, board_objs_round, board_slate_scores,
+                            ais[ai_idx], logs_per_ai[ai_idx], emit_fns[ai_idx],
+                        )
+                        return ss, ss.probes_spent_free
+
+                    _scout_states, _probes_spent = _run_parallel_scout_turns(
+                        list(_active_camps.keys()), _scout_one,
+                    )
+                    board_scout_states.update(_scout_states)
+                    _order = pick_order(
+                        [(i, _probes_spent.get(i, 0), c.banked_loot)
+                         for i, c in _active_camps.items()]
+                    )
+                    pick_order_round = _order
+
+                    def _pick_one(
+                        ai_idx: int, remaining: list[str],
+                        _active_camps: dict = _active_camps,
+                        board_scout_states: dict = board_scout_states,
+                        emit_fns: dict = emit_fns,
+                    ) -> str:
                         camp = _active_camps[ai_idx]
                         crew = _Crew(members=list(camp.standing_crew))
                         rem_objs = [_JBN[n] for n in remaining]
-                        ss = _run_scout_turn(
-                            crew, rem_objs, board_slate_scores, ais[ai_idx],
-                            logs_per_ai[ai_idx], emit_fn,
-                        )
-                        board_scout_states[ai_idx] = ss
+                        ss = board_scout_states.get(ai_idx) or ScoutState()
                         chosen = pick_job_from_board(
                             ais[ai_idx], crew, rem_objs, ss, camp,
-                            logs_per_ai[ai_idx], emit_fn,
+                            logs_per_ai[ai_idx], emit_fns[ai_idx],
                         )
                         return chosen.name
 
                     _assigned, _contested = resolve_contention(
-                        _order, _board_names, _pick_for,
+                        _order, _board_names, _pick_one,
                     )
                     board_assignments = {i: _JBN[_assigned[i]] for i in _assigned}
                     contested_round = _contested
