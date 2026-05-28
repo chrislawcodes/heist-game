@@ -14,7 +14,7 @@
 
 **Purpose:** Baseline ready (branch already created off `origin/main`).
 
-- [ ] T001 Confirm preflight baseline is green on `feat/crew-wizard`: `ruff check . && mypy heist/ agents.py demo.py && pytest -q`.
+- [X] T001 Confirm preflight baseline is green on `feat/crew-wizard`: `ruff check . && mypy heist/ agents.py demo.py && pytest -q`. (ruff pass, mypy clean, 242 passed)
 
 ---
 
@@ -34,13 +34,13 @@
 
 ### Implementation for User Story 1
 
-- [ ] T002 [US1] In `heist/web/setup.html`, restructure into two views: a **campaign-assembler** view (rounds chips, an empty "crews added" list, "Build a crew" + "Add from saved crew" buttons, Launch) and a hidden **wizard overlay** container. Keep the existing dark theme/CSS tokens.
-- [ ] T003 [US1] In `heist/web/setup.html`, build the wizard overlay markup: a progress track with steps **The Job / The Crew / Scouting / Decisions / Run It**, choice-cards per step (Risk: Lay Low/Balanced/Go Big; Budget: Stretch/Mix It Up/All Stars; Scouting: Case Everything/Scout the Money/Move Fast; Bonus: Always/Smart/Stick to Plan; Fail: Push Through/Cut Losses), and a per-step free-text **override** box.
-- [ ] T004 [US1] In `heist/web/setup.html`, implement step navigation (next/back, clickable progress, one step visible at a time) mirroring the old wizard's UX.
-- [ ] T005 [US1] In `heist/web/setup.html`, implement the **prompt builder**: map each choice to a paragraph (job, crew, scouting, decisions); a step's override replaces its generated paragraph; the **Scouting** paragraph has 3 distinct variants modeled on the shipped Wreckers/Ghost preset language ("case it before you crack it", "don't read difficulty off payout") so the engine's scouting turn acts on it.
-- [ ] T006 [US1] In `heist/web/setup.html`, implement the **Run It** step: a name input, an agent `<select>` (stub / codex / codex-mini / gemini), an editable assembled-prompt textarea that is **never silently regenerated over manual edits**, and a summary that marks overridden steps "(custom)".
-- [ ] T007 [US1] In `heist/web/setup.html`, wire **Add to Campaign**: append `{name, agent, prompt}` to the assembler list; render the list (name + agent badge + prompt preview + Remove); HTML-escape all rendered crew text.
-- [ ] T008 [US1] In `heist/web/setup.html`, wire **Launch**: block empty/whitespace prompts and the zero-crew case with a clear message; POST `{num_rounds, ais:[...]}` to `/api/new-campaign`; on success redirect to `/campaign?game=<id>` (matches existing flow).
+- [X] T002 [US1] In `heist/web/setup.html`, restructure into two views: a **campaign-assembler** view (rounds chips, an empty "crews added" list, "Build a crew" + "Add from saved crew" buttons, Launch) and a hidden **wizard overlay** container. Keep the existing dark theme/CSS tokens.
+- [X] T003 [US1] In `heist/web/setup.html`, build the wizard overlay markup: a progress track with steps **The Job / The Crew / Scouting / Decisions / Run It**, choice-cards per step (Risk: Lay Low/Balanced/Go Big; Budget: Stretch/Mix It Up/All Stars; Scouting: Case Everything/Scout the Money/Move Fast; Bonus: Always/Smart/Stick to Plan; Fail: Push Through/Cut Losses), and a per-step free-text **override** box.
+- [X] T004 [US1] In `heist/web/setup.html`, implement step navigation (next/back, clickable progress, one step visible at a time) mirroring the old wizard's UX.
+- [X] T005 [US1] In `heist/web/setup.html`, implement the **prompt builder**: map each choice to a paragraph (job, crew, scouting, decisions); a step's override replaces its generated paragraph; the **Scouting** paragraph has 3 distinct variants modeled on the shipped Wreckers/Ghost preset language ("case it before you crack it", "don't read difficulty off payout") so the engine's scouting turn acts on it.
+- [X] T006 [US1] In `heist/web/setup.html`, implement the **Run It** step: a name input, an agent `<select>` (stub / codex / codex-mini / gemini), an editable assembled-prompt textarea that is **never silently regenerated over manual edits**, and a summary that marks overridden steps "(custom)".
+- [X] T007 [US1] In `heist/web/setup.html`, wire **Add to Campaign**: append `{name, agent, prompt}` to the assembler list; render the list (name + agent badge + prompt preview + Remove); HTML-escape all rendered crew text.
+- [X] T008 [US1] In `heist/web/setup.html`, wire **Launch**: block empty/whitespace prompts and the zero-crew case with a clear message; POST `{num_rounds, ais:[...]}` to `/api/new-campaign`; on success redirect to `/campaign?game=<id>` (matches existing flow).
 
 **Checkpoint:** US1 fully functional and testable standalone. **STOP for staging review (8001) before P2.**
 

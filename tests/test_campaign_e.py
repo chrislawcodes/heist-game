@@ -82,7 +82,8 @@ def test_setup_route_serves_new_campaign_html(fake_handler):
     status, body = _request_text(fake_handler, "GET", "/setup")
     assert status == 200
     assert "HEIST / New Campaign" in body
-    assert "Launch Campaign ->" in body
+    assert "Launch Campaign" in body
+    assert "Build a crew" in body
 
 
 def test_new_campaign_creates_campaign_record(fake_handler):
