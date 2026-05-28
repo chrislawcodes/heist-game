@@ -91,10 +91,17 @@ def test_unknown_job_or_category_is_dropped():
     assert ss.probes_spent_free == 0
 
 
-def test_free_probe_budget_includes_driver_bonus():
-    # 4-person crew incl. Slim (High driver) → 4 + 3 = 7.
-    crew = [ROSTER_BY_ID[i] for i in (13, 10, 2, 8)]
-    assert free_probe_budget(crew) == 7
+def test_free_probe_budget_is_flat_ten():
+    """Feature 003: budget is a flat 10 regardless of crew or driver.
+
+    Picks the same three crews the old tests probed (4 + High driver,
+    no driver, empty) and verifies they all get 10.
+    """
+    crew_with_driver = [ROSTER_BY_ID[i] for i in (13, 10, 2, 8)]   # Slim (High driver) included
+    crew_no_driver = [ROSTER_BY_ID[i] for i in (2, 3, 10)]          # no driver in this set
+    assert free_probe_budget(crew_with_driver) == 10
+    assert free_probe_budget(crew_no_driver) == 10
+    assert free_probe_budget([]) == 10
 
 
 def test_run_scout_turn_with_stub_emits_events_and_records_intel():

@@ -189,7 +189,17 @@ def driver_scout_bonus(members: list[Character]) -> int:
 
 
 def free_probe_budget(members: list[Character]) -> int:
-    return len(members) + driver_scout_bonus(members)
+    """Free scouting probes per team per round.
+
+    Feature 003: a flat 10 — independent of crew size and driver. Spending
+    fewer probes (and being rewarded with an earlier pick) is now the strategic
+    counter-axis; the budget itself does not depend on the crew's composition.
+
+    The ``members`` parameter is kept for ABI stability with existing callers;
+    it is intentionally unused.
+    """
+    _ = members  # intentionally unused — see docstring
+    return 10
 
 
 # ── Escape (derived difficulty; driver score contest) ───────────────────────

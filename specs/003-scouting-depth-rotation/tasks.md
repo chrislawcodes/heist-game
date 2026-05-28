@@ -45,8 +45,8 @@
 
 ### Implementation for US3
 
-- [ ] T006 [heist/mechanics.py] [US3] Change `free_probe_budget(members)` (line ~191) to return a flat `10` (drop the `len(members) + driver_scout_bonus(members)` formula). Decide whether to keep the parameter for ABI stability (recommended: keep param but ignore it; mark with a `# noqa: ARG001` is forbidden — instead, prefix the param with `_` so the unused-arg lint stays clean, or just drop the param and update callers). Find callers via `grep -n free_probe_budget heist/ -r` and update accordingly.
-- [ ] T007 [P: tests/test_scouting.py] [US3] Add a test that `free_probe_budget()` returns 10 for: empty crew, 4 members no driver, 4 members with High driver, 6 members. Replace any existing test that asserted the old formula.
+- [X] T006 [heist/mechanics.py] [US3] Change `free_probe_budget(members)` (line ~191) to return a flat `10` (drop the `len(members) + driver_scout_bonus(members)` formula). Decide whether to keep the parameter for ABI stability (recommended: keep param but ignore it; mark with a `# noqa: ARG001` is forbidden — instead, prefix the param with `_` so the unused-arg lint stays clean, or just drop the param and update callers). Find callers via `grep -n free_probe_budget heist/ -r` and update accordingly. *(Kept param, added docstring + `_ = members` hint.)*
+- [X] T007 [P: tests/test_scouting.py] [US3] Add a test that `free_probe_budget()` returns 10 for: empty crew, 4 members no driver, 4 members with High driver, 6 members. Replace any existing test that asserted the old formula. *(Updated test_scouting.py and test_mechanics.py existing budget tests in place.)*
 
 **Checkpoint**: US3 complete (budget = 10, independently testable).
 

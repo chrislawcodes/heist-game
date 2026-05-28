@@ -171,9 +171,13 @@ def test_driver_scout_bonus_by_bucket():
     assert driver_scout_bonus([_char("a", {"muscle": 9})]) == 0
 
 
-def test_free_probe_budget_is_crew_plus_driver_bonus():
-    crew = [_char("a", {"driver": 9}), _char("b", {"muscle": 6})]
-    assert free_probe_budget(crew) == 2 + 3
+def test_free_probe_budget_is_flat_ten():
+    """Feature 003: budget is a flat 10 regardless of crew composition."""
+    crew_with_driver = [_char("a", {"driver": 9}), _char("b", {"muscle": 6})]
+    crew_no_driver = [_char("a", {"hacker": 7})]
+    assert free_probe_budget(crew_with_driver) == 10
+    assert free_probe_budget(crew_no_driver) == 10
+    assert free_probe_budget([]) == 10
 
 
 # ── viability hint (bucket-based) ───────────────────────────────────────────
