@@ -161,14 +161,14 @@ select {
   display: flex; align-items: center; justify-content: center; font-size: 0.78rem;
 }
 .progress-step .label {
-  font-size: 0.64rem; letter-spacing: 0.08em; text-transform: uppercase;
+  font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase;
   color: var(--text-muted); white-space: nowrap;
 }
 .progress-step.active .dot { border-color: var(--accent); background: var(--accent); color: #000; font-weight: bold; }
 .progress-step.active .label { color: var(--accent); }
 .progress-step.done .dot { border-color: var(--accent-dim); background: var(--accent-dim); color: var(--accent); }
 .progress-step.done .label { color: var(--accent-dim); }
-.progress-line { width: 18px; height: 1px; background: var(--border); }
+.progress-line { width: 14px; height: 1px; background: var(--border); }
 .progress-line.done { background: var(--accent-dim); }
 
 .step-card { display: none; }
@@ -305,37 +305,39 @@ select {
     </div>
   </div>
 
-  <!-- ══════════ VIEW C: Strategy wizard (7 steps) ══════════ -->
+  <!-- ══════════ VIEW C: Strategy wizard (8 steps, chronological) ══════════ -->
   <div id="wizard-view" hidden>
     <header>
       <div class="eyebrow">HEIST / Build a crew</div>
       <div class="title">Shape this crew's strategy.</div>
-      <div class="subtitle">Answer a few questions and we'll write the brief. You can hand-edit it at the end.</div>
+      <div class="subtitle">Steps follow the order the AI makes them during play: frame → scout → pick → hire → react. You can hand-edit the assembled brief at the end.</div>
     </header>
 
     <div class="panel">
       <div class="progress-track" id="progress-track">
         <div class="progress-step active" data-step="1" onclick="jumpTo(1)"><div class="dot">1</div><div class="label">The Job</div></div>
         <div class="progress-line" id="line-1-2"></div>
-        <div class="progress-step" data-step="2" onclick="jumpTo(2)"><div class="dot">2</div><div class="label">Board Play</div></div>
+        <div class="progress-step" data-step="2" onclick="jumpTo(2)"><div class="dot">2</div><div class="label">Scouting</div></div>
         <div class="progress-line" id="line-2-3"></div>
-        <div class="progress-step" data-step="3" onclick="jumpTo(3)"><div class="dot">3</div><div class="label">The Crew</div></div>
+        <div class="progress-step" data-step="3" onclick="jumpTo(3)"><div class="dot">3</div><div class="label">Board Play</div></div>
         <div class="progress-line" id="line-3-4"></div>
-        <div class="progress-step" data-step="4" onclick="jumpTo(4)"><div class="dot">4</div><div class="label">Scouting</div></div>
+        <div class="progress-step" data-step="4" onclick="jumpTo(4)"><div class="dot">4</div><div class="label">The Crew</div></div>
         <div class="progress-line" id="line-4-5"></div>
         <div class="progress-step" data-step="5" onclick="jumpTo(5)"><div class="dot">5</div><div class="label">Heat</div></div>
         <div class="progress-line" id="line-5-6"></div>
-        <div class="progress-step" data-step="6" onclick="jumpTo(6)"><div class="dot">6</div><div class="label">Decisions</div></div>
+        <div class="progress-step" data-step="6" onclick="jumpTo(6)"><div class="dot">6</div><div class="label">Bonus</div></div>
         <div class="progress-line" id="line-6-7"></div>
-        <div class="progress-step" data-step="7" onclick="jumpTo(7)"><div class="dot">7</div><div class="label">Run It</div></div>
+        <div class="progress-step" data-step="7" onclick="jumpTo(7)"><div class="dot">7</div><div class="label">On Failure</div></div>
+        <div class="progress-line" id="line-7-8"></div>
+        <div class="progress-step" data-step="8" onclick="jumpTo(8)"><div class="dot">8</div><div class="label">Run It</div></div>
       </div>
 
-      <!-- Step 1: The Job -->
+      <!-- Step 1: The Job (risk frame) -->
       <div class="step-card active" id="step-1">
         <div class="step-header">
-          <div class="step-eyebrow">Step 1 of 7</div>
+          <div class="step-eyebrow">Step 1 of 8 — The Frame</div>
           <div class="step-title">What kind of jobs are you after?</div>
-          <div class="step-desc">Set the ambition level. The AI picks from the contested board with this in mind.</div>
+          <div class="step-desc">Top-level posture. The risk you'll accept colors every later decision.</div>
         </div>
         <div class="choice-group">
           <div class="choice-label">Risk appetite</div>
@@ -360,6 +362,11 @@ select {
               <div class="card-title">📈 Escalate</div>
               <div class="card-body">Start safe to build a war chest, then go bigger each round as the bankroll grows.</div>
             </label>
+            <label class="choice-card" data-name="risk" data-value="edges">
+              <input type="radio" name="risk" value="edges">
+              <div class="card-title">💎 Hunt Edges</div>
+              <div class="card-body">Find the mispriced jobs where the reward outruns the difficulty. Skip the obvious jackpots.</div>
+            </label>
           </div>
         </div>
         <div class="override-divider"><span>or write your own</span></div>
@@ -367,16 +374,62 @@ select {
         <textarea id="ov-job" rows="3" placeholder="e.g. &quot;Hit the diplomatic reception — high society, social engineering only, no violence.&quot;"></textarea>
         <div class="step-nav">
           <button class="btn btn-ghost" onclick="closeWizard()">← Cancel</button>
-          <button class="btn btn-primary" onclick="goTo(2)">Next: Board Play →</button>
+          <button class="btn btn-primary" onclick="goTo(2)">Next: Scouting →</button>
         </div>
       </div>
 
-      <!-- Step 2: Board Play -->
+      <!-- Step 2: Scouting -->
       <div class="step-card" id="step-2">
         <div class="step-header">
-          <div class="step-eyebrow">Step 2 of 7</div>
+          <div class="step-eyebrow">Step 2 of 8 — Before the Pick</div>
+          <div class="step-title">How should the crew scout?</div>
+          <div class="step-desc">Scouting comes first in the round. A job's published difficulty is only an estimate; probes reveal the true numbers before you commit — but probes are limited.</div>
+        </div>
+        <div class="choice-group">
+          <div class="choice-label">Scouting style</div>
+          <div class="choice-grid cols-3">
+            <label class="choice-card selected" data-name="scouting" data-value="heavy">
+              <input type="radio" name="scouting" value="heavy" checked>
+              <div class="card-title">🔍 Case Everything</div>
+              <div class="card-body">Scouting is the job before the job. Probe every target you're weighing; never commit blind.</div>
+            </label>
+            <label class="choice-card" data-name="scouting" data-value="targeted">
+              <input type="radio" name="scouting" value="targeted">
+              <div class="card-title">🎯 Scout the Money</div>
+              <div class="card-body">Spend probes only on the big-money jobs you actually want, then commit.</div>
+            </label>
+            <label class="choice-card" data-name="scouting" data-value="escape">
+              <input type="radio" name="scouting" value="escape">
+              <div class="card-title">🏃 Scout the Escape</div>
+              <div class="card-body">Probe the getaway first. A bad escape ends the campaign — the take is worthless if the driver gets caught.</div>
+            </label>
+            <label class="choice-card" data-name="scouting" data-value="free">
+              <input type="radio" name="scouting" value="free">
+              <div class="card-title">🪙 Free Probes Only</div>
+              <div class="card-body">Use the probes the crew earns each round, but never pay extra. Spend the bankroll on the heist itself.</div>
+            </label>
+            <label class="choice-card" data-name="scouting" data-value="skip">
+              <input type="radio" name="scouting" value="skip">
+              <div class="card-title">⚡ Move Fast</div>
+              <div class="card-body">Trust the published buckets and commit fast. Speed and surprise over perfect intel.</div>
+            </label>
+          </div>
+        </div>
+        <div class="override-divider"><span>or write your own</span></div>
+        <div class="override-hint">Overrides the choice above.</div>
+        <textarea id="ov-scouting" rows="3" placeholder="e.g. &quot;Scout the escape route on every job we seriously consider — a caught driver ends the campaign.&quot;"></textarea>
+        <div class="step-nav">
+          <button class="btn btn-ghost" onclick="goTo(1)">← Back</button>
+          <button class="btn btn-primary" onclick="goTo(3)">Next: Board Play →</button>
+        </div>
+      </div>
+
+      <!-- Step 3: Board Play -->
+      <div class="step-card" id="step-3">
+        <div class="step-header">
+          <div class="step-eyebrow">Step 3 of 8 — The Pick</div>
           <div class="step-title">How do you play the contested board?</div>
-          <div class="step-desc">Each round you share a board of 8 jobs with the rivals. Trailing teams pick first, and once a job is attempted it's consumed for everyone. Decide your meta-game.</div>
+          <div class="step-desc">Each round you share a board of 8 jobs with the rivals. Trailing teams pick first, and once a job is attempted it's consumed for everyone.</div>
         </div>
         <div class="choice-group">
           <div class="choice-label">Board strategy</div>
@@ -389,12 +442,22 @@ select {
             <label class="choice-card selected" data-name="board" data-value="safe">
               <input type="radio" name="board" value="safe" checked>
               <div class="card-title">🏦 Bank Safe Value</div>
-              <div class="card-body">Claim the cleanest solid score before it's consumed. Consistency beats heroics; don't wait for a perfect job.</div>
+              <div class="card-body">Claim the cleanest solid score before it's consumed. Consistency beats heroics.</div>
+            </label>
+            <label class="choice-card" data-name="board" data-value="avoid">
+              <input type="radio" name="board" value="avoid">
+              <div class="card-title">🛡️ Avoid Jackpots</div>
+              <div class="card-body">Skip elite-tier jobs entirely. Let rivals burn on them; we take the cleaner mid-difficulty targets.</div>
             </label>
             <label class="choice-card" data-name="board" data-value="late">
               <input type="radio" name="board" value="late">
               <div class="card-title">🕵️ Let Them Overextend</div>
               <div class="card-body">Let rivals chase the jackpots and rack up heat. We take what's left — the cleaner targets after the dust settles.</div>
+            </label>
+            <label class="choice-card" data-name="board" data-value="block">
+              <input type="radio" name="board" value="block">
+              <div class="card-title">🚧 Block Rivals</div>
+              <div class="card-body">Watch the leader. If our best job and theirs are both on the slate, take theirs — denial wins us the standings race.</div>
             </label>
           </div>
         </div>
@@ -402,17 +465,17 @@ select {
         <div class="override-hint">Overrides the choice above.</div>
         <textarea id="ov-board" rows="3" placeholder="e.g. &quot;Always try to grab the second-best job: leave the trap-fat jackpot for someone else.&quot;"></textarea>
         <div class="step-nav">
-          <button class="btn btn-ghost" onclick="goTo(1)">← Back</button>
-          <button class="btn btn-primary" onclick="goTo(3)">Next: The Crew →</button>
+          <button class="btn btn-ghost" onclick="goTo(2)">← Back</button>
+          <button class="btn btn-primary" onclick="goTo(4)">Next: The Crew →</button>
         </div>
       </div>
 
-      <!-- Step 3: The Crew -->
-      <div class="step-card" id="step-3">
+      <!-- Step 4: The Crew -->
+      <div class="step-card" id="step-4">
         <div class="step-header">
-          <div class="step-eyebrow">Step 3 of 7</div>
+          <div class="step-eyebrow">Step 4 of 8 — Staffing</div>
           <div class="step-title">How do you want the crew built?</div>
-          <div class="step-desc">The AI assembles a team from the 21-person roster. Point it in a direction.</div>
+          <div class="step-desc">After the job's picked, the AI assembles a team from the 21-person roster.</div>
         </div>
         <div class="choice-group">
           <div class="choice-label">Crew posture</div>
@@ -448,47 +511,6 @@ select {
         <div class="override-hint">Overrides the choice above.</div>
         <textarea id="ov-crew" rows="3" placeholder="e.g. &quot;Always bring a driver, even if it costs us elsewhere. Cover the social angle too — muscle is a last resort.&quot;"></textarea>
         <div class="step-nav">
-          <button class="btn btn-ghost" onclick="goTo(2)">← Back</button>
-          <button class="btn btn-primary" onclick="goTo(4)">Next: Scouting →</button>
-        </div>
-      </div>
-
-      <!-- Step 4: Scouting -->
-      <div class="step-card" id="step-4">
-        <div class="step-header">
-          <div class="step-eyebrow">Step 4 of 7</div>
-          <div class="step-title">How should the crew scout?</div>
-          <div class="step-desc">A job's published difficulty is only an estimate. Scouting probes reveal the true numbers before you commit — but probes are limited. Decide how to spend them.</div>
-        </div>
-        <div class="choice-group">
-          <div class="choice-label">Scouting style</div>
-          <div class="choice-grid cols-3">
-            <label class="choice-card selected" data-name="scouting" data-value="heavy">
-              <input type="radio" name="scouting" value="heavy" checked>
-              <div class="card-title">🔍 Case Everything</div>
-              <div class="card-body">Scouting is the job before the job. Probe every target you're weighing; never commit blind.</div>
-            </label>
-            <label class="choice-card" data-name="scouting" data-value="targeted">
-              <input type="radio" name="scouting" value="targeted">
-              <div class="card-title">🎯 Scout the Money</div>
-              <div class="card-body">Spend probes only on the big-money jobs you actually want, then commit.</div>
-            </label>
-            <label class="choice-card" data-name="scouting" data-value="escape">
-              <input type="radio" name="scouting" value="escape">
-              <div class="card-title">🏃 Scout the Escape</div>
-              <div class="card-body">Probe the getaway first. A bad escape ends the campaign — the take is worthless if the driver gets caught.</div>
-            </label>
-            <label class="choice-card" data-name="scouting" data-value="skip">
-              <input type="radio" name="scouting" value="skip">
-              <div class="card-title">⚡ Move Fast</div>
-              <div class="card-body">Trust the published buckets and commit fast. Speed and surprise over perfect intel.</div>
-            </label>
-          </div>
-        </div>
-        <div class="override-divider"><span>or write your own</span></div>
-        <div class="override-hint">Overrides the choice above.</div>
-        <textarea id="ov-scouting" rows="3" placeholder="e.g. &quot;Scout the escape route on every job we seriously consider — a caught driver ends the campaign.&quot;"></textarea>
-        <div class="step-nav">
           <button class="btn btn-ghost" onclick="goTo(3)">← Back</button>
           <button class="btn btn-primary" onclick="goTo(5)">Next: Heat →</button>
         </div>
@@ -497,9 +519,9 @@ select {
       <!-- Step 5: Heat -->
       <div class="step-card" id="step-5">
         <div class="step-header">
-          <div class="step-eyebrow">Step 5 of 7</div>
+          <div class="step-eyebrow">Step 5 of 8 — During Play</div>
           <div class="step-title">How do you manage heat?</div>
-          <div class="step-desc">Heat cascades: each suspicion makes every remaining challenge one point harder. The cascade is steep — pick how aggressively to manage it.</div>
+          <div class="step-desc">Heat cascades: each suspicion makes every remaining challenge one point harder. The cascade is steep.</div>
         </div>
         <div class="choice-group">
           <div class="choice-label">Heat tolerance</div>
@@ -507,17 +529,27 @@ select {
             <label class="choice-card" data-name="heat" data-value="hot">
               <input type="radio" name="heat" value="hot">
               <div class="card-title">🔥 Run Hot</div>
-              <div class="card-body">Ignore the cascade. Push every scene, pay the heat tax, trust the margins to carry us.</div>
+              <div class="card-body">Ignore the cascade. Push every scene, pay the heat tax, trust margins to carry us.</div>
             </label>
             <label class="choice-card selected" data-name="heat" data-value="manage">
               <input type="radio" name="heat" value="manage" checked>
               <div class="card-title">🌡️ Manage Heat</div>
-              <div class="card-body">When suspicion climbs, back off. Pick clean scene orders, decline risky bonuses, abort before the cascade snowballs.</div>
+              <div class="card-body">When suspicion climbs, back off. Clean scene orders, decline risky bonuses, abort before the cascade snowballs.</div>
             </label>
             <label class="choice-card" data-name="heat" data-value="cold">
               <input type="radio" name="heat" value="cold">
               <div class="card-title">❄️ Stay Cold</div>
-              <div class="card-body">Heat is the metric. Pick soft marks via scouting, play every scene for the no-heat clean — a squeak win is a partial failure.</div>
+              <div class="card-body">Heat is the metric. Soft marks via scouting, every scene played for the no-heat clean.</div>
+            </label>
+            <label class="choice-card" data-name="heat" data-value="cool">
+              <input type="radio" name="heat" value="cool">
+              <div class="card-title">🚒 Cool Off</div>
+              <div class="card-body">At 2+ heat, next pick is a cooler — cleanest target on the slate, not the best.</div>
+            </label>
+            <label class="choice-card" data-name="heat" data-value="tax">
+              <input type="radio" name="heat" value="tax">
+              <div class="card-title">💰 Heat as Tax</div>
+              <div class="card-body">Treat suspicion like a tax line. Accept it when the take comfortably outruns it; walk when it doesn't.</div>
             </label>
           </div>
         </div>
@@ -526,19 +558,19 @@ select {
         <textarea id="ov-heat" rows="3" placeholder="e.g. &quot;If we hit 2 heat, the next job has to be the cleanest one on the slate — no exceptions.&quot;"></textarea>
         <div class="step-nav">
           <button class="btn btn-ghost" onclick="goTo(4)">← Back</button>
-          <button class="btn btn-primary" onclick="goTo(6)">Next: Decisions →</button>
+          <button class="btn btn-primary" onclick="goTo(6)">Next: Bonus →</button>
         </div>
       </div>
 
-      <!-- Step 6: Decisions -->
+      <!-- Step 6: Bonus -->
       <div class="step-card" id="step-6">
         <div class="step-header">
-          <div class="step-eyebrow">Step 6 of 7</div>
-          <div class="step-title">How should the crew call it mid-job?</div>
-          <div class="step-desc">Every heist has a moment where something turns up — a bonus, or things going sideways. Set the defaults.</div>
+          <div class="step-eyebrow">Step 6 of 8 — Mid-Scene</div>
+          <div class="step-title">When a bonus opportunity surfaces?</div>
+          <div class="step-desc">During a heist, scenes sometimes turn up a score within a score. Decide the default.</div>
         </div>
         <div class="choice-group">
-          <div class="choice-label">When a bonus opportunity surfaces</div>
+          <div class="choice-label">Bonus pursuit</div>
           <div class="choice-grid cols-3">
             <label class="choice-card" data-name="bonus" data-value="always">
               <input type="radio" name="bonus" value="always">
@@ -552,18 +584,44 @@ select {
             </label>
             <label class="choice-card" data-name="bonus" data-value="never">
               <input type="radio" name="bonus" value="never">
-              <div class="card-title">🚫 Stick to the Plan</div>
+              <div class="card-title">🚫 Stick to Plan</div>
               <div class="card-body">Don't improvise. Complete the job as planned and get out clean.</div>
+            </label>
+            <label class="choice-card" data-name="bonus" data-value="clean">
+              <input type="radio" name="bonus" value="clean">
+              <div class="card-title">🧊 Clean Bonuses Only</div>
+              <div class="card-body">Pursue bonuses only if they don't add heat. A bonus that lights up the cascade is a trap.</div>
+            </label>
+            <label class="choice-card" data-name="bonus" data-value="catchup">
+              <input type="radio" name="bonus" value="catchup">
+              <div class="card-title">🏆 Catch-Up Bonuses</div>
+              <div class="card-body">If we're behind on banked loot, chase any bonus that could close the gap. If we're ahead, decline.</div>
             </label>
           </div>
         </div>
+        <div class="override-divider"><span>or write your own</span></div>
+        <div class="override-hint">Overrides the choice above.</div>
+        <textarea id="ov-bonus" rows="3" placeholder="e.g. &quot;Only take a bonus if every remaining scene has been planned and approved.&quot;"></textarea>
+        <div class="step-nav">
+          <button class="btn btn-ghost" onclick="goTo(5)">← Back</button>
+          <button class="btn btn-primary" onclick="goTo(7)">Next: On Failure →</button>
+        </div>
+      </div>
+
+      <!-- Step 7: On Failure -->
+      <div class="step-card" id="step-7">
+        <div class="step-header">
+          <div class="step-eyebrow">Step 7 of 8 — Mid-Scene</div>
+          <div class="step-title">When a core scene fails?</div>
+          <div class="step-desc">Set the default for what to do when a key scene goes sideways.</div>
+        </div>
         <div class="choice-group">
-          <div class="choice-label">When a core scene fails</div>
+          <div class="choice-label">Failure handling</div>
           <div class="choice-grid cols-3">
             <label class="choice-card" data-name="fail" data-value="push">
               <input type="radio" name="fail" value="push">
               <div class="card-title">💪 Push Through</div>
-              <div class="card-body">Keep going unless it's impossible. Heat is the cost of doing business.</div>
+              <div class="card-body">Keep going unless it's impossible. Heat and complications are the cost of doing business.</div>
             </label>
             <label class="choice-card selected" data-name="fail" data-value="abort">
               <input type="radio" name="fail" value="abort" checked>
@@ -575,19 +633,29 @@ select {
               <div class="card-title">🔧 Adapt</div>
               <div class="card-body">Don't blindly push or immediately abort. Re-plan around the failure if we can still get out with something.</div>
             </label>
+            <label class="choice-card" data-name="fail" data-value="triage">
+              <input type="radio" name="fail" value="triage">
+              <div class="card-title">🩺 Triage</div>
+              <div class="card-body">Push unless a crew member is at real catch-risk. Caught crew is forever — when that's the risk, abort.</div>
+            </label>
+            <label class="choice-card" data-name="fail" data-value="salvage">
+              <input type="radio" name="fail" value="salvage">
+              <div class="card-title">📋 Salvage What Sticks</div>
+              <div class="card-body">Push only if the scene loot is still reachable. If the loot's gone, abort — don't burn heat on dead scenes.</div>
+            </label>
           </div>
         </div>
         <div class="override-divider"><span>or write your own</span></div>
-        <div class="override-hint">Overrides both choices above.</div>
-        <textarea id="ov-decisions" rows="3" placeholder="e.g. &quot;This is their last job. Take every risk. Go out on top or don't go out at all.&quot;"></textarea>
+        <div class="override-hint">Overrides the choice above.</div>
+        <textarea id="ov-fail" rows="3" placeholder="e.g. &quot;This is their last job. Take every risk. Go out on top or don't go out at all.&quot;"></textarea>
         <div class="step-nav">
-          <button class="btn btn-ghost" onclick="goTo(5)">← Back</button>
-          <button class="btn btn-primary" onclick="goTo(7)">Preview the Brief →</button>
+          <button class="btn btn-ghost" onclick="goTo(6)">← Back</button>
+          <button class="btn btn-primary" onclick="goTo(8)">Preview the Brief →</button>
         </div>
       </div>
 
-      <!-- Step 7: Run It -->
-      <div class="step-card" id="step-7">
+      <!-- Step 8: Run It -->
+      <div class="step-card" id="step-8">
         <div class="step-header">
           <div class="step-eyebrow">Ready to add</div>
           <div class="step-title">This crew's brief</div>
@@ -615,7 +683,7 @@ select {
             <label for="final-prompt">Strategy prompt</label>
             <button class="btn btn-ghost" style="padding:6px 10px;font-size:0.66rem;" onclick="regeneratePrompt()">↻ Regenerate from choices</button>
           </div>
-          <textarea id="final-prompt" rows="13" style="font-size:0.82rem;line-height:1.75;"></textarea>
+          <textarea id="final-prompt" rows="14" style="font-size:0.82rem;line-height:1.75;"></textarea>
           <div class="textarea-hint">This is the exact text the AI receives. Hand-editing it overrides the wizard.</div>
         </div>
 
@@ -623,7 +691,7 @@ select {
         <div id="wizard-toast" class="toast" aria-live="polite"></div>
 
         <div class="step-nav">
-          <button class="btn btn-ghost" onclick="goTo(6)">← Back</button>
+          <button class="btn btn-ghost" onclick="goTo(7)">← Back</button>
           <div class="run-actions">
             <button class="btn btn-secondary" onclick="saveCrew()">💾 Save Crew</button>
             <button class="btn btn-primary" id="add-to-campaign-btn" onclick="addCrewToCampaign()">＋ Add to Campaign</button>
@@ -649,11 +717,10 @@ let campaignCrews = [];   // [{ name, agent, prompt, wizard }]
 let savedCrews = [];      // mirror of /api/crews
 let launchPending = false;
 let currentStep = 1;
-const TOTAL_STEPS = 7;
-let promptEdited = false;       // true once the player hand-edits the final prompt
+const TOTAL_STEPS = 8;
+let promptEdited = false;
 let wizardReturn = 'campaign';  // 'campaign' | 'library'
 
-// ── rounds ──
 document.querySelectorAll('input[name="rounds"]').forEach(input => {
   input.addEventListener('change', event => {
     numRounds = Number(event.target.value);
@@ -723,29 +790,42 @@ function jumpTo(n) { if (n <= currentStep) goTo(n); }
 // ── prompt builder ──
 function collectWizard() {
   return {
-    risk: val('risk'), board: val('board'), budget: val('budget'),
-    scouting: val('scouting'), heat: val('heat'),
+    risk: val('risk'), scouting: val('scouting'), board: val('board'),
+    budget: val('budget'), heat: val('heat'),
     bonus: val('bonus'), fail: val('fail'),
     overrides: {
-      job: ov('ov-job'), board: ov('ov-board'), crew: ov('ov-crew'),
-      scouting: ov('ov-scouting'), heat: ov('ov-heat'), decisions: ov('ov-decisions'),
+      job: ov('ov-job'), scouting: ov('ov-scouting'), board: ov('ov-board'),
+      crew: ov('ov-crew'), heat: ov('ov-heat'),
+      bonus: ov('ov-bonus'), fail: ov('ov-fail'),
     },
   };
 }
 
 function assemblePrompt(w) {
   const o = w.overrides;
+
   const jobSection = o.job || {
     low:      'Keep the heat down. Run clean, low-profile jobs — nothing that draws attention. A smaller payday is fine if we stay off the radar.',
     mid:      'Look for solid opportunities with manageable risk. We want a good score, not a suicide mission.',
     high:     'Go for the big one. High risk, high reward. This crew is capable — chase the jackpot jobs on the board.',
     escalate: 'Start cautious. In early rounds, take clean, low-profile jobs to build a war chest. As the bankroll grows, escalate — by the back half of the campaign we should be hunting the bigger scores.',
+    edges:    'On targets: hunt the mispriced. Some jobs on this board are decoupled — the reward outruns the difficulty. Find those bargains; let rivals chase the obvious jackpots.',
   }[w.risk] || '';
 
+  const scoutSection = o.scouting || {
+    heavy:    "Scouting is the job before the job. Case every target you're weighing — burn probes to confirm a soft mark is actually soft, and never read a job's difficulty off its payout. Don't commit to a target you haven't scouted.",
+    targeted: "Case it before you crack it: spend your scouting probes on the big-money jobs you actually want and find out exactly what you're hitting. Don't assume a fat payout means a soft mark — scout the target you intend to take, then commit.",
+    escape:   "Probe the escape route on every target we are seriously considering. A bad escape ends the campaign — the take is worthless if the driver gets caught. Burn a scouting probe on the escape before anything else.",
+    free:     "On scouting: use the free probes the crew earns each round, but don't pay extra. Spend the bankroll on the heist itself.",
+    skip:     "Don't burn time scouting. Read the published buckets, trust your read, and commit fast — speed and surprise beat perfect information.",
+  }[w.scouting] || '';
+
   const boardSection = o.board || {
-    race: 'On the contested board: hunt the jackpots. When an elite-tier payout hits the slate, that is our target — pay up for the crew that can crack it, even if rivals are eyeing the same job.',
-    safe: "On the contested board: take the safe value before it's consumed. Don't wait for a perfect job — claim a solid mid-difficulty score and bank it. Consistency beats heroics on a board where good jobs disappear.",
-    late: "On the contested board: let rivals chase the jackpots first. They'll burn crew on Hard challenges and rack up heat. We take what's left — the cleaner targets after the dust settles.",
+    race:  'On the contested board: hunt the jackpots. When an elite-tier payout hits the slate, that is our target — pay up for the crew that can crack it, even if rivals are eyeing the same job.',
+    safe:  "On the contested board: take the safe value before it's consumed. Don't wait for a perfect job — claim a solid mid-difficulty score and bank it. Consistency beats heroics on a board where good jobs disappear.",
+    avoid: 'On the contested board: avoid jackpot-tier jobs. Let rivals burn on them. We pick the cleanest mid-difficulty target we can clear without breaking a sweat.',
+    late:  "On the contested board: let rivals chase the jackpots first. They'll burn crew on Hard challenges and rack up heat. We take what's left — the cleaner targets after the dust settles.",
+    block: 'On the contested board: watch the leading rival. If our best job and theirs are both on the slate, take theirs — denial wins us the standings race even if our take is smaller.',
   }[w.board] || '';
 
   const crewSection = o.crew || {
@@ -756,54 +836,53 @@ function assemblePrompt(w) {
     generalists: 'On crew: prize versatility. Multi-skill crew over single-skill stars. Every member should be useful on at least two challenge types so we are not paying for dead weight when a scene shifts.',
   }[w.budget] || '';
 
-  const scoutSection = o.scouting || {
-    heavy:    "Scouting is the job before the job. Case every target you're weighing — burn probes to confirm a soft mark is actually soft, and never read a job's difficulty off its payout. Don't commit to a target you haven't scouted.",
-    targeted: "Case it before you crack it: spend your scouting probes on the big-money jobs you actually want and find out exactly what you're hitting. Don't assume a fat payout means a soft mark — scout the target you intend to take, then commit.",
-    escape:   "Probe the escape route on every target we are seriously considering. A bad escape ends the campaign — the take is worthless if the driver gets caught. Burn a scouting probe on the escape before anything else.",
-    skip:     "Don't burn time scouting. Read the published buckets, trust your read, and commit fast — speed and surprise beat perfect information.",
-  }[w.scouting] || '';
-
   const heatSection = o.heat || {
     hot:    'On heat: ignore it. Suspicion is the cost of doing business — push through every scene, pay the heat tax, and trust the score margins to carry us. We came to bank loot, not run clean.',
     manage: "On heat: when suspicion climbs, back off. The cascade is real — each suspicion makes the next challenge harder. If we're stacking heat, prefer the cleanest scene order, decline risky bonus opportunities, and abort before the cascade snowballs.",
     cold:   'On heat: stay cold. Pick soft marks via scouting, play every scene for the clean no-heat outcome. A Squeak win that costs +1 heat is a partial failure — heat is the metric we manage above all else.',
+    cool:   'On heat: when we hit 2 suspicion, the next pick is a cooler — forget the best score on the board and take the cleanest, lowest-risk target to reset before pressing again.',
+    tax:    "On heat: treat suspicion like a tax line. When the next score's expected take comfortably exceeds the cost of the heat we'll accrue, accept the heat and run. When it doesn't, walk.",
   }[w.heat] || '';
 
-  const bonusLine = {
-    always: 'If a bonus opportunity surfaces mid-job, take it. We came here to maximise the take.',
-    smart:  "On bonus opportunities: pursue them if the crew is in good shape and exposure is manageable. Walk away if we're already stretched.",
-    never:  'Stick to the plan. If a bonus opportunity comes up, decline it — getting out clean is more important.',
+  const bonusLine = o.bonus || {
+    always:  'If a bonus opportunity surfaces mid-job, take it. We came here to maximise the take.',
+    smart:   "On bonus opportunities: pursue them if the crew is in good shape and exposure is manageable. Walk away if we're already stretched.",
+    never:   'Stick to the plan. If a bonus opportunity comes up, decline it — getting out clean is more important.',
+    clean:   "On bonus opportunities: pursue only those that don't add heat. A bonus that lights up the cascade isn't a bonus — it's a trap.",
+    catchup: "On bonus opportunities: if we're behind on banked loot, chase any bonus that could close the gap. If we're ahead, decline — we already win on clean runs.",
   }[w.bonus] || '';
-  const failLine = {
-    push:  'If something goes wrong, push through. Heat and complications are the cost of doing business.',
-    abort: 'If a core scene fails and the plan falls apart, cut losses and abort. Live to work another day.',
-    adapt: "If a core scene fails, re-plan: don't blindly push and don't immediately abort. Look at what's left of the crew and the remaining scenes — re-sequence and salvage what we can; otherwise cut losses.",
-  }[w.fail] || '';
-  const decisionsSection = o.decisions || [bonusLine, failLine].filter(Boolean).join('\n');
 
-  return [jobSection, boardSection, crewSection, scoutSection, heatSection, decisionsSection]
+  const failLine = o.fail || {
+    push:    'If something goes wrong, push through. Heat and complications are the cost of doing business.',
+    abort:   'If a core scene fails and the plan falls apart, cut losses and abort. Live to work another day.',
+    adapt:   "If a core scene fails, re-plan: don't blindly push and don't immediately abort. Look at what's left of the crew and the remaining scenes — re-sequence and salvage what we can; otherwise cut losses.",
+    triage:  'If a core scene fails: keep pushing unless a crew member is at real catch-risk. Caught crew is forever — when that is the risk, abort.',
+    salvage: "If a core scene fails: push only if the scene loot is still reachable. If the loot is gone, abort — don't burn heat on a scene that no longer pays.",
+  }[w.fail] || '';
+
+  return [jobSection, scoutSection, boardSection, crewSection, heatSection, bonusLine, failLine]
     .filter(Boolean).join('\n\n').trim();
 }
 
 function buildPreview() {
   const w = collectWizard();
   const labels = {
-    risk:     { low: 'Lay Low', mid: 'Balanced', high: 'Go Big', escalate: 'Escalate' },
-    board:    { race: 'Race Jackpots', safe: 'Bank Safe Value', late: 'Let Them Overextend' },
+    risk:     { low: 'Lay Low', mid: 'Balanced', high: 'Go Big', escalate: 'Escalate', edges: 'Hunt Edges' },
+    scouting: { heavy: 'Case Everything', targeted: 'Scout the Money', escape: 'Scout the Escape', free: 'Free Probes Only', skip: 'Move Fast' },
+    board:    { race: 'Race Jackpots', safe: 'Bank Safe Value', avoid: 'Avoid Jackpots', late: 'Let Them Overextend', block: 'Block Rivals' },
     budget:   { bargain: 'Stretch Budget', balanced: 'Mix It Up', stars: 'All Stars', specialists: 'Specialists Only', generalists: 'Generalists' },
-    scouting: { heavy: 'Case Everything', targeted: 'Scout the Money', escape: 'Scout the Escape', skip: 'Move Fast' },
-    heat:     { hot: 'Run Hot', manage: 'Manage Heat', cold: 'Stay Cold' },
-    bonus:    { always: 'Always Chase', smart: 'Smart Risk', never: 'Stick to Plan' },
-    fail:     { push: 'Push Through', abort: 'Cut Losses', adapt: 'Adapt' },
+    heat:     { hot: 'Run Hot', manage: 'Manage Heat', cold: 'Stay Cold', cool: 'Cool Off', tax: 'Heat as Tax' },
+    bonus:    { always: 'Always Chase', smart: 'Smart Risk', never: 'Stick to Plan', clean: 'Clean Only', catchup: 'Catch-Up' },
+    fail:     { push: 'Push Through', abort: 'Cut Losses', adapt: 'Adapt', triage: 'Triage', salvage: 'Salvage' },
   };
   document.getElementById('summary-grid').innerHTML = [
     ['Risk',          w.overrides.job ? '(custom)' : labels.risk[w.risk]],
+    ['Scouting',      w.overrides.scouting ? '(custom)' : labels.scouting[w.scouting]],
     ['Board play',    w.overrides.board ? '(custom)' : labels.board[w.board]],
     ['Crew',          w.overrides.crew ? '(custom)' : labels.budget[w.budget]],
-    ['Scouting',      w.overrides.scouting ? '(custom)' : labels.scouting[w.scouting]],
     ['Heat',          w.overrides.heat ? '(custom)' : labels.heat[w.heat]],
-    ['Bonus play',    w.overrides.decisions ? '(custom)' : labels.bonus[w.bonus]],
-    ['If plan fails', w.overrides.decisions ? '(custom)' : labels.fail[w.fail]],
+    ['Bonus',         w.overrides.bonus ? '(custom)' : labels.bonus[w.bonus]],
+    ['On failure',    w.overrides.fail ? '(custom)' : labels.fail[w.fail]],
   ].map(([l, v]) => `
     <div class="summary-pill"><div class="pill-label">${escapeText(l)}</div><div class="pill-value">${escapeText(v || '—')}</div></div>`).join('');
 
@@ -1004,11 +1083,11 @@ function resetWizard() {
   setWizardError(''); setWizardToast('', false);
   document.getElementById('crew-name').value = '';
   document.getElementById('crew-agent').value = 'codex-mini';
-  ['ov-job','ov-board','ov-crew','ov-scouting','ov-heat','ov-decisions']
+  ['ov-job','ov-scouting','ov-board','ov-crew','ov-heat','ov-bonus','ov-fail']
     .forEach(id => { document.getElementById(id).value = ''; });
   const defaults = {
-    risk: 'mid', board: 'safe', budget: 'balanced',
-    scouting: 'heavy', heat: 'manage', bonus: 'smart', fail: 'abort',
+    risk: 'mid', scouting: 'heavy', board: 'safe', budget: 'balanced',
+    heat: 'manage', bonus: 'smart', fail: 'abort',
   };
   Object.entries(defaults).forEach(([name, value]) => {
     document.querySelectorAll(`input[name="${name}"]`).forEach(r => {
