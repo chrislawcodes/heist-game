@@ -28,7 +28,8 @@ from heist.content import BANKROLL, JOBS, JOBS_BY_NAME, ROSTER_BY_ID
 from heist.logs import log
 from heist.mechanics import (
     Outcome,
-    effective_skill,
+    effective_skill_score,
+    escape_base,
     escape_resolves,
     free_probe_budget,
     job_is_viable,
@@ -65,7 +66,6 @@ from heist.state import (
     Scene,
     SceneResult,
     ScoutState,
-    SkillLevel,
     TurnLog,
 )
 
@@ -931,18 +931,15 @@ def _execute_escape(
     assert rng is not None
     free_members = _free_members(state)
     free_crew = Crew(members=free_members)
-    difficulty = state.job.escape_modifier + state.heat
-    success = bool(free_members) and escape_resolves(
-        free_crew, state.heat, state.job.escape_modifier
-    )[0]
+    base = escape_base(state.job.profile)
+    difficulty = base + state.heat
+    success = bool(free_members) and escape_resolves(free_crew, state.heat, base)[0]
     state.escape_success = success
     state.escape_difficulty = difficulty
-    driver_skill = effective_skill(free_members, "driver")
-    if driver_skill == SkillLevel.NONE:
-        driver_skill = SkillLevel.LOW
+    driver_skill = effective_skill_score(free_members, "driver")
     outcome_summary = (
-        f"Escape difficulty {difficulty} (escape mod {state.job.escape_modifier} "
-        f"+ heat {state.heat}); best Driver skill {driver_skill.name}. "
+        f"Escape difficulty {difficulty} (base {base} + heat {state.heat}); "
+        f"best Driver score {driver_skill}. "
         f"Result: {'success' if success else 'failure'}."
     )
 

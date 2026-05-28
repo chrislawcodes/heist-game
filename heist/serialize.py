@@ -11,6 +11,7 @@ from enum import IntEnum
 from typing import Any, cast
 
 from heist.content import JOBS_BY_NAME, ROSTER_BY_ID
+from heist.mechanics import escape_base
 from heist.state import (
     SKILLS,
     Campaign,
@@ -134,7 +135,7 @@ def job_to_dict(job: Job) -> dict:
         "flavor": job.flavor,
         "reward_range": list(job.reward_range),
         "profile": {k: v.name for k, v in job.profile.items()},
-        "escape_modifier": job.escape_modifier,
+        "escape_base": escape_base(job.profile),
         "tier": job.tier,
         "challenge_scores": dict(job.challenge_scores),
         "scene_loot": dict(job.scene_loot),
@@ -212,7 +213,6 @@ def job_from_dict(d: dict) -> Job:
         flavor=d.get("flavor", ""),
         reward_range=tuple(d.get("reward_range", [0, 0])),
         profile={k: ChallengeLevel[v] for k, v in d["profile"].items()},
-        escape_modifier=int(d.get("escape_modifier", 0)),
         hidden_depth=[],
         reward_amounts=[],
         tier=d.get("tier", ""),

@@ -45,7 +45,6 @@ def _job(scene_loot: dict[str, int] | None = None) -> Job:
             "confrontation": ChallengeLevel.NONE,
             "social": ChallengeLevel.NONE,
         },
-        escape_modifier=0,
         hidden_depth=[HiddenDepthElement("hd", "hd", "complication", {})],
         reward_amounts=[("std", 1)],
         scene_loot=scene_loot or {},

@@ -82,7 +82,6 @@ def test_zero_take_on_failed_escape(monkeypatch):
                                   "electronic": ChallengeLevel.NONE,
                                   "confrontation": ChallengeLevel.NONE,
                                   "social": ChallengeLevel.NONE},
-              0,
               [HiddenDepthElement("x", "x", "complication", {})],
               [("std", 1_000_000)],
               tier="")
@@ -114,7 +113,6 @@ def test_zero_take_on_abort():
                                   "electronic": ChallengeLevel.NONE,
                                   "confrontation": ChallengeLevel.NONE,
                                   "social": ChallengeLevel.NONE},
-              0,
               [HiddenDepthElement("x", "x", "complication", {})],
               [("std", 1_000_000)],
               tier="")

@@ -192,18 +192,23 @@ def free_probe_budget(members: list[Character]) -> int:
     return len(members) + driver_scout_bonus(members)
 
 
-# ── Escape (unchanged contest; driver score → bucket) ───────────────────────
+# ── Escape (derived difficulty; driver score contest) ───────────────────────
 
 
-def escape_resolves(crew: Crew, heat: int, escape_modifier: int) -> tuple[bool, int]:
-    """Returns (success, difficulty). Difficulty = escape_modifier + heat.
-    Driver score is bucketed (no Driver = treated as Low); success = bucket >= difficulty.
-    Kept bucket-based on purpose: the escape cascade is deliberately steep and tuned."""
-    difficulty = escape_modifier + heat
-    driver = effective_skill_bucket(crew.members, "driver")
-    if driver == SkillLevel.NONE:
-        driver = SkillLevel.LOW
-    return int(driver) >= difficulty, difficulty
+def escape_base(profile: dict) -> int:
+    """Escape difficulty (0–6) derived from how defended the job is.
+    Sum the four challenge levels (NONE=0, LOW=1, MEDIUM=2, HARD=3 → 0–12),
+    halve (round up), cap at 6. Harder jobs trend toward 6."""
+    total = sum(int(lvl) for lvl in profile.values())
+    return min(6, (total + 1) // 2)
+
+
+def escape_resolves(crew: Crew, heat: int, escape_base: int) -> tuple[bool, int]:
+    """Returns (success, difficulty). difficulty = escape_base + heat.
+    Best Driver's effective 1–10 score (0 if no driver) must be ≥ difficulty."""
+    difficulty = escape_base + heat
+    driver_score = effective_skill_score(crew.members, "driver")
+    return driver_score >= difficulty, difficulty
 
 
 def job_is_viable(crew: Crew, job_profile: dict[str, ChallengeLevel]) -> bool:

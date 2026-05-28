@@ -5,6 +5,7 @@ from heist.mechanics import (
     Outcome,
     driver_scout_bonus,
     effective_skill_score,
+    escape_base,
     escape_resolves,
     free_probe_budget,
     job_is_viable,
@@ -119,27 +120,45 @@ def test_roll_challenge_scores_respects_tier_bands():
         assert 4 <= t1["social"] <= 7
 
 
-# ── escape (bucket-resolved; collaboration is +1 point) ─────────────────────
+# ── escape (score-resolved; collaboration is +1 point) ──────────────────────
 
 
 def test_escape_high_driver_clears_heat_three():
     crew = Crew(members=[_char("slim", {"driver": 9})])
-    success, diff = escape_resolves(crew, heat=3, escape_modifier=0)
+    success, diff = escape_resolves(crew, heat=3, escape_base=0)
     assert success is True and diff == 3
 
 
-def test_escape_no_driver_treated_as_low():
+def test_escape_no_driver_scores_zero():
     crew = Crew(members=[_char("nobody", {"muscle": 5})])
-    ok_low, _ = escape_resolves(crew, heat=1, escape_modifier=0)
-    fail_hi, _ = escape_resolves(crew, heat=2, escape_modifier=0)
-    assert ok_low is True and fail_hi is False
+    ok, diff = escape_resolves(crew, heat=1, escape_base=0)
+    fail_hi, fail_diff = escape_resolves(crew, heat=2, escape_base=0)
+    assert ok is False and diff == 1
+    assert fail_hi is False and fail_diff == 2
 
 
 def test_escape_two_top_mediums_collaborate_to_high():
     crew = Crew(members=[_char("a", {"driver": 7}), _char("b", {"driver": 6})])
-    # 7 + 1 = 8 → High bucket → clears heat 3.
-    ok, _ = escape_resolves(crew, heat=3, escape_modifier=0)
+    # 7 + 1 = 8 → enough to clear base 0 + heat 3.
+    ok, _ = escape_resolves(crew, heat=3, escape_base=0)
     assert ok is True
+
+
+def test_escape_base_is_derived_from_profile():
+    hard = {
+        "electronic": ChallengeLevel.HARD,
+        "physical": ChallengeLevel.HARD,
+        "confrontation": ChallengeLevel.HARD,
+        "social": ChallengeLevel.HARD,
+    }
+    easy = {
+        "electronic": ChallengeLevel.LOW,
+        "physical": ChallengeLevel.NONE,
+        "confrontation": ChallengeLevel.NONE,
+        "social": ChallengeLevel.NONE,
+    }
+    assert escape_base(hard) == 6
+    assert escape_base(easy) == 1
 
 
 # ── scouting capacity ───────────────────────────────────────────────────────
