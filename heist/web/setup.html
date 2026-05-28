@@ -192,6 +192,35 @@ select {
 .choice-card input[type="radio"] { display: none; }
 .card-title { font-size: 0.96rem; color: var(--text); margin-bottom: 6px; }
 .card-body { font-size: 0.8rem; color: var(--text-dim); line-height: 1.5; }
+.preset-row { margin-bottom: 14px; }
+.preset-label {
+  font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--text-dim); margin-bottom: 12px;
+}
+.preset-grid {
+  display: grid; gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+.preset-card {
+  border: 1px solid var(--border); border-radius: 12px; background: var(--surface);
+  padding: 12px 14px; cursor: pointer; text-align: left;
+  font-family: inherit; color: var(--text);
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+}
+.preset-card:hover {
+  border-color: var(--accent-dim); transform: translateY(-1px);
+  background: rgba(201,168,76,0.05);
+}
+.preset-title { font-size: 0.92rem; color: var(--text); margin-bottom: 4px; }
+.preset-body { font-size: 0.76rem; color: var(--text-dim); line-height: 1.45; }
+.preset-divider {
+  display: flex; align-items: center; gap: 12px; margin: 22px 0 18px;
+  font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--text-muted);
+}
+.preset-divider::before, .preset-divider::after {
+  content: ""; flex: 1; height: 1px; background: var(--border);
+}
 .override-divider {
   display: flex; align-items: center; gap: 12px;
   font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase;
@@ -314,6 +343,12 @@ select {
     </header>
 
     <div class="panel">
+      <div class="preset-row" id="preset-row">
+        <div class="preset-label">Start from a famous crew</div>
+        <div class="preset-grid" id="preset-grid"></div>
+        <div class="preset-divider"><span>or pick choices yourself</span></div>
+      </div>
+
       <div class="progress-track" id="progress-track">
         <div class="progress-step active" data-step="1" onclick="jumpTo(1)"><div class="dot">1</div><div class="label">Targets</div></div>
         <div class="progress-line" id="line-1-2"></div>
@@ -577,6 +612,40 @@ const TOTAL_STEPS = 5;
 let promptEdited = false;
 let wizardReturn = 'campaign';
 
+// ── famous-crew presets (Step 0 shortcuts) ──
+const PRESETS = {
+  oceans: {
+    name: "Ocean's 11", emoji: '🎰',
+    tagline: 'Slick con artists. Case the casino, hire all-stars, run it surgical.',
+    targets: 'jackpot', scouting: 'heavy', budget: 'stars', play: 'surgical',
+  },
+  ateam: {
+    name: 'The A-Team', emoji: '🚐',
+    tagline: 'A plan comes together. Generalists, move fast, adapt on the fly.',
+    targets: 'solid', scouting: 'skip', budget: 'generalists', play: 'adaptive',
+  },
+  heat: {
+    name: 'Heat', emoji: '🔫',
+    tagline: "Pros. Never tied to anything you can't walk away from in 30 seconds.",
+    targets: 'solid', scouting: 'escape', budget: 'specialists', play: 'crewfirst',
+  },
+  italian: {
+    name: 'The Italian Job', emoji: '🏎️',
+    tagline: 'Driver-led precision. Plan the escape first.',
+    targets: 'solid', scouting: 'escape', budget: 'balanced', play: 'disciplined',
+  },
+  inception: {
+    name: 'Inception', emoji: '🌀',
+    tagline: 'Layered plan, all-stars, improvise inside the dream.',
+    targets: 'jackpot', scouting: 'heavy', budget: 'stars', play: 'adaptive',
+  },
+  crows: {
+    name: 'Six of Crows', emoji: '🐦',
+    tagline: 'Underdog misfits. Find the bargain, probe the defense, improvise.',
+    targets: 'bargain', scouting: 'defense', budget: 'bargain', play: 'adaptive',
+  },
+};
+
 document.querySelectorAll('input[name="rounds"]').forEach(input => {
   input.addEventListener('change', event => {
     numRounds = Number(event.target.value);
@@ -616,6 +685,34 @@ document.querySelectorAll('.choice-card').forEach(card => {
   });
 });
 
+function renderPresets() {
+  document.getElementById('preset-grid').innerHTML = Object.entries(PRESETS).map(([key, p]) => `
+    <button type="button" class="preset-card" onclick="applyPreset('${escapeText(key)}')">
+      <div class="preset-title">${escapeText(p.emoji)} ${escapeText(p.name)}</div>
+      <div class="preset-body">${escapeText(p.tagline)}</div>
+    </button>
+  `).join('');
+}
+
+function applyPreset(key) {
+  const p = PRESETS[key];
+  if (!p) return;
+  const picks = { targets: p.targets, scouting: p.scouting, budget: p.budget, play: p.play };
+  Object.entries(picks).forEach(([name, value]) => {
+    document.querySelectorAll(`input[name="${name}"]`).forEach(r => {
+      const sel = r.value === value;
+      r.checked = sel;
+      r.closest('.choice-card').classList.toggle('selected', sel);
+    });
+  });
+  ['ov-targets','ov-scouting','ov-crew','ov-play']
+    .forEach(id => { document.getElementById(id).value = ''; });
+  document.getElementById('crew-name').value = p.name;
+  promptEdited = false;
+  goTo(TOTAL_STEPS);
+  setWizardToast(`Loaded ${p.name}. Step back to tweak any choice, or hit Save Crew / Add to Campaign.`, false);
+}
+
 function val(name) {
   const el = document.querySelector(`input[name="${name}"]:checked`);
   return el ? el.value : null;
@@ -638,6 +735,7 @@ function goTo(n) {
     const line = document.getElementById(`line-${i}-${i+1}`);
     if (line) line.classList.toggle('done', i < currentStep);
   }
+  document.getElementById('preset-row').hidden = (n !== 1);
   if (n === TOTAL_STEPS) buildPreview();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -925,6 +1023,7 @@ function resetWizard() {
 // ── init: choose starting view ──
 function init() {
   renderCrewList();
+  renderPresets();
   const params = new URLSearchParams(window.location.search);
   if (window.location.pathname === '/crews' || params.get('view') === 'crews') {
     renderLibrary();
