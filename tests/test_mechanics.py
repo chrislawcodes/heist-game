@@ -171,13 +171,19 @@ def test_driver_scout_bonus_by_bucket():
     assert driver_scout_bonus([_char("a", {"muscle": 9})]) == 0
 
 
-def test_free_probe_budget_is_flat_ten():
-    """Feature 003: budget is a flat 10 regardless of crew composition."""
+def test_free_probe_budget_is_crew_plus_best_driver_score():
+    """Feature 003: budget = len(crew) + best driver's 1–10 score."""
     crew_with_driver = [_char("a", {"driver": 9}), _char("b", {"muscle": 6})]
+    assert free_probe_budget(crew_with_driver) == 2 + 9
+
     crew_no_driver = [_char("a", {"hacker": 7})]
-    assert free_probe_budget(crew_with_driver) == 10
-    assert free_probe_budget(crew_no_driver) == 10
-    assert free_probe_budget([]) == 10
+    assert free_probe_budget(crew_no_driver) == 1 + 0
+
+    # Two drivers — best (highest score) is used; no collaboration bonus.
+    crew_two_drivers = [_char("a", {"driver": 5}), _char("b", {"driver": 8})]
+    assert free_probe_budget(crew_two_drivers) == 2 + 8
+
+    assert free_probe_budget([]) == 0
 
 
 # ── viability hint (bucket-based) ───────────────────────────────────────────

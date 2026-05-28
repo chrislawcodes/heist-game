@@ -76,23 +76,23 @@ Restructure the campaign conductor so all teams' scout turns fire in parallel; r
 
 ---
 
-### Decision 3: Flat probe budget = 10
+### Decision 3: Probe budget = `len(crew) + best driver's 1–10 score`
 
-**Chosen**: `free_probe_budget()` returns a **flat 10** independent of crew size or driver. (Current formula: `len(members) + driver_scout_bonus(members)` ≈ 6.)
+**Chosen**: `free_probe_budget(members)` returns `len(members) + max(_member_score(m, "driver") for m in members)` (0 driver if no driver). Replaces the old `len(members) + driver_scout_bonus(members)` formula (which only added +1/+2/+3 for the bucket).
 
 **Rationale**:
-- The strategic axis we're unlocking (rush vs. scout deep) is cleaner if every team has the **same** budget; the differentiator is *how they spend it*, not how many they have.
-- 10 ≈ 31% of the 32-cell slate, enough to deep-scout one job (8 probes for two-step exact on 4 cells) plus 2 extras for sampling — exactly the target balance from the spec.
-- Drops the dependency on `len(members)` (which currently shrinks if crew gets caught) — keeps a team's scouting capacity stable across rounds.
+- Varies per team — investment in crew size AND driver skill both translate directly into scouting capacity. A typical 4-crew with a High driver (~9 score) gets 13 probes; a 4-crew with no driver gets 4.
+- Pairs with the new fewest-probes-first pick order (US2): high-driver teams have *more probes available*, but spending them costs them in pick order. The strategic axis becomes "how many of my budget do I spend?" — and a deep-driver crew genuinely has more to work with.
+- Replaces the bucket-based bonus with the actual 1–10 score, on theme with Phase 4's score-based mechanics.
 
 **Alternatives Considered**:
-- `10 + driver_scout_bonus`: preserves a tiny driver perk. Pros: keeps the legacy reward. Cons: re-introduces variance and complicates the pick-order math (a high-driver team has +1 budget at no strategic cost). Final dial moved to playtest.
-- `12`: more depth but pushes total round time ~20% (LLM calls cost). Plan to start at 10 and tune up after a Quick Test.
-- `len(members) + 4`: keeps the crew-size dependency. Spec wants budget stable.
+- Flat 10 (originally implemented): uniform across teams. Rejected — flattens the crew-composition signal; doesn't reward investment in drivers.
+- `len(crew) + driver_scout_bonus` (old formula, +1/+2/+3 bucket): too narrow a band; a top driver feels barely better than a mid one.
+- Collaboration-aware effective score (`effective_skill_score`): two-driver crews would get +1. Considered but adds complexity; single best driver is the cleaner read.
 
 **Tradeoffs**:
-- Pros: clean signal, predictable; ties to player choice not crew composition.
-- Cons: drivers lose their scouting perk (they still have their core role — escapes are now even more driver-score-bound after #85).
+- Pros: directly couples scouting capacity to crew investment; reads as fair (more crew + better driver = more probes); the budget number visible in the scout prompt becomes a meaningful per-team data point.
+- Cons: total round time scales with biggest team's budget × scout time; with the 30s rate-limit stagger between calls, a wide budget difference isn't a wall-clock issue per round (each team scouts in parallel) but matters for the AI's *spend* choices.
 
 ---
 

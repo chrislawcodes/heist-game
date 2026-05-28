@@ -191,15 +191,19 @@ def driver_scout_bonus(members: list[Character]) -> int:
 def free_probe_budget(members: list[Character]) -> int:
     """Free scouting probes per team per round.
 
-    Feature 003: a flat 10 — independent of crew size and driver. Spending
-    fewer probes (and being rewarded with an earlier pick) is now the strategic
-    counter-axis; the budget itself does not depend on the crew's composition.
+    Feature 003: ``len(crew) + best driver's 1–10 skill score`` (0 if no driver).
 
-    The ``members`` parameter is kept for ABI stability with existing callers;
-    it is intentionally unused.
+    Varies per team and rewards investment in both crew size and driver skill:
+      • 4-crew with a High driver (score ~9) → 4 + 9 = 13 probes.
+      • 4-crew with no driver               → 4 + 0 = 4 probes.
+      • 6-crew with a Medium driver (~6)    → 6 + 6 = 12 probes.
+
+    Pairs with the new fewest-probes-first pick order (US2): teams that field a
+    big crew with a strong driver get more scouting capacity AND pay for it in
+    later pick order if they actually use it.
     """
-    _ = members  # intentionally unused — see docstring
-    return 10
+    best_driver = max((_member_score(m, "driver") for m in members), default=0)
+    return len(members) + best_driver
 
 
 # ── Escape (derived difficulty; driver score contest) ───────────────────────

@@ -91,17 +91,25 @@ def test_unknown_job_or_category_is_dropped():
     assert ss.probes_spent_free == 0
 
 
-def test_free_probe_budget_is_flat_ten():
-    """Feature 003: budget is a flat 10 regardless of crew or driver.
+def test_free_probe_budget_scales_with_crew_and_driver():
+    """Feature 003: budget = len(crew) + best driver's 1–10 score (0 if no driver).
 
-    Picks the same three crews the old tests probed (4 + High driver,
-    no driver, empty) and verifies they all get 10.
+    Varies per team — bigger crews and stronger drivers get more probes, but
+    they also pay for it in pick order if they actually spend them.
     """
-    crew_with_driver = [ROSTER_BY_ID[i] for i in (13, 10, 2, 8)]   # Slim (High driver) included
-    crew_no_driver = [ROSTER_BY_ID[i] for i in (2, 3, 10)]          # no driver in this set
-    assert free_probe_budget(crew_with_driver) == 10
-    assert free_probe_budget(crew_no_driver) == 10
-    assert free_probe_budget([]) == 10
+    from heist.mechanics import _member_score
+
+    crew_with_driver = [ROSTER_BY_ID[i] for i in (13, 10, 2, 8)]   # Slim is the driver
+    expected_with = len(crew_with_driver) + max(
+        (_member_score(m, "driver") for m in crew_with_driver), default=0
+    )
+    assert free_probe_budget(crew_with_driver) == expected_with
+    assert expected_with > 4  # confirms the driver bonus actually fires
+
+    crew_no_driver = [ROSTER_BY_ID[i] for i in (2, 3, 10)]          # no driver here
+    assert free_probe_budget(crew_no_driver) == 3                   # just the crew count
+
+    assert free_probe_budget([]) == 0
 
 
 def test_run_scout_turn_with_stub_emits_events_and_records_intel():

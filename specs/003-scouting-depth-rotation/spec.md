@@ -11,7 +11,7 @@ A coherent redesign that gives scouting real strategic depth and lets investment
 
 1. Run all teams' scout turns in **parallel** (today they run serially per team inside `_pick_for`).
 2. Change pick order from "trailing-team-first (lowest banked)" to **"fewest probes used"**, with banked-loot as a tiebreak and ai_idx as the final tiebreak. Teams that "rush in blind" get rewarded with first pick; teams that scout deep go later.
-3. Bump the **free probe budget** from ~6 (crew size + driver bonus) to **~10**, so that "scout one job hard + sample others" / "spread thin" / "rush in" are all genuine strategies.
+3. Raise the **free probe budget** from `crew size + driver bucket bonus (~6)` to `crew size + best driver's 1–10 score`. A typical 4-crew with a High driver lands at ~13; a 4-crew with no driver gets 4. Rewards investment in both crew size and driver skill while keeping budget visibly tied to crew composition — and pairs with the new pick-order rule (use them, pick last).
 4. **Board carryover**: each round, carry forward the `(8 − N)` unpicked jobs and draw `N` new ones (N = teams that picked). The replenishment is **mix-aware** — bias new draws to fill gaps in challenge-category and reward-tier distribution, on top of `build_board`'s existing gating.
 5. **Persistent scout intel**: each team's `reveals` and `exact_scores` persist across rounds on the Campaign. A team's prior scouting on a carried-over job stays revealed; light scouting across rounds accumulates.
 
@@ -127,7 +127,7 @@ A coherent redesign that gives scouting real strategic depth and lets investment
 
 - **FR-001**: System MUST run scout turns for all active teams concurrently within the board stage (not serially). Supports US1.
 - **FR-002**: System MUST determine pick order each round by ascending count of free probes used, with banked-loot ascending as the first tiebreak and ai_idx ascending as the final tiebreak. Supports US2.
-- **FR-003**: System MUST grant each team a free probe budget of at least 10 per round (exact value finalized in plan; replaces the existing `crew_size + driver_bonus` formula). Supports US3.
+- **FR-003**: System MUST set each team's free probe budget per round to `len(crew) + best driver's 1–10 score` (0 if no driver). This varies per team — bigger crews and stronger drivers get more probes; the budget rewards crew investment. Supports US3.
 - **FR-004**: System MUST carry forward all unpicked jobs from the prior round's board (i.e., `(BOARD_SIZE − N)` jobs where N is the number of teams that successfully claimed a job) into the current round's board. Supports US4.
 - **FR-005**: System MUST replenish the board with `N` newly drawn jobs each round (or fewer if the pool is exhausted). The selection of new draws MUST bias toward filling gaps in the carryover's distribution along (a) challenge category emphasis and (b) reward tier, while still respecting `build_board`'s existing gating (campaign progress + wilds). Supports US4.
 - **FR-006**: System MUST preserve the rolled hidden challenge scores for any carried-over job (no re-roll), so that persistent reveals remain truthful. Supports US4/US5.
@@ -143,7 +143,7 @@ A coherent redesign that gives scouting real strategic depth and lets investment
 
 - **SC-001**: After P1 ships, the board stage's elapsed wall-clock time in a 3-team stub campaign is ≤ 1.2× the longest single scout-turn time (validating parallelism). [US1]
 - **SC-002**: After P1 ships, in 20 simulated rounds with synthetic probe counts, a team that spent strictly fewer probes than another picks before them in 100% of cases that don't require a tiebreak. [US2]
-- **SC-003**: After P1 ships, the scout-turn prompt reports a free probe budget of at least 10 for any standard 4-crew team. [US3]
+- **SC-003**: After P1 ships, the scout-turn prompt reports a free probe budget equal to `len(crew) + best driver's 1–10 score` for the team (e.g. a 4-crew with a High driver sees ~13 probes; a 4-crew with no driver sees 4). [US3]
 - **SC-004**: After P2 ships, in a 3-round stub campaign with 3 teams, at least `(BOARD_SIZE − N) / BOARD_SIZE = 5/8 ≈ 62%` of round N+1's board consists of carryover jobs from round N (the rest are new draws). [US4]
 - **SC-005**: After P2 ships, when a job is carried over from round N to round N+1 and Team A had any reveal on it in round N, Team A still sees that reveal in round N+1's job_board and scout prompt. [US5]
 - **SC-006**: After P2 ships, in a 3-round playtest the variance of challenge-category coverage on the board (measured as the std-dev of category-count across the 8 jobs) is ≤ 1.5 — confirming the mix-aware replenish keeps the board diverse rather than drifting to one category. [US4]
