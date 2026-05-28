@@ -35,9 +35,12 @@ from zoneinfo import ZoneInfo
 from heist import gamestate, orchestration
 from heist.logs import log
 from heist.persist import (
+    add_crew,
+    delete_crew,
     delete_game_record,
     delete_runner_snapshot,
     list_pending_snapshots,
+    load_crews,
     save_game_record,
 )
 
@@ -88,7 +91,7 @@ class _Handler(http.server.BaseHTTPRequestHandler):
     def _dispatch_get(self, p: str) -> None:
         if p == "/":
             self._serve_file(_LOBBY_HTML)
-        elif p == "/setup":
+        elif p == "/setup" or p == "/crews":
             self._serve_file(_SETUP_HTML)
         elif p == "/hiring":
             self._serve_file(_HIRING_HTML)
@@ -120,6 +123,8 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             self._serve_games()
         elif p == "/api/campaigns":
             self._serve_campaigns()
+        elif p == "/api/crews":
+            self._serve_crews()
         elif p.startswith("/api/campaign/") and p.endswith("/state"):
             self._serve_campaign_state(p[len("/api/campaign/"):-len("/state")])
         elif p.startswith("/api/campaign-journey/"):
@@ -138,6 +143,8 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                 self._handle_new_game()
             elif p == "/api/new-campaign":
                 self._handle_new_campaign()
+            elif p == "/api/crews":
+                self._handle_save_crew()
             elif p == "/api/add-ai":
                 self._handle_add_ai()
             elif p == "/api/launch":
@@ -167,6 +174,8 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                 qs = self.path.split("?", 1)[1] if "?" in self.path else ""
                 force = "force=1" in qs
                 self._handle_delete_game(p[len("/api/games/"):], force=force)
+            elif p.startswith("/api/crews/") and "/" not in p[len("/api/crews/"):]:
+                self._handle_delete_crew(p[len("/api/crews/"):])
             else:
                 self.send_response(404)
                 self.end_headers()
@@ -640,6 +649,39 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             return
         gamestate.update_game(game_id, ais=game["ais"] + [{"prompt": prompt, "agent": agent}])
         self._json_ok({"ok": True})
+
+    def _serve_crews(self):
+        self._json_ok({"crews": load_crews()})
+
+    def _handle_save_crew(self):
+        try:
+            body = self._read_json()
+        except Exception:
+            self._json_error(400, "invalid crew payload")
+            return
+        name = body.get("name", "")
+        prompt = body.get("prompt", "")
+        if not isinstance(name, str) or not name.strip():
+            self._json_error(400, "crew name is required")
+            return
+        if not isinstance(prompt, str) or not prompt.strip():
+            self._json_error(400, "crew prompt is required")
+            return
+        agent = body.get("agent", "stub")
+        if not isinstance(agent, str) or not agent.strip():
+            agent = "stub"
+        crew = {"name": name.strip(), "agent": agent, "prompt": prompt.strip()}
+        wizard = body.get("wizard")
+        if isinstance(wizard, dict):
+            crew["wizard"] = wizard
+        stored = add_crew(crew)
+        self._json_ok({"ok": True, "crew": stored})
+
+    def _handle_delete_crew(self, crew_id: str):
+        if delete_crew(crew_id):
+            self._json_ok({"ok": True})
+        else:
+            self._json_error(404, "crew not found")
 
     def _handle_launch(self):
         body = self._read_json()

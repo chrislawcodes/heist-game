@@ -82,7 +82,8 @@ def test_setup_route_serves_new_campaign_html(fake_handler):
     status, body = _request_text(fake_handler, "GET", "/setup")
     assert status == 200
     assert "HEIST / New Campaign" in body
-    assert "Launch Campaign ->" in body
+    assert "Launch Campaign" in body
+    assert "Build a crew" in body
 
 
 def test_new_campaign_creates_campaign_record(fake_handler):
@@ -422,3 +423,56 @@ def test_campaign_journey_endpoint_returns_round_links_and_team_names(fake_handl
             "escape_success": True,
             "aborted": False,
         }
+
+
+# ── premade crews API ─────────────────────────────────────────────────────────
+
+
+def test_crews_empty_by_default(fake_handler):
+    status, data = _request_json(fake_handler, "GET", "/api/crews")
+    assert status == 200
+    assert data == {"crews": []}
+
+
+def test_save_crew_happy_path(fake_handler):
+    payload = {"name": "The Operators", "agent": "codex-mini",
+               "prompt": "Run a quiet, surgical heist.",
+               "wizard": {"risk": "low", "scouting": "targeted"}}
+    status, data = _request_json(fake_handler, "POST", "/api/crews", payload)
+    assert status == 200
+    assert data["ok"] is True
+    assert data["crew"]["id"]
+    assert data["crew"]["created_at"] > 0
+    assert data["crew"]["wizard"] == {"risk": "low", "scouting": "targeted"}
+
+    status, listing = _request_json(fake_handler, "GET", "/api/crews")
+    assert status == 200
+    assert [c["name"] for c in listing["crews"]] == ["The Operators"]
+
+
+def test_save_crew_rejects_empty_name_or_prompt(fake_handler):
+    status, _ = _request_json(fake_handler, "POST", "/api/crews",
+                              {"name": "  ", "prompt": "x"})
+    assert status == 400
+    status, _ = _request_json(fake_handler, "POST", "/api/crews",
+                              {"name": "x", "prompt": ""})
+    assert status == 400
+
+
+def test_save_crew_defaults_agent_to_stub(fake_handler):
+    status, data = _request_json(fake_handler, "POST", "/api/crews",
+                                 {"name": "N", "prompt": "P"})
+    assert status == 200
+    assert data["crew"]["agent"] == "stub"
+
+
+def test_delete_crew(fake_handler):
+    _, a = _request_json(fake_handler, "POST", "/api/crews", {"name": "A", "prompt": "p"})
+    _, b = _request_json(fake_handler, "POST", "/api/crews", {"name": "B", "prompt": "p"})
+    status, data = _request_json(fake_handler, "DELETE", f"/api/crews/{a['crew']['id']}")
+    assert status == 200 and data["ok"] is True
+    _, listing = _request_json(fake_handler, "GET", "/api/crews")
+    assert [c["id"] for c in listing["crews"]] == [b["crew"]["id"]]
+    # Deleting an unknown id → 404.
+    status, _ = _request_json(fake_handler, "DELETE", "/api/crews/nope")
+    assert status == 404

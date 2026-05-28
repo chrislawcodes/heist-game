@@ -15,6 +15,7 @@
   --text: #e8e8e8;
   --text-dim: #8b8b8b;
   --text-muted: #5d5d5d;
+  --danger: #e05050;
   --radius: 10px;
   --max: 1180px;
 }
@@ -30,433 +31,1007 @@ body {
   font-family: Georgia, "Times New Roman", serif;
   padding: 26px 20px 44px;
 }
-.shell {
-  width: min(var(--max), 100%);
-  margin: 0 auto;
-}
-header {
-  padding: 12px 0 26px;
-}
+.shell { width: min(var(--max), 100%); margin: 0 auto; }
+header { padding: 12px 0 26px; }
 .eyebrow {
-  font-size: 0.72rem;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--accent);
-  margin-bottom: 8px;
+  font-size: 0.72rem; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--accent); margin-bottom: 8px;
 }
 .title {
-  font-size: clamp(1.7rem, 4vw, 2.6rem);
-  font-weight: 500;
-  letter-spacing: -0.03em;
-  margin-bottom: 10px;
+  font-size: clamp(1.7rem, 4vw, 2.6rem); font-weight: 500;
+  letter-spacing: -0.03em; margin-bottom: 10px;
 }
-.subtitle {
-  font-size: 0.92rem;
-  color: var(--text-dim);
-  line-height: 1.6;
-  max-width: 68ch;
-}
+.subtitle { font-size: 0.92rem; color: var(--text-dim); line-height: 1.6; max-width: 68ch; }
 .panel {
   border: 1px solid var(--border);
   background: linear-gradient(180deg, rgba(26,26,26,0.98), rgba(20,20,20,0.98));
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 24px 50px rgba(0,0,0,0.25);
+  border-radius: 16px; padding: 24px; box-shadow: 0 24px 50px rgba(0,0,0,0.25);
 }
-.stack {
-  display: grid;
-  gap: 18px;
-}
-.rule {
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--border), transparent);
-}
+.stack { display: grid; gap: 18px; }
+.rule { height: 1px; background: linear-gradient(90deg, transparent, var(--border), transparent); }
 .group-label {
-  font-size: 0.72rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--text-dim);
-  margin-bottom: 12px;
+  font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--text-dim); margin-bottom: 12px;
 }
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-.chip {
-  position: relative;
-}
-.chip input {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
+.chips { display: flex; flex-wrap: wrap; gap: 10px; }
+.chip { position: relative; }
+.chip input { position: absolute; opacity: 0; pointer-events: none; }
 .chip span {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 54px;
-  padding: 10px 14px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--surface2);
-  color: var(--text-dim);
-  font-size: 0.9rem;
-  cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 54px; padding: 10px 14px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--surface2);
+  color: var(--text-dim); font-size: 0.9rem; cursor: pointer;
   transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease, transform 0.15s ease;
 }
-.chip span:hover {
-  border-color: var(--accent-dim);
-  color: var(--text);
-  transform: translateY(-1px);
+.chip span:hover { border-color: var(--accent-dim); color: var(--text); transform: translateY(-1px); }
+.chip input:checked + span { background: rgba(201,168,76,0.12); border-color: var(--accent); color: var(--accent); }
+
+/* ── crew rows (assembler list + library) ── */
+.crew-list { display: grid; gap: 10px; margin-bottom: 14px; }
+.crew-row {
+  display: flex; align-items: flex-start; gap: 12px;
+  border: 1px solid var(--border); border-radius: 12px;
+  background: var(--surface); padding: 14px 16px;
 }
-.chip input:checked + span {
-  background: rgba(201,168,76,0.12);
-  border-color: var(--accent);
-  color: var(--accent);
+.crew-row .crew-main { flex: 1; min-width: 0; }
+.crew-row .crew-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+.crew-row .crew-name { font-size: 1.02rem; color: var(--text); }
+.agent-badge {
+  font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--accent); border: 1px solid var(--accent-dim);
+  border-radius: 999px; padding: 2px 8px;
 }
-.selector-row {
-  display: grid;
-  gap: 18px;
-  grid-template-columns: 1fr;
+.crew-row .crew-preview {
+  font-size: 0.8rem; color: var(--text-dim); line-height: 1.5;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
-.ai-grid {
-  display: grid;
-  gap: 14px;
-  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+.crew-row .row-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.icon-btn {
+  background: transparent; border: 1px solid var(--border); color: var(--text-dim);
+  border-radius: 8px; padding: 6px 10px; font-size: 0.72rem; cursor: pointer;
+  font-family: inherit; letter-spacing: 0.06em; text-transform: uppercase;
 }
-.ai-card {
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: var(--surface);
-  padding: 18px;
+.icon-btn:hover { border-color: var(--accent-dim); color: var(--accent); }
+.icon-btn.danger:hover { border-color: var(--danger); color: var(--danger); }
+.empty-state {
+  border: 1px dashed var(--border); border-radius: 12px; padding: 22px;
+  text-align: center; color: var(--text-muted); font-size: 0.88rem; line-height: 1.6;
 }
-.ai-card-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-.ai-tag {
-  font-size: 0.74rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--accent);
-}
-.ai-card h2 {
-  font-size: 1.1rem;
-  font-weight: 500;
-  color: var(--text);
-}
-.field {
-  display: grid;
-  gap: 8px;
-  margin-bottom: 14px;
-}
+.add-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.saved-picker { display: none; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 6px; }
+.saved-picker.visible { display: flex; }
+.saved-picker select { width: auto; min-width: 220px; }
+
+.field { display: grid; gap: 8px; margin-bottom: 14px; }
 .field:last-child { margin-bottom: 0; }
 .field label {
-  font-size: 0.7rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--text-dim);
+  font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim);
 }
 input[type="text"], select, textarea {
-  width: 100%;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--surface2);
-  color: var(--text);
-  font-family: inherit;
-  font-size: 0.88rem;
-  outline: none;
+  width: 100%; border: 1px solid var(--border); border-radius: 10px;
+  background: var(--surface2); color: var(--text); font-family: inherit;
+  font-size: 0.88rem; outline: none;
   transition: border-color 0.15s ease, background 0.15s ease;
 }
-input[type="text"], select {
-  padding: 11px 12px;
-}
-textarea {
-  min-height: 156px;
-  resize: vertical;
-  padding: 12px 12px;
-  line-height: 1.6;
-}
-input[type="text"]:focus, select:focus, textarea:focus {
-  border-color: var(--accent-dim);
-}
+input[type="text"], select { padding: 11px 12px; }
+textarea { min-height: 156px; resize: vertical; padding: 12px 12px; line-height: 1.6; }
+input[type="text"]:focus, select:focus, textarea:focus { border-color: var(--accent-dim); }
 select {
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238b8b8b' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  padding-right: 34px;
+  background-repeat: no-repeat; background-position: right 12px center; padding-right: 34px;
 }
-.textarea-hint {
-  font-size: 0.74rem;
-  color: var(--text-muted);
-  line-height: 1.5;
-}
+.textarea-hint { font-size: 0.74rem; color: var(--text-muted); line-height: 1.5; }
+
 .footer {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  margin-top: 24px;
+  display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center;
+  gap: 12px; margin-top: 24px;
 }
 .btn {
-  border-radius: 10px;
-  padding: 12px 18px;
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  cursor: pointer;
+  border-radius: 10px; padding: 12px 18px; font-size: 0.8rem; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer;
   border: 1px solid transparent;
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
   font-family: inherit;
 }
 .btn:hover { transform: translateY(-1px); }
-.btn-ghost {
-  background: transparent;
-  border-color: var(--border);
-  color: var(--text-dim);
-}
-.btn-ghost:hover {
-  border-color: var(--text-dim);
-  color: var(--text);
-}
-.btn-primary {
-  background: var(--accent);
-  color: #0a0a0a;
-}
-.btn-primary:hover {
-  background: #e0bc60;
-}
+.btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+.btn-ghost { background: transparent; border-color: var(--border); color: var(--text-dim); }
+.btn-ghost:hover { border-color: var(--text-dim); color: var(--text); }
+.btn-primary { background: var(--accent); color: #0a0a0a; }
+.btn-primary:hover { background: #e0bc60; }
+.btn-secondary { background: var(--surface2); border-color: var(--border); color: var(--text); }
+.btn-secondary:hover { border-color: var(--accent-dim); color: var(--accent); }
 .error-box {
-  display: none;
-  padding: 12px 14px;
-  border-radius: 10px;
-  border: 1px solid rgba(224,80,80,0.35);
-  background: rgba(224,80,80,0.08);
-  color: #e8a3a3;
-  font-size: 0.9rem;
-  line-height: 1.5;
+  display: none; padding: 12px 14px; border-radius: 10px;
+  border: 1px solid rgba(224,80,80,0.35); background: rgba(224,80,80,0.08);
+  color: #e8a3a3; font-size: 0.9rem; line-height: 1.5;
 }
 .error-box.visible { display: block; }
+
+/* ── wizard ── */
+.progress-track {
+  display: flex; align-items: center; justify-content: center;
+  gap: 8px; margin-bottom: 26px; flex-wrap: wrap;
+}
+.progress-step { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.progress-step .dot {
+  width: 28px; height: 28px; border-radius: 999px; border: 1px solid var(--border);
+  background: var(--surface2); color: var(--text-muted);
+  display: flex; align-items: center; justify-content: center; font-size: 0.82rem;
+}
+.progress-step .label {
+  font-size: 0.66rem; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--text-muted); white-space: nowrap;
+}
+.progress-step.active .dot { border-color: var(--accent); background: var(--accent); color: #000; font-weight: bold; }
+.progress-step.active .label { color: var(--accent); }
+.progress-step.done .dot { border-color: var(--accent-dim); background: var(--accent-dim); color: var(--accent); }
+.progress-step.done .label { color: var(--accent-dim); }
+.progress-line { width: 28px; height: 1px; background: var(--border); }
+.progress-line.done { background: var(--accent-dim); }
+
+.step-card { display: none; }
+.step-card.active { display: block; }
+.step-header { margin-bottom: 22px; }
+.step-eyebrow { font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
+.step-title { font-size: 1.5rem; font-weight: normal; color: var(--text); margin-bottom: 8px; }
+.step-desc { font-size: 0.85rem; color: var(--text-dim); line-height: 1.6; }
+.choice-group { margin-bottom: 22px; }
+.choice-label { font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 12px; }
+.choice-grid { display: grid; gap: 12px; }
+.choice-grid.cols-2 { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.choice-grid.cols-3 { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.choice-card {
+  border: 1px solid var(--border); border-radius: 12px; background: var(--surface);
+  padding: 14px 16px; cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+}
+.choice-card:hover { border-color: var(--accent-dim); transform: translateY(-1px); }
+.choice-card.selected { border-color: var(--accent); background: rgba(201,168,76,0.1); }
+.choice-card input[type="radio"] { display: none; }
+.card-title { font-size: 0.96rem; color: var(--text); margin-bottom: 6px; }
+.card-body { font-size: 0.8rem; color: var(--text-dim); line-height: 1.5; }
+.preset-row { margin-bottom: 14px; }
+.preset-label {
+  font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--text-dim); margin-bottom: 12px;
+}
+.preset-grid {
+  display: grid; gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+.preset-card {
+  border: 1px solid var(--border); border-radius: 12px; background: var(--surface);
+  padding: 12px 14px; cursor: pointer; text-align: left;
+  font-family: inherit; color: var(--text);
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+}
+.preset-card:hover {
+  border-color: var(--accent-dim); transform: translateY(-1px);
+  background: rgba(201,168,76,0.05);
+}
+.preset-title { font-size: 0.92rem; color: var(--text); margin-bottom: 4px; }
+.preset-body { font-size: 0.76rem; color: var(--text-dim); line-height: 1.45; }
+.preset-divider {
+  display: flex; align-items: center; gap: 12px; margin: 22px 0 18px;
+  font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--text-muted);
+}
+.preset-divider::before, .preset-divider::after {
+  content: ""; flex: 1; height: 1px; background: var(--border);
+}
+.override-divider {
+  display: flex; align-items: center; gap: 12px;
+  font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--text-muted); margin: 18px 0 12px;
+}
+.override-divider::before, .override-divider::after {
+  content: ""; flex: 1; height: 1px; background: var(--border);
+}
+.override-hint { font-size: 0.74rem; color: var(--text-muted); margin-bottom: 8px; }
+.step-nav { display: flex; justify-content: space-between; gap: 12px; margin-top: 24px; }
+.summary-grid { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 22px; }
+.summary-pill {
+  border: 1px solid var(--border); border-radius: 10px; background: var(--surface);
+  padding: 8px 14px; min-width: 110px;
+}
+.pill-label { font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); }
+.pill-value { font-size: 0.86rem; color: var(--text); margin-top: 2px; }
+.run-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.toast {
+  display: none; margin-top: 12px; padding: 10px 14px; border-radius: 10px;
+  border: 1px solid var(--accent-dim); background: rgba(201,168,76,0.1);
+  color: var(--accent); font-size: 0.84rem;
+}
+.toast.visible { display: block; }
+.toast.warn { border-color: rgba(224,80,80,0.4); background: rgba(224,80,80,0.08); color: #e8a3a3; }
+
 @media (max-width: 760px) {
   body { padding: 16px 12px 28px; }
   .panel { padding: 18px; }
-  .footer {
-    flex-direction: column-reverse;
-    align-items: stretch;
-  }
-  .footer .btn { width: 100%; }
+  .footer, .step-nav { flex-direction: column-reverse; align-items: stretch; }
+  .footer .btn, .step-nav .btn { width: 100%; }
 }
 </style>
 </head>
 <body>
 <div class="shell">
-  <header>
-    <div class="eyebrow">HEIST / New Campaign</div>
-    <div class="title">Plan the rounds. Brief the crew.</div>
-    <div class="subtitle">
-      Pick how long the campaign runs, decide how many AI crews are competing, and write a strategy for each one.
-    </div>
-  </header>
 
-  <div class="panel">
-    <div class="stack">
-      <section>
-        <div class="group-label">Rounds</div>
-        <div class="chips" id="rounds-chips">
-          <label class="chip"><input type="radio" name="rounds" value="3"><span>3</span></label>
-          <label class="chip"><input type="radio" name="rounds" value="5" checked><span>5</span></label>
-          <label class="chip"><input type="radio" name="rounds" value="7"><span>7</span></label>
-          <label class="chip"><input type="radio" name="rounds" value="10"><span>10</span></label>
-        </div>
-      </section>
+  <!-- ══════════ VIEW A: Campaign assembler ══════════ -->
+  <div id="assembler-view">
+    <header>
+      <div class="eyebrow">HEIST / New Campaign</div>
+      <div class="title">Plan the rounds. Brief the crews.</div>
+      <div class="subtitle">
+        Pick how long the campaign runs, then add one or more AI crews to compete. Build a fresh
+        crew with the wizard, or pull in one you've saved.
+      </div>
+    </header>
 
-      <div class="rule"></div>
+    <div class="panel">
+      <div class="stack">
+        <section>
+          <div class="group-label">Rounds</div>
+          <div class="chips" id="rounds-chips">
+            <label class="chip"><input type="radio" name="rounds" value="3"><span>3</span></label>
+            <label class="chip"><input type="radio" name="rounds" value="5" checked><span>5</span></label>
+            <label class="chip"><input type="radio" name="rounds" value="7"><span>7</span></label>
+            <label class="chip"><input type="radio" name="rounds" value="10"><span>10</span></label>
+          </div>
+        </section>
 
-      <section>
-        <div class="group-label">AIs</div>
-        <div class="chips" id="ai-count-chips">
-          <label class="chip"><input type="radio" name="ai-count" value="2" checked><span>2</span></label>
-          <label class="chip"><input type="radio" name="ai-count" value="3"><span>3</span></label>
-          <label class="chip"><input type="radio" name="ai-count" value="4"><span>4</span></label>
-        </div>
-      </section>
+        <div class="rule"></div>
 
-      <div class="rule"></div>
+        <section>
+          <div class="group-label">Crews in this campaign</div>
+          <div class="crew-list" id="crew-list"></div>
+          <div class="add-row">
+            <button class="btn btn-secondary" onclick="openWizard('campaign')">+ Build a crew</button>
+            <button class="btn btn-ghost" id="add-saved-btn" onclick="toggleSavedPicker()">↳ Add from saved crew</button>
+          </div>
+          <div class="saved-picker" id="saved-picker">
+            <select id="saved-select"></select>
+            <button class="btn btn-secondary" onclick="addSavedToCampaign()">Add</button>
+          </div>
+        </section>
 
-      <section>
-        <div class="ai-grid" id="ai-grid"></div>
-      </section>
+        <div id="assembler-error" class="error-box" aria-live="polite"></div>
+      </div>
 
-      <div id="error-box" class="error-box" aria-live="polite"></div>
-    </div>
-
-    <div class="footer">
-      <button class="btn btn-ghost" onclick="window.location = '/'">← Back</button>
-      <button class="btn btn-primary" id="launch-btn" onclick="launchCampaign()">Launch Campaign -></button>
+      <div class="footer">
+        <button class="btn btn-ghost" onclick="window.location = '/'">← Back</button>
+        <button class="btn btn-primary" id="launch-btn" onclick="launchCampaign()">Launch Campaign →</button>
+      </div>
     </div>
   </div>
+
+  <!-- ══════════ VIEW B: Crews library ══════════ -->
+  <div id="crews-view" hidden>
+    <header>
+      <div class="eyebrow">HEIST / Crews</div>
+      <div class="title">Your crews.</div>
+      <div class="subtitle">Premade AI competitors you've saved. Build new ones, reuse them in any campaign, or drop the ones you're done with.</div>
+    </header>
+
+    <div class="panel">
+      <div class="stack">
+        <section>
+          <div class="add-row">
+            <button class="btn btn-primary" onclick="openWizard('library')">+ New Crew</button>
+          </div>
+        </section>
+        <div class="rule"></div>
+        <section>
+          <div class="group-label">Saved crews</div>
+          <div class="crew-list" id="library-list"></div>
+        </section>
+        <div id="library-error" class="error-box" aria-live="polite"></div>
+      </div>
+      <div class="footer">
+        <button class="btn btn-ghost" onclick="window.location = '/'">← Back to lobby</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ VIEW C: Strategy wizard (4 strategic steps + Run It) ══════════ -->
+  <div id="wizard-view" hidden>
+    <header>
+      <div class="eyebrow">HEIST / Build a crew</div>
+      <div class="title">Shape this crew's strategy.</div>
+      <div class="subtitle">Four picks, then a brief. The steps follow the order the AI makes them in play: target → scout → hire → react.</div>
+    </header>
+
+    <div class="panel">
+      <div class="preset-row" id="preset-row">
+        <div class="preset-label">Start from a famous crew</div>
+        <div class="preset-grid" id="preset-grid"></div>
+        <div class="preset-divider"><span>or pick choices yourself</span></div>
+      </div>
+
+      <div class="progress-track" id="progress-track">
+        <div class="progress-step active" data-step="1" onclick="jumpTo(1)"><div class="dot">1</div><div class="label">Targets</div></div>
+        <div class="progress-line" id="line-1-2"></div>
+        <div class="progress-step" data-step="2" onclick="jumpTo(2)"><div class="dot">2</div><div class="label">Scouting</div></div>
+        <div class="progress-line" id="line-2-3"></div>
+        <div class="progress-step" data-step="3" onclick="jumpTo(3)"><div class="dot">3</div><div class="label">The Crew</div></div>
+        <div class="progress-line" id="line-3-4"></div>
+        <div class="progress-step" data-step="4" onclick="jumpTo(4)"><div class="dot">4</div><div class="label">In-Play</div></div>
+        <div class="progress-line" id="line-4-5"></div>
+        <div class="progress-step" data-step="5" onclick="jumpTo(5)"><div class="dot">5</div><div class="label">Run It</div></div>
+      </div>
+
+      <!-- Step 1: Targets (risk + board play) -->
+      <div class="step-card active" id="step-1">
+        <div class="step-header">
+          <div class="step-eyebrow">Step 1 of 5 — What we go after</div>
+          <div class="step-title">What kind of jobs, played how?</div>
+          <div class="step-desc">Pair your risk appetite with how you play the contested board. Each card is a coherent target philosophy.</div>
+        </div>
+        <div class="choice-group">
+          <div class="choice-label">Target philosophy</div>
+          <div class="choice-grid cols-3">
+            <label class="choice-card" data-name="targets" data-value="quiet">
+              <input type="radio" name="targets" value="quiet">
+              <div class="card-title">🛡️ Quiet Earners</div>
+              <div class="card-body">Low-profile jobs only. Claim the cleanest mid-difficulty score before it's consumed. Smaller paydays are fine if we stay off the radar.</div>
+            </label>
+            <label class="choice-card selected" data-name="targets" data-value="solid">
+              <input type="radio" name="targets" value="solid" checked>
+              <div class="card-title">⚖️ Solid Picks</div>
+              <div class="card-body">Balanced risk. Each round, claim the cleanest solid score on the board. Good paydays, no suicide runs.</div>
+            </label>
+            <label class="choice-card" data-name="targets" data-value="jackpot">
+              <input type="radio" name="targets" value="jackpot">
+              <div class="card-title">🔥 Jackpot Hunters</div>
+              <div class="card-body">Race rivals for the elite-tier payouts. Pay up for the crew that can crack them. High risk, big take.</div>
+            </label>
+            <label class="choice-card" data-name="targets" data-value="slowburn">
+              <input type="radio" name="targets" value="slowburn">
+              <div class="card-title">📈 Slow Burn</div>
+              <div class="card-body">Start cautious; let rivals overextend early. As the bankroll grows, escalate — by the back half of the campaign, hunt the bigger scores.</div>
+            </label>
+            <label class="choice-card" data-name="targets" data-value="bargain">
+              <input type="radio" name="targets" value="bargain">
+              <div class="card-title">💎 Bargain Hunters</div>
+              <div class="card-body">Find the mispriced jobs — where reward outruns difficulty. Watch the leader: when our top job and theirs both hit the slate, take theirs to deny them.</div>
+            </label>
+          </div>
+        </div>
+        <div class="override-divider"><span>or write your own</span></div>
+        <div class="override-hint">Overrides the choice above.</div>
+        <textarea id="ov-targets" rows="3" placeholder="e.g. &quot;Always grab the second-best job on the board: leave the trap-fat jackpot for someone else.&quot;"></textarea>
+        <div class="step-nav">
+          <button class="btn btn-ghost" onclick="closeWizard()">← Cancel</button>
+          <button class="btn btn-primary" onclick="goTo(2)">Next: Scouting →</button>
+        </div>
+      </div>
+
+      <!-- Step 2: Scouting -->
+      <div class="step-card" id="step-2">
+        <div class="step-header">
+          <div class="step-eyebrow">Step 2 of 5 — Before the pick</div>
+          <div class="step-title">How should the crew scout?</div>
+          <div class="step-desc">A job's published difficulty is only an estimate. Probes reveal the true numbers before you commit — but probes are limited.</div>
+        </div>
+        <div class="choice-group">
+          <div class="choice-label">Scouting style</div>
+          <div class="choice-grid cols-3">
+            <label class="choice-card selected" data-name="scouting" data-value="heavy">
+              <input type="radio" name="scouting" value="heavy" checked>
+              <div class="card-title">🔍 Case Everything</div>
+              <div class="card-body">Scouting is the job before the job. Probe every target you're weighing; never commit blind.</div>
+            </label>
+            <label class="choice-card" data-name="scouting" data-value="targeted">
+              <input type="radio" name="scouting" value="targeted">
+              <div class="card-title">🎯 Scout the Money</div>
+              <div class="card-body">Spend probes only on the big-money jobs you actually want, then commit.</div>
+            </label>
+            <label class="choice-card" data-name="scouting" data-value="escape">
+              <input type="radio" name="scouting" value="escape">
+              <div class="card-title">🏃 Scout the Escape</div>
+              <div class="card-body">Probe the getaway first. A bad escape ends the campaign — the take is worthless if the driver gets caught.</div>
+            </label>
+            <label class="choice-card" data-name="scouting" data-value="defense">
+              <input type="radio" name="scouting" value="defense">
+              <div class="card-title">🛡️ Probe the Defense</div>
+              <div class="card-body">For each job we're weighing, probe its toughest challenge category. Know which "Hard" will actually break us before we commit.</div>
+            </label>
+            <label class="choice-card" data-name="scouting" data-value="skip">
+              <input type="radio" name="scouting" value="skip">
+              <div class="card-title">⚡ Move Fast</div>
+              <div class="card-body">Trust the published buckets and commit fast. Speed and surprise over perfect intel.</div>
+            </label>
+          </div>
+        </div>
+        <div class="override-divider"><span>or write your own</span></div>
+        <div class="override-hint">Overrides the choice above.</div>
+        <textarea id="ov-scouting" rows="3" placeholder="e.g. &quot;Scout the escape route on every job we seriously consider — a caught driver ends the campaign.&quot;"></textarea>
+        <div class="step-nav">
+          <button class="btn btn-ghost" onclick="goTo(1)">← Back</button>
+          <button class="btn btn-primary" onclick="goTo(3)">Next: The Crew →</button>
+        </div>
+      </div>
+
+      <!-- Step 3: The Crew -->
+      <div class="step-card" id="step-3">
+        <div class="step-header">
+          <div class="step-eyebrow">Step 3 of 5 — Staffing</div>
+          <div class="step-title">How do you want the crew built?</div>
+          <div class="step-desc">After the job's picked, the AI assembles a team from the 21-person roster.</div>
+        </div>
+        <div class="choice-group">
+          <div class="choice-label">Crew posture</div>
+          <div class="choice-grid cols-3">
+            <label class="choice-card" data-name="budget" data-value="bargain">
+              <input type="radio" name="budget" value="bargain">
+              <div class="card-title">💸 Stretch Budget</div>
+              <div class="card-body">Value picks. Pair two mid-skill crew on a tough challenge to push them over the top.</div>
+            </label>
+            <label class="choice-card selected" data-name="budget" data-value="balanced">
+              <input type="radio" name="budget" value="balanced" checked>
+              <div class="card-title">⚖️ Mix It Up</div>
+              <div class="card-body">One or two anchoring specialists, the rest versatile players.</div>
+            </label>
+            <label class="choice-card" data-name="budget" data-value="stars">
+              <input type="radio" name="budget" value="stars">
+              <div class="card-title">⭐ All Stars</div>
+              <div class="card-body">Spend big on the best available, even if it means a smaller crew.</div>
+            </label>
+            <label class="choice-card" data-name="budget" data-value="specialists">
+              <input type="radio" name="budget" value="specialists">
+              <div class="card-title">🎯 Specialists Only</div>
+              <div class="card-body">High-skill specialists or nothing. One 9 beats two 7s — skip the utility players.</div>
+            </label>
+            <label class="choice-card" data-name="budget" data-value="generalists">
+              <input type="radio" name="budget" value="generalists">
+              <div class="card-title">🧩 Generalists</div>
+              <div class="card-body">Versatile multi-skill crew. Every member useful on at least two challenge types.</div>
+            </label>
+          </div>
+        </div>
+        <div class="override-divider"><span>or write your own</span></div>
+        <div class="override-hint">Overrides the choice above.</div>
+        <textarea id="ov-crew" rows="3" placeholder="e.g. &quot;Always bring a driver, even if it costs us elsewhere. Cover the social angle too — muscle is a last resort.&quot;"></textarea>
+        <div class="step-nav">
+          <button class="btn btn-ghost" onclick="goTo(2)">← Back</button>
+          <button class="btn btn-primary" onclick="goTo(4)">Next: In-Play →</button>
+        </div>
+      </div>
+
+      <!-- Step 4: In-Play (heat + bonus + fail) -->
+      <div class="step-card" id="step-4">
+        <div class="step-header">
+          <div class="step-eyebrow">Step 4 of 5 — During the heist</div>
+          <div class="step-title">In-scene philosophy</div>
+          <div class="step-desc">How the crew handles heat, bonus opportunities, and scene failures — as one coherent style.</div>
+        </div>
+        <div class="choice-group">
+          <div class="choice-label">In-play posture</div>
+          <div class="choice-grid cols-3">
+            <label class="choice-card" data-name="play" data-value="reckless">
+              <input type="radio" name="play" value="reckless">
+              <div class="card-title">🎲 Reckless</div>
+              <div class="card-body">Ignore heat, take every bonus, push through failures. We came to win big — heat and complications are the cost of business.</div>
+            </label>
+            <label class="choice-card selected" data-name="play" data-value="disciplined">
+              <input type="radio" name="play" value="disciplined" checked>
+              <div class="card-title">🧮 Disciplined</div>
+              <div class="card-body">Manage heat, pursue bonuses only when the crew's in good shape, cut losses when the plan falls apart. Play the percentages.</div>
+            </label>
+            <label class="choice-card" data-name="play" data-value="surgical">
+              <input type="radio" name="play" value="surgical">
+              <div class="card-title">❄️ Surgical</div>
+              <div class="card-body">Heat is the metric. Pursue only zero-heat bonuses, abort the moment exposure is likely. Clean exits preserve the next job.</div>
+            </label>
+            <label class="choice-card" data-name="play" data-value="adaptive">
+              <input type="radio" name="play" value="adaptive">
+              <div class="card-title">🔧 Adaptive</div>
+              <div class="card-body">Don't push or abort blindly. Re-plan around failures, accept reasonable heat when the math says yes. Improvise inside the plan.</div>
+            </label>
+            <label class="choice-card" data-name="play" data-value="crewfirst">
+              <input type="radio" name="play" value="crewfirst">
+              <div class="card-title">🩺 Crew First</div>
+              <div class="card-body">Caught crew is forever. Skip bonuses, push through fails — but the moment a member is at real catch-risk, abort. Nothing else matters.</div>
+            </label>
+          </div>
+        </div>
+        <div class="override-divider"><span>or write your own</span></div>
+        <div class="override-hint">Overrides the choice above.</div>
+        <textarea id="ov-play" rows="3" placeholder="e.g. &quot;This is their last job. Take every risk. Go out on top or don't go out at all.&quot;"></textarea>
+        <div class="step-nav">
+          <button class="btn btn-ghost" onclick="goTo(3)">← Back</button>
+          <button class="btn btn-primary" onclick="goTo(5)">Preview the Brief →</button>
+        </div>
+      </div>
+
+      <!-- Step 5: Run It -->
+      <div class="step-card" id="step-5">
+        <div class="step-header">
+          <div class="step-eyebrow">Ready to add</div>
+          <div class="step-title">This crew's brief</div>
+          <div class="step-desc">Review the strategy below. Edit it directly if you want — your edits are kept.</div>
+        </div>
+
+        <div class="summary-grid" id="summary-grid"></div>
+
+        <div class="field">
+          <label for="crew-name">Crew name</label>
+          <input id="crew-name" type="text" placeholder="e.g. The Operators">
+        </div>
+        <div class="field">
+          <label for="crew-agent">Agent</label>
+          <select id="crew-agent">
+            <option value="codex-mini" selected>Codex — gpt-5.4-mini</option>
+            <option value="codex">Codex — gpt-5.4</option>
+            <option value="gemini">Gemini</option>
+            <option value="stub">Stub (no AI — plumbing test)</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;">
+            <label for="final-prompt">Strategy prompt</label>
+            <button class="btn btn-ghost" style="padding:6px 10px;font-size:0.66rem;" onclick="regeneratePrompt()">↻ Regenerate from choices</button>
+          </div>
+          <textarea id="final-prompt" rows="13" style="font-size:0.82rem;line-height:1.75;"></textarea>
+          <div class="textarea-hint">This is the exact text the AI receives. Hand-editing it overrides the wizard.</div>
+        </div>
+
+        <div id="wizard-error" class="error-box" aria-live="polite"></div>
+        <div id="wizard-toast" class="toast" aria-live="polite"></div>
+
+        <div class="step-nav">
+          <button class="btn btn-ghost" onclick="goTo(4)">← Back</button>
+          <div class="run-actions">
+            <button class="btn btn-secondary" onclick="saveCrew()">💾 Save Crew</button>
+            <button class="btn btn-primary" id="add-to-campaign-btn" onclick="addCrewToCampaign()">＋ Add to Campaign</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <script>
-const DEFAULT_STRATEGY = `Play smart, adapt to your crew's strengths. Prioritize clean escapes over maximum
-take. When notoriety gets high, pick safer jobs to cool down.`;
-
-let numRounds = 5;
-let aiCount = 2;
-let aiConfigs = [];
-let launchPending = false;
-
-function makeDefaultAI(idx) {
-  return {
-    name: '',
-    agent: 'stub',
-    prompt: DEFAULT_STRATEGY,
-  };
-}
-
-function syncConfigs() {
-  while (aiConfigs.length < aiCount) aiConfigs.push(makeDefaultAI(aiConfigs.length));
-  if (aiConfigs.length > aiCount) aiConfigs = aiConfigs.slice(0, aiCount);
-}
-
-function setError(message) {
-  const box = document.getElementById('error-box');
-  if (!message) {
-    box.classList.remove('visible');
-    box.textContent = '';
-    return;
-  }
-  box.textContent = message;
-  box.classList.add('visible');
-}
-
-function renderAiGrid() {
-  syncConfigs();
-  const grid = document.getElementById('ai-grid');
-  grid.innerHTML = aiConfigs.map((cfg, idx) => `
-    <article class="ai-card">
-      <div class="ai-card-head">
-        <div class="ai-tag">AI ${idx + 1}</div>
-        <h2>Campaign Crew</h2>
-      </div>
-
-      <div class="field">
-        <label for="ai-name-${idx}">Name</label>
-        <input id="ai-name-${idx}" type="text" value="${escapeAttr(cfg.name)}" placeholder="AI ${idx + 1}">
-      </div>
-
-      <div class="field">
-        <label for="ai-agent-${idx}">Agent</label>
-        <select id="ai-agent-${idx}">
-          <option value="stub"${cfg.agent === 'stub' ? ' selected' : ''}>Stub</option>
-          <option value="codex"${cfg.agent === 'codex' ? ' selected' : ''}>Codex</option>
-          <option value="gemini"${cfg.agent === 'gemini' ? ' selected' : ''}>Gemini</option>
-        </select>
-      </div>
-
-      <div class="field">
-        <label for="ai-prompt-${idx}">Strategy</label>
-        <textarea id="ai-prompt-${idx}" rows="6" placeholder="Write the strategy this AI will use. Focus on risk tolerance, which skills to prioritize, and when to push for bigger scores.">${escapeText(cfg.prompt)}</textarea>
-        <div class="textarea-hint">Tell this AI how bold to be, how to handle heat, and what kind of jobs to prioritize.</div>
-      </div>
-    </article>
-  `).join('');
-
-  aiConfigs.forEach((_, idx) => {
-    document.getElementById(`ai-name-${idx}`).addEventListener('input', event => {
-      aiConfigs[idx].name = event.target.value;
-    });
-    document.getElementById(`ai-agent-${idx}`).addEventListener('change', event => {
-      aiConfigs[idx].agent = event.target.value;
-    });
-    document.getElementById(`ai-prompt-${idx}`).addEventListener('input', event => {
-      aiConfigs[idx].prompt = event.target.value;
-    });
-  });
-}
-
+// ── escaping ──
 function escapeText(value) {
   const div = document.createElement('div');
   div.textContent = value == null ? '' : String(value);
   return div.innerHTML;
 }
 
-function escapeAttr(value) {
-  return escapeText(value).replace(/"/g, '&quot;');
-}
+// ── state ──
+let numRounds = 5;
+let campaignCrews = [];
+let savedCrews = [];
+let launchPending = false;
+let currentStep = 1;
+const TOTAL_STEPS = 5;
+let promptEdited = false;
+let wizardReturn = 'campaign';
 
-function setSelectedChip(name, value) {
-  document.querySelectorAll(`input[name="${name}"]`).forEach(input => {
-    input.checked = input.value === String(value);
-  });
-}
+// ── famous-crew presets (Step 0 shortcuts) ──
+const PRESETS = {
+  oceans: {
+    name: "Ocean's 11", emoji: '🎰',
+    tagline: 'Slick con artists. Case the casino, hire all-stars, run it surgical.',
+    targets: 'jackpot', scouting: 'heavy', budget: 'stars', play: 'surgical',
+  },
+  ateam: {
+    name: 'A-Team', emoji: '🚐',
+    tagline: 'A plan comes together. Generalists, move fast, adapt on the fly.',
+    targets: 'solid', scouting: 'skip', budget: 'generalists', play: 'adaptive',
+  },
+  heat: {
+    name: 'Heat', emoji: '🔫',
+    tagline: "Pros. Never tied to anything you can't walk away from in 30 seconds.",
+    targets: 'solid', scouting: 'escape', budget: 'specialists', play: 'crewfirst',
+  },
+  italian: {
+    name: 'Italian Job', emoji: '🏎️',
+    tagline: 'Driver-led precision. Plan the escape first.',
+    targets: 'solid', scouting: 'escape', budget: 'balanced', play: 'disciplined',
+  },
+  inception: {
+    name: 'Inception', emoji: '🌀',
+    tagline: 'Layered plan, all-stars, improvise inside the dream.',
+    targets: 'jackpot', scouting: 'heavy', budget: 'stars', play: 'adaptive',
+  },
+  horsemen: {
+    name: 'Now You See Me', emoji: '🃏',
+    tagline: 'The Four Horsemen. Magicians who heist the corrupt — every act has a deeper one.',
+    targets: 'bargain', scouting: 'defense', budget: 'bargain', play: 'adaptive',
+  },
+};
 
 document.querySelectorAll('input[name="rounds"]').forEach(input => {
   input.addEventListener('change', event => {
     numRounds = Number(event.target.value);
-    setError('');
+    setAssemblerError('');
   });
 });
 
-document.querySelectorAll('input[name="ai-count"]').forEach(input => {
-  input.addEventListener('change', event => {
-    aiCount = Number(event.target.value);
-    syncConfigs();
-    renderAiGrid();
-    setError('');
-  });
-});
+// ── view switching ──
+function showView(which) {
+  document.getElementById('assembler-view').hidden = which !== 'assembler';
+  document.getElementById('crews-view').hidden = which !== 'library';
+  document.getElementById('wizard-view').hidden = which !== 'wizard';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
 
-async function launchCampaign() {
-  if (launchPending) return;
-  launchPending = true;
-  setError('');
-  const btn = document.getElementById('launch-btn');
-  btn.disabled = true;
-  btn.textContent = 'Launching...';
+function openWizard(returnTo) {
+  wizardReturn = returnTo === 'library' ? 'library' : 'campaign';
+  document.getElementById('add-to-campaign-btn').style.display =
+    wizardReturn === 'campaign' ? '' : 'none';
+  resetWizard();
+  showView('wizard');
+}
+function closeWizard() {
+  showView(wizardReturn === 'library' ? 'library' : 'assembler');
+}
 
-  try {
-    const payload = {
-      num_rounds: numRounds,
-      ais: aiConfigs.map(cfg => ({
-        name: cfg.name || undefined,
-        prompt: cfg.prompt,
-        agent: cfg.agent || 'stub',
-      })),
-    };
-    const resp = await fetch('/api/new-campaign', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+// ── choice-card selection ──
+document.querySelectorAll('.choice-card').forEach(card => {
+  card.addEventListener('click', () => {
+    const input = card.querySelector('input[type="radio"]');
+    if (!input) return;
+    document.querySelectorAll(`input[name="${input.name}"]`).forEach(r => {
+      r.closest('.choice-card').classList.remove('selected');
     });
-    const data = await resp.json();
-    if (!resp.ok) {
-      throw new Error(data.error || resp.status);
-    }
-    window.location = '/campaign?game=' + data.campaign_id;
-  } catch (err) {
-    setError(err.message || 'Could not launch campaign.');
-  } finally {
-    launchPending = false;
-    btn.disabled = false;
-    btn.textContent = 'Launch Campaign ->';
+    card.classList.add('selected');
+    input.checked = true;
+  });
+});
+
+function renderPresets() {
+  document.getElementById('preset-grid').innerHTML = Object.entries(PRESETS).map(([key, p]) => `
+    <button type="button" class="preset-card" onclick="applyPreset('${escapeText(key)}')">
+      <div class="preset-title">${escapeText(p.emoji)} ${escapeText(p.name)}</div>
+      <div class="preset-body">${escapeText(p.tagline)}</div>
+    </button>
+  `).join('');
+}
+
+function applyPreset(key) {
+  const p = PRESETS[key];
+  if (!p) return;
+  const picks = { targets: p.targets, scouting: p.scouting, budget: p.budget, play: p.play };
+  Object.entries(picks).forEach(([name, value]) => {
+    document.querySelectorAll(`input[name="${name}"]`).forEach(r => {
+      const sel = r.value === value;
+      r.checked = sel;
+      r.closest('.choice-card').classList.toggle('selected', sel);
+    });
+  });
+  ['ov-targets','ov-scouting','ov-crew','ov-play']
+    .forEach(id => { document.getElementById(id).value = ''; });
+  document.getElementById('crew-name').value = p.name;
+  promptEdited = false;
+  goTo(TOTAL_STEPS);
+  setWizardToast(`Loaded ${p.name}. Step back to tweak any choice, or hit Save Crew / Add to Campaign.`, false);
+}
+
+function val(name) {
+  const el = document.querySelector(`input[name="${name}"]:checked`);
+  return el ? el.value : null;
+}
+function ov(id) { return document.getElementById(id).value.trim(); }
+
+// ── step navigation ──
+function goTo(n) {
+  if (n < 1 || n > TOTAL_STEPS) return;
+  document.getElementById(`step-${currentStep}`).classList.remove('active');
+  currentStep = n;
+  document.getElementById(`step-${currentStep}`).classList.add('active');
+  document.querySelectorAll('.progress-step').forEach(s => {
+    const sn = parseInt(s.dataset.step);
+    s.classList.remove('active', 'done');
+    if (sn === currentStep) s.classList.add('active');
+    else if (sn < currentStep) s.classList.add('done');
+  });
+  for (let i = 1; i < TOTAL_STEPS; i++) {
+    const line = document.getElementById(`line-${i}-${i+1}`);
+    if (line) line.classList.toggle('done', i < currentStep);
+  }
+  document.getElementById('preset-row').hidden = (n !== 1);
+  if (n === TOTAL_STEPS) buildPreview();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+function jumpTo(n) { if (n <= currentStep) goTo(n); }
+
+// ── prompt builder ──
+function collectWizard() {
+  return {
+    targets: val('targets'), scouting: val('scouting'),
+    budget: val('budget'), play: val('play'),
+    overrides: {
+      targets: ov('ov-targets'), scouting: ov('ov-scouting'),
+      crew: ov('ov-crew'), play: ov('ov-play'),
+    },
+  };
+}
+
+function assemblePrompt(w) {
+  const o = w.overrides;
+
+  const targetsSection = o.targets || {
+    quiet:    "Targets: stay quiet. Run low-profile jobs and claim the cleanest mid-difficulty score on the contested board before it's consumed. A smaller payday is fine if we stay off the radar — don't reach for jackpots.",
+    solid:    "Targets: solid picks with manageable risk. Each round, claim the cleanest solid score on the contested board before it's consumed. We want good paydays, not suicide runs.",
+    jackpot:  "Targets: hunt the jackpots. When an elite-tier payout hits the slate, that is our target — pay up for the crew that can crack it before rivals do. High risk, high reward.",
+    slowburn: "Targets: slow burn. In early rounds, take clean low-profile jobs and let rivals overextend on the jackpots — they'll burn crew and rack up heat. As our bankroll grows, escalate; by the back half of the campaign we should be hunting the bigger scores.",
+    bargain:  "Targets: hunt the mispriced. Some jobs on this board are decoupled — the reward outruns the difficulty. Find those bargains; skip the obvious jackpots. Watch the leader: if our best job and theirs are both on the slate, take theirs — denial wins us the standings race.",
+  }[w.targets] || '';
+
+  const scoutSection = o.scouting || {
+    heavy:    "Scouting is the job before the job. Case every target you're weighing — burn probes to confirm a soft mark is actually soft, and never read a job's difficulty off its payout. Don't commit to a target you haven't scouted.",
+    targeted: "Case it before you crack it: spend your scouting probes on the big-money jobs you actually want and find out exactly what you're hitting. Don't assume a fat payout means a soft mark — scout the target you intend to take, then commit.",
+    escape:   "Probe the escape route on every target we are seriously considering. A bad escape ends the campaign — the take is worthless if the driver gets caught. Burn a scouting probe on the escape before anything else.",
+    defense:  "On scouting: for every job we're seriously considering, burn a probe on its toughest published challenge. We need to know which 'Hard' will actually break us before we commit — if the headline difficulty turns out to be real, we walk; if it's bluffing, we take the bargain.",
+    skip:     "Don't burn time scouting. Read the published buckets, trust your read, and commit fast — speed and surprise beat perfect information.",
+  }[w.scouting] || '';
+
+  const crewSection = o.crew || {
+    bargain:     "On crew: stretch the bankroll. Look for value picks — pair two mid-skill crew on a tough challenge to push them one point higher and clear it.",
+    balanced:    "On crew: balance the roster. One or two anchoring specialists, fill the rest with versatile players, and keep a driver for the escape.",
+    stars:       "On crew: spend big. Bring the best available scores, even if that means a smaller crew.",
+    specialists: "On crew: high-skill specialists only. We'd rather show up to one challenge with a 9 than two with 7s. Skip utility players — depth doesn't matter if the headline skill clears the room.",
+    generalists: "On crew: prize versatility. Multi-skill crew over single-skill stars. Every member should be useful on at least two challenge types so we are not paying for dead weight when a scene shifts.",
+  }[w.budget] || '';
+
+  const playSection = o.play || {
+    reckless:    "In play: ignore heat and chase upside. Push every scene, pay the heat tax, take every bonus that surfaces — bonuses are why we came. Heat and complications are the cost of doing business; do not abort unless the escape is mechanically impossible.",
+    disciplined: "In play: play the percentages. Manage heat — when suspicion climbs, back off, decline risky bonuses, and abort before the cascade snowballs. Pursue bonuses only when the crew is in good shape. If a core scene fails and the plan falls apart, cut losses and live to work another day.",
+    surgical:    "In play: heat is the metric we manage above all else. Pick the cleanest scene order and play every scene for the no-heat clean. Pursue bonuses only when they add zero heat — a bonus that lights up the cascade is a trap. If exposure becomes likely, abort. Clean exits preserve the next job.",
+    adaptive:    "In play: improvise inside the plan. Manage heat carefully but accept reasonable suspicion when the math says yes. Pursue bonuses when the crew is in good shape, decline when stretched. If a core scene fails, don't blindly push and don't immediately abort — re-plan around the failure if we can still get out with something.",
+    crewfirst:   "In play: protect the crew above all. Caught crew is forever — they leave the rehire pool. Stick to the plan: skip bonuses, manage heat, and keep pushing through scene failures unless a crew member is at real catch-risk. When that is the risk, abort immediately.",
+  }[w.play] || '';
+
+  return [targetsSection, scoutSection, crewSection, playSection].filter(Boolean).join('\n\n').trim();
+}
+
+function buildPreview() {
+  const w = collectWizard();
+  const labels = {
+    targets:  { quiet: 'Quiet Earners', solid: 'Solid Picks', jackpot: 'Jackpot Hunters', slowburn: 'Slow Burn', bargain: 'Bargain Hunters' },
+    scouting: { heavy: 'Case Everything', targeted: 'Scout the Money', escape: 'Scout the Escape', defense: 'Probe the Defense', skip: 'Move Fast' },
+    budget:   { bargain: 'Stretch Budget', balanced: 'Mix It Up', stars: 'All Stars', specialists: 'Specialists Only', generalists: 'Generalists' },
+    play:     { reckless: 'Reckless', disciplined: 'Disciplined', surgical: 'Surgical', adaptive: 'Adaptive', crewfirst: 'Crew First' },
+  };
+  document.getElementById('summary-grid').innerHTML = [
+    ['Targets',  w.overrides.targets  ? '(custom)' : labels.targets[w.targets]],
+    ['Scouting', w.overrides.scouting ? '(custom)' : labels.scouting[w.scouting]],
+    ['Crew',     w.overrides.crew     ? '(custom)' : labels.budget[w.budget]],
+    ['In-play',  w.overrides.play     ? '(custom)' : labels.play[w.play]],
+  ].map(([l, v]) => `
+    <div class="summary-pill"><div class="pill-label">${escapeText(l)}</div><div class="pill-value">${escapeText(v || '—')}</div></div>`).join('');
+
+  if (!promptEdited) {
+    document.getElementById('final-prompt').value = assemblePrompt(w);
   }
 }
 
-function init() {
-  aiConfigs = [makeDefaultAI(0), makeDefaultAI(1)];
-  setSelectedChip('rounds', numRounds);
-  setSelectedChip('ai-count', aiCount);
-  renderAiGrid();
+function regeneratePrompt() {
+  promptEdited = false;
+  document.getElementById('final-prompt').value = assemblePrompt(collectWizard());
+  setWizardToast('Rebuilt from your choices.', false);
 }
 
+document.getElementById('final-prompt').addEventListener('input', () => { promptEdited = true; });
+
+// ── add to campaign ──
+function addCrewToCampaign() {
+  const name = document.getElementById('crew-name').value.trim();
+  const agent = document.getElementById('crew-agent').value;
+  const prompt = document.getElementById('final-prompt').value.trim();
+  if (!prompt) { setWizardError('Write or generate a strategy before adding the crew.'); return; }
+  setWizardError('');
+  campaignCrews.push({
+    name: name || `AI ${campaignCrews.length + 1}`,
+    agent, prompt, wizard: collectWizard(),
+  });
+  renderCrewList();
+  showView('assembler');
+}
+
+function removeCrew(idx) {
+  campaignCrews.splice(idx, 1);
+  renderCrewList();
+}
+
+function renderCrewList() {
+  const list = document.getElementById('crew-list');
+  if (!campaignCrews.length) {
+    list.innerHTML = `<div class="empty-state"><strong>No crews yet.</strong><br>Hit “Build a crew” to brief your first AI competitor — or pull one in from your saved crews.</div>`;
+    return;
+  }
+  list.innerHTML = campaignCrews.map((c, idx) => `
+    <div class="crew-row">
+      <div class="crew-main">
+        <div class="crew-head">
+          <div class="crew-name">${escapeText(c.name)}</div>
+          <span class="agent-badge">${escapeText(c.agent)}</span>
+        </div>
+        <div class="crew-preview">${escapeText(c.prompt)}</div>
+      </div>
+      <div class="row-actions"><button class="icon-btn danger" onclick="removeCrew(${idx})">Remove</button></div>
+    </div>`).join('');
+}
+
+// ── saved crews (library + reuse) ──
+async function fetchSavedCrews() {
+  try {
+    const resp = await fetch('/api/crews');
+    const data = await resp.json();
+    savedCrews = Array.isArray(data.crews) ? data.crews : [];
+  } catch { savedCrews = []; }
+  return savedCrews;
+}
+
+function toggleSavedPicker() {
+  const picker = document.getElementById('saved-picker');
+  if (picker.classList.contains('visible')) { picker.classList.remove('visible'); return; }
+  fetchSavedCrews().then(() => {
+    const sel = document.getElementById('saved-select');
+    if (!savedCrews.length) {
+      setAssemblerError('No saved crews yet. Build one and hit “Save Crew”, or use the Crews screen.');
+      return;
+    }
+    setAssemblerError('');
+    sel.innerHTML = savedCrews.map(c => `<option value="${escapeText(c.id)}">${escapeText(c.name)} — ${escapeText(c.agent)}</option>`).join('');
+    picker.classList.add('visible');
+  });
+}
+
+function addSavedToCampaign() {
+  const id = document.getElementById('saved-select').value;
+  const crew = savedCrews.find(c => c.id === id);
+  if (!crew) return;
+  campaignCrews.push({ name: crew.name, agent: crew.agent, prompt: crew.prompt, wizard: crew.wizard || null });
+  renderCrewList();
+  document.getElementById('saved-picker').classList.remove('visible');
+}
+
+async function renderLibrary() {
+  await fetchSavedCrews();
+  const list = document.getElementById('library-list');
+  if (!savedCrews.length) {
+    list.innerHTML = `<div class="empty-state"><strong>No saved crews yet.</strong><br>Hit “+ New Crew” to build one. Saved crews are reusable in any campaign and in Quick Test.</div>`;
+    return;
+  }
+  list.innerHTML = savedCrews.map(c => `
+    <div class="crew-row">
+      <div class="crew-main">
+        <div class="crew-head">
+          <div class="crew-name">${escapeText(c.name)}</div>
+          <span class="agent-badge">${escapeText(c.agent)}</span>
+        </div>
+        <div class="crew-preview">${escapeText(c.prompt)}</div>
+      </div>
+      <div class="row-actions"><button class="icon-btn danger" onclick="deleteSavedCrew('${escapeText(c.id)}')">🗑 Delete</button></div>
+    </div>`).join('');
+}
+
+async function deleteSavedCrew(id) {
+  if (!confirm('Delete this saved crew? This can\'t be undone.')) return;
+  try {
+    const resp = await fetch('/api/crews/' + encodeURIComponent(id), { method: 'DELETE' });
+    if (!resp.ok) {
+      const data = await resp.json().catch(() => ({}));
+      throw new Error(data.error || resp.status);
+    }
+    renderLibrary();
+  } catch (err) {
+    setBox('library-error', 'Delete failed: ' + (err.message || err));
+  }
+}
+
+async function saveCrew() {
+  const name = document.getElementById('crew-name').value.trim();
+  const agent = document.getElementById('crew-agent').value;
+  const prompt = document.getElementById('final-prompt').value.trim();
+  if (!name) { setWizardError('Give the crew a name before saving.'); return; }
+  if (!prompt) { setWizardError('Write or generate a strategy before saving.'); return; }
+  setWizardError('');
+  const dup = (await fetchSavedCrews()).some(c => c.name.trim().toLowerCase() === name.toLowerCase());
+  try {
+    const resp = await fetch('/api/crews', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, agent, prompt, wizard: collectWizard() }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || resp.status);
+    if (dup) {
+      setWizardToast(`Saved “${name}”. Note: another saved crew already uses that name — both are kept.`, true);
+    } else {
+      setWizardToast(`Saved “${name}” to your crews.`, false);
+    }
+    if (wizardReturn === 'library') { renderLibrary(); showView('library'); }
+  } catch (err) {
+    setWizardError('Save failed: ' + (err.message || err));
+  }
+}
+
+// ── launch ──
+async function launchCampaign() {
+  if (launchPending) return;
+  if (!campaignCrews.length) { setAssemblerError('Add at least one crew before launching.'); return; }
+  if (campaignCrews.some(c => !c.prompt || !c.prompt.trim())) {
+    setAssemblerError('Every crew needs a non-empty strategy.'); return;
+  }
+  launchPending = true;
+  setAssemblerError('');
+  const btn = document.getElementById('launch-btn');
+  btn.disabled = true; btn.textContent = 'Launching...';
+  try {
+    const payload = {
+      num_rounds: numRounds,
+      ais: campaignCrews.map(c => ({ name: c.name || undefined, prompt: c.prompt, agent: c.agent || 'stub' })),
+    };
+    const resp = await fetch('/api/new-campaign', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || resp.status);
+    window.location = '/campaign?game=' + data.campaign_id;
+  } catch (err) {
+    setAssemblerError(err.message || 'Could not launch campaign.');
+  } finally {
+    launchPending = false;
+    btn.disabled = false; btn.textContent = 'Launch Campaign →';
+  }
+}
+
+// ── messages ──
+function setAssemblerError(message) { setBox('assembler-error', message); }
+function setWizardError(message) { setBox('wizard-error', message); }
+function setBox(id, message) {
+  const box = document.getElementById(id);
+  if (!box) return;
+  if (!message) { box.classList.remove('visible'); box.textContent = ''; return; }
+  box.textContent = message; box.classList.add('visible');
+}
+function setWizardToast(message, warn) {
+  const t = document.getElementById('wizard-toast');
+  if (!message) { t.classList.remove('visible', 'warn'); t.textContent = ''; return; }
+  t.textContent = message; t.classList.toggle('warn', !!warn); t.classList.add('visible');
+}
+
+// ── reset wizard to defaults ──
+function resetWizard() {
+  promptEdited = false;
+  setWizardError(''); setWizardToast('', false);
+  document.getElementById('crew-name').value = '';
+  document.getElementById('crew-agent').value = 'codex-mini';
+  ['ov-targets','ov-scouting','ov-crew','ov-play']
+    .forEach(id => { document.getElementById(id).value = ''; });
+  const defaults = {
+    targets: 'solid', scouting: 'heavy', budget: 'balanced', play: 'disciplined',
+  };
+  Object.entries(defaults).forEach(([name, value]) => {
+    document.querySelectorAll(`input[name="${name}"]`).forEach(r => {
+      const sel = r.value === value;
+      r.checked = sel;
+      r.closest('.choice-card').classList.toggle('selected', sel);
+    });
+  });
+  document.getElementById('final-prompt').value = '';
+  goTo(1);
+}
+
+// ── init: choose starting view ──
+function init() {
+  renderCrewList();
+  renderPresets();
+  const params = new URLSearchParams(window.location.search);
+  if (window.location.pathname === '/crews' || params.get('view') === 'crews') {
+    renderLibrary();
+    showView('library');
+  } else {
+    showView('assembler');
+  }
+}
 init();
 </script>
 </body>

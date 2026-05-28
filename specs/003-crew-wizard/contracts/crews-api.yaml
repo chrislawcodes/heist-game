@@ -1,0 +1,77 @@
+# API contract for premade crews + Quick Test composition.
+# Style: plain JSON over the stdlib http.server router in heist/server.py
+# (no framework). Routes are registered in do_GET / do_POST / do_DELETE.
+
+endpoints:
+  - name: list_crews
+    method: GET
+    path: /api/crews
+    auth: none
+    request: none
+    response:
+      200:
+        body: { crews: [ Crew ] }   # newest-first or created_at order
+    notes: >
+      Returns [] (empty crews list) when no crews exist or the store file is
+      missing/corrupt — never 500 (FR-013).
+
+  - name: save_crew
+    method: POST
+    path: /api/crews
+    auth: none
+    request:
+      content_type: application/json
+      body:
+        name: string        # required, non-empty after trim
+        agent: string        # required; stub | codex | codex-mini | gemini (defaults to stub if blank)
+        prompt: string       # required, non-empty after trim
+        wizard: object       # optional snapshot of wizard selections
+    response:
+      200:
+        body: { ok: true, crew: Crew }   # crew includes server-assigned id + created_at
+      400:
+        body: { error: string }          # name or prompt empty/invalid
+    notes: >
+      Duplicate display names are allowed; the crew is stored under a new id
+      and the client SHOULD warn the user (FR-011). Server never overwrites a
+      different existing crew.
+
+  - name: delete_crew
+    method: DELETE
+    path: /api/crews/{id}
+    auth: none
+    request: none
+    response:
+      200:
+        body: { ok: true }
+      404:
+        body: { error: "crew not found" }
+    notes: Removes only the crew with the given id; others untouched (FR-009, SC-004).
+
+  - name: quick_campaign
+    method: POST
+    path: /api/quick-campaign          # EXISTING route — extended, backward compatible
+    auth: none
+    request:
+      content_type: application/json
+      body:
+        crew_ids: [string]   # OPTIONAL. When present & non-empty, build the campaign
+                              # from these saved crews instead of QUICK_TEST_CAMPAIGN.
+        num_rounds: integer  # OPTIONAL. Defaults to QUICK_TEST_CAMPAIGN_ROUNDS.
+    response:
+      200:
+        body: { campaign_id: integer, ok: true }
+      400:
+        body: { error: string }   # e.g. crew_ids reference unknown crews, or count out of 1..6
+    notes: >
+      With no body (or no crew_ids) behavior is IDENTICAL to today: the three
+      hardcoded teams over QUICK_TEST_CAMPAIGN_ROUNDS (SC-006, no regression).
+
+components:
+  Crew:
+    id: string
+    name: string
+    agent: string          # stub | codex | codex-mini | gemini
+    prompt: string
+    wizard: object|null    # { risk, budget, scouting, bonus, fail, overrides{...} }
+    created_at: number     # epoch seconds
